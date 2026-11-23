@@ -1,8 +1,8 @@
-% Generate ooDACE co-kriging reference values for gp-omni parity tests.
+% Generate MATLAB co-kriging reference values for gp-omni parity tests.
 %
-% Run in MATLAB (NOT Octave: ooDACE's classdef/import machinery does not load in Octave):
+% Run in MATLAB (NOT Octave: the toolbox's classdef/import machinery does not load in Octave):
 %     cd <repo>/tests/fixtures
-%     addpath(genpath('<path to>/gp.GitHub/ooDACE')); startup;
+%     addpath(genpath('<path to the MATLAB co-kriging toolbox>')); startup;
 %     generate_cokriging
 % Writes cokriging_fixture.mat next to this script. Hyperparameters are fixed
 % (no optimisation), so this checks only the model algebra, not the optimiser.
@@ -16,7 +16,7 @@ lo = @(x) 0.8*hi(x) + 0.3*(x(:,1)-0.5);
 samples = {xl, xh}; values = {lo(xl), hi(xh)};
 xs = rand(25, inDim);
 
-theta = [0.3 0.1];   % log10 precisions, shared by both levels (ooDACE uses hp0 for both)
+theta = [0.3 0.1];   % log10 precisions, shared by both levels (the toolbox uses hp0 for both)
 rho   = 1.4;
 cases = struct('corr', {}, 'regr', {}, 'mean', {}, 'var', {});
 corrs = {@corrgauss, @corrmatern32};  corrNames = {'gauss', 'matern32'};

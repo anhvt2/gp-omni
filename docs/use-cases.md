@@ -108,7 +108,7 @@ sparse approximation only needs a covariance function, so it applies to any of t
 |---|---|
 | any mix of the four features | `OmniGP` |
 | gpml-style single-task sparse GP, with `vfe_xu_opt` swaps | `gp_omni.sparse.SparseGP` |
-| two fidelities, noiseless, small design, the ooDACE fitting procedure | `gp_omni.AR1CoKriging` |
+| two fidelities, noiseless, small design, the sequential, profiled-likelihood fit | `gp_omni.AR1CoKriging` |
 | GPyTorch/BoTorch models directly (SVGP, KISS-GP, ...) | `gp_omni.builders`, `examples/sparse.py` |
 
 On the tiny noiseless Forrester problem, `AR1CoKriging` (sequential, profiled fit) is far
@@ -124,6 +124,6 @@ against 1.7, with 3.7 for high-fidelity only. Prefer `AR1CoKriging` in that regi
   point is not returned.
 - `vfe_xu_opt` inducing-input swaps are only available through `SparseGP`.
 - The structured multi-task covariance reproduces `AR1CoKriging` at fixed hyperparameters
-  (tested). `AR1CoKriging` itself has not been compared against output from MATLAB ooDACE
+  (tested). `AR1CoKriging` itself has not been compared against output from the MATLAB code
   (see `tests/fixtures/generate_cokriging.m`).
 - Bayesian optimization (acquisitions, GP-Hedge, async scheduler) is not built yet.

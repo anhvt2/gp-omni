@@ -1,4 +1,4 @@
-"""Polynomial regression bases (ooDACE ``regpoly0/1/2``)."""
+"""Polynomial regression bases (``regpoly0/1/2``)."""
 
 from __future__ import annotations
 
