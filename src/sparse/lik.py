@@ -46,8 +46,14 @@ class LikGauss(Lik):
         lp = -((y - f) ** 2) / (2 * sn2) - 0.5 * torch.log(2 * math.pi * sn2)
         return lp, (y - f) / sn2, -torch.ones_like(f) / sn2
 
-    def predict(self, hyp: Tensor, y: Tensor | None, mu: Tensor, s2: Tensor):
-        sn2 = torch.exp(2 * hyp[0])
+    def noise_var(self, hyp: Tensor, x: Tensor) -> Tensor:
+        """Per-sample noise variance (a constant for ``likGauss``)."""
+        return torch.exp(2 * hyp[0]) * torch.ones(x.shape[0], dtype=x.dtype)
+
+    def predict(
+        self, hyp: Tensor, y: Tensor | None, mu: Tensor, s2: Tensor, x: Tensor | None = None
+    ):
+        sn2 = torch.exp(2 * hyp[0]) if x is None else self.noise_var(hyp, x)
         ys2 = s2 + sn2
         lp = (
             None if y is None else -((y - mu) ** 2) / (2 * ys2) - 0.5 * torch.log(2 * math.pi * ys2)
@@ -69,7 +75,9 @@ class _Binary(Lik):
         """log of E_{f~N(mu,s2)}[p(y|f)] for ``s2 > 0``."""
         raise NotImplementedError
 
-    def predict(self, hyp: Tensor, y: Tensor | None, mu: Tensor, s2: Tensor):
+    def predict(
+        self, hyp: Tensor, y: Tensor | None, mu: Tensor, s2: Tensor, x: Tensor | None = None
+    ):
         yy = torch.ones_like(mu) if y is None else _labels(y, mu)
         if float(torch.linalg.norm(s2)) <= torch.finfo(mu.dtype).eps:
             lp = self._logp(yy * mu)

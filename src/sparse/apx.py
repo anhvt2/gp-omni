@@ -43,6 +43,17 @@ class SparseCov:
 
     cov: Cov
     xu: Tensor | None = None
+    expand: Callable[[Tensor], Tensor] | None = None
+    """Optional map from the stored inducing inputs to the inputs the covariance sees, e.g.
+    replicating each location once per task (see ``multitask.task_expand``)."""
+
+
+def get_xu(hyp: dict, sc: SparseCov) -> Tensor:
+    """The inducing inputs used by the covariance: ``hyp['xu']`` has priority (gpml)."""
+    xu = hyp.get("xu", sc.xu)
+    if xu is None:
+        raise ValueError("no inducing inputs: set SparseCov.xu or hyp['xu']")
+    return sc.expand(xu) if sc.expand is not None else xu
 
 
 @dataclass
@@ -109,9 +120,7 @@ def _exact(hyp: dict, cov: Cov, x: Tensor) -> Approx:
 def _sparse(hyp: dict, sc: SparseCov, x: Tensor, s: float, want_L: bool) -> Approx:
     if not 0.0 <= s <= 1.0:
         raise ValueError("opt['s'] must lie in [0, 1]")
-    xu = hyp.get("xu", sc.xu)  # hyp.xu has priority (gpml)
-    if xu is None:
-        raise ValueError("no inducing inputs: set SparseCov.xu or hyp['xu']")
+    xu = get_xu(hyp, sc)  # hyp.xu has priority (gpml)
     if xu.shape[1] != x.shape[1]:
         raise ValueError("Dimensionality of inducing inputs must match training inputs")
     cov, hc = sc.cov, hyp["cov"]
