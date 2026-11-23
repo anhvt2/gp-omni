@@ -1,7 +1,6 @@
 """Two-fidelity AR1 co-kriging (Kennedy & O'Hagan 2000; Forrester et al. 2007).
 
-Port of the owner's MATLAB ``ooDACE/@CoKriging`` (Couckuyt et al., ooDACE toolbox; the
-multi-fidelity extension is the repository owner's work). The model is
+Port of the owner's MATLAB ``@CoKriging``. The model is
 
     f_lo(x) ~ GP(F(x) b1, s1 * Psi1(x, x'))
     f_hi(x) = rho * f_lo(x) + delta(x),   delta ~ GP(F(x) b2, s2 * Psi2(x, x'))
@@ -15,12 +14,12 @@ Fitting is sequential, as in ``@CoKriging/fit.m``:
 
 Differences from the MATLAB code, deliberately:
 
-* exactly two fidelity levels (same limit as ooDACE);
-* the predictive-variance regression term uses ``(Ft' Ft)^-1 = R^-1 R^-T``; ooDACE solves with
-  ``R`` instead of ``R'``, which only differs when the regression basis has > 1 column;
+* exactly two fidelity levels (same limit as the MATLAB code);
+* the predictive-variance regression term uses ``(Ft' Ft)^-1 = R^-1 R^-T``; the MATLAB code solves
+  with ``R`` instead of ``R'``, which only differs when the regression basis has > 1 column;
 * hyperparameters are fitted with autograd + L-BFGS-B multi-start instead of SQPLab.
 
-Inputs are used as given (no normalisation), like ooDACE. Scale them to a comparable range
+Inputs are used as given (no normalisation), like the MATLAB code. Scale them to a comparable range
 first (e.g. the unit cube), since the default bounds assume that.
 """
 
@@ -136,12 +135,12 @@ class AR1CoKriging(Model):
     correlation
         ``"gauss"``, ``"exp"``, ``"matern32"`` or ``"matern52"``.
     regression
-        ``"none"`` (zero-mean, ooDACE ``oodacefit`` default), ``"regpoly0"`` (constant),
+        ``"none"`` (zero-mean, the MATLAB default), ``"regpoly0"`` (constant),
         ``"regpoly1"`` or ``"regpoly2"``. Shared by both levels.
     hp0, hp_bounds
         Initial ``log10`` precision (scalar or per-dim) and ``(lo, hi)`` bounds.
     rho0, rho_bounds
-        Initial scaling factor and its bounds (ooDACE defaults: 5 and ``[0.1, 5]``).
+        Initial scaling factor and its bounds (MATLAB defaults: 5 and ``[0.1, 5]``).
     hyperparameters
         Optional ``{"theta1", "theta2", "rho"}``; if given, no optimisation is run.
     """

@@ -12,7 +12,7 @@ built on **GPyTorch** and **BoTorch** with `uv`.
 | Sparse variational GP, a port of gpml `apxSparse` (FITC / SPEP / VFE, Gaussian and Laplace) | `gp_omni.sparse.SparseGP`, `examples/sparse_gpml.py` |
 | Big data via GPyTorch: SGPR, SVGP, KISS-GP | `sgpr`, `SVGP`, `kiss_gp` |
 | Additive / high-dimensional (gpml `covADD`) | `gp_omni.kernels.AdditiveKernel`, `additive_gp` |
-| Multi-fidelity AR1 co-kriging (port of ooDACE `@CoKriging`) | `gp_omni.AR1CoKriging` |
+| Multi-fidelity AR1 co-kriging (port of the owner's MATLAB `@CoKriging`) | `gp_omni.AR1CoKriging` |
 | Multi-fidelity via BoTorch | `examples/multifidelity_botorch.py` |
 
 Bayesian optimization (BoTorch acquisitions, GP-Hedge, the async scheduler) is Phase 2 and
@@ -27,4 +27,4 @@ uv run python examples/cokriging.py
 
 Importing `gp_omni` sets torch's default dtype to float64.
 See `docs/gpml-mapping.md` for MATLAB users, and `tests/fixtures/generate_cokriging.m` for the
-optional ooDACE parity check (MATLAB only).
+optional MATLAB parity check.

@@ -8,8 +8,6 @@ import gp_omni  # noqa: F401  (sets float64)
 from gp_omni.correlation import correlation
 from gp_omni.models import AR1CoKriging
 
-OODACE_DATA = Path(__file__).parents[2] / "gp.GitHub/ooDACE/datasets"
-
 
 def branin_pair(n_lo=14, n_hi=6, seed=0):
     rng = np.random.default_rng(seed)
@@ -158,18 +156,14 @@ def test_rejects_bad_inputs():
         AR1CoKriging(X, Y, correlation="nope")
 
 
-@pytest.mark.skipif(not OODACE_DATA.exists(), reason="ooDACE datasets not available")
-def test_forrester_1d_dataset():
-    import scipy.io as sio
-
-    d = sio.loadmat(
-        OODACE_DATA / "math1d_ck_factorial.mat", squeeze_me=True, struct_as_record=False
-    )["data"]
-    X = [torch.tensor(s).reshape(-1, 1) for s in d.samples]
-    Y = [torch.tensor(v) for v in d.values]
+def test_forrester_1d_benchmark():
+    hi = lambda x: (6 * x - 2) ** 2 * torch.sin(12 * x - 4)
+    lo = lambda x: 0.5 * hi(x) + 10 * (x - 0.5) - 5
+    X = [torch.linspace(0, 1, 20).reshape(-1, 1), torch.linspace(0, 1, 4).reshape(-1, 1)]
+    Y = [lo(X[0][:, 0]), hi(X[1][:, 0])]
     m = AR1CoKriging(X, Y, correlation="matern32")
     xs = torch.linspace(0, 1, 201).reshape(-1, 1)
-    truth = (6 * xs[:, 0] - 2) ** 2 * torch.sin(12 * xs[:, 0] - 4)
+    truth = hi(xs[:, 0])
     rmse = ((m.predict(xs)[0] - truth) ** 2).mean().sqrt()
     assert rmse < 0.5
     # co-kriging must beat kriging on the 4 high-fidelity points alone
@@ -186,9 +180,9 @@ FIXTURE = Path(__file__).parent / "fixtures" / "cokriging_fixture.mat"
 
 @pytest.mark.skipif(
     not FIXTURE.exists(),
-    reason="run tests/fixtures/generate_cokriging.m in MATLAB to enable ooDACE parity checks",
+    reason="run tests/fixtures/generate_cokriging.m in MATLAB to enable MATLAB parity checks",
 )
-def test_matches_oodace_fixture():
+def test_matches_matlab_fixture():
     import scipy.io as sio
 
     d = sio.loadmat(FIXTURE, squeeze_me=True, struct_as_record=False)
