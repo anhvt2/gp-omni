@@ -17,26 +17,28 @@ from gp_omni.asyncbo.acquisition import acquisition_value, check_multiple_design
 @pytest.fixture(scope="module")
 def models():
     rng = np.random.default_rng(0)
-    S = rng.random((12, 2))
-    Y = -np.sum((S - 0.5) ** 2, axis=1)
-    F = (S[:, 0] < 0.8).astype(float)
-    obj = OmniGP().fit(torch.as_tensor(S), torch.as_tensor(Y), max_iter=60)
-    clf = OmniGPC().fit(torch.as_tensor(S), torch.as_tensor(F > 0), max_iter=60)
-    return S, Y, obj, clf
+    x_obs = rng.random((12, 2))
+    y_obs = -np.sum((x_obs - 0.5) ** 2, axis=1)
+    f_obs = (x_obs[:, 0] < 0.8).astype(float)
+    obj = OmniGP().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=60)
+    clf = OmniGPC().fit(torch.as_tensor(x_obs), torch.as_tensor(f_obs > 0), max_iter=60)
+    return x_obs, y_obs, obj, clf
 
 
 @pytest.mark.parametrize("acq", ["PI", "EI", "UCB"])
 def test_penalty_is_known_times_unknown(models, acq):
-    S, Y, obj, clf = models
+    x_obs, y_obs, obj, clf = models
     x = np.array([0.4, 0.6])
-    base = negative_acquisition(x, obj, None, acq, S, Y)
+    base = negative_acquisition(x, obj, None, acq, x_obs, y_obs)
     p = float(clf.predict_proba(torch.as_tensor(x).reshape(1, -1))[0])
     assert 0 < p < 1
-    both = negative_acquisition(x, obj, clf, acq, S, Y, known_constraint=lambda _: 1.0)
+    both = negative_acquisition(x, obj, clf, acq, x_obs, y_obs, known_constraint=lambda _: 1.0)
     assert both == pytest.approx(base * p)
-    assert negative_acquisition(x, obj, clf, acq, S, Y, known_constraint=lambda _: 0.0) == 0.0
+    assert (
+        negative_acquisition(x, obj, clf, acq, x_obs, y_obs, known_constraint=lambda _: 0.0) == 0.0
+    )
     # a graded known constraint scales the value linearly
-    half = negative_acquisition(x, obj, clf, acq, S, Y, known_constraint=lambda _: 0.5)
+    half = negative_acquisition(x, obj, clf, acq, x_obs, y_obs, known_constraint=lambda _: 0.5)
     assert half == pytest.approx(0.5 * both)
 
 
@@ -49,9 +51,9 @@ def test_acquisition_values():
 
 
 def test_duplicate_detection():
-    S = np.array([[0.0, 0.0], [1.0, 1.0]])
-    assert check_multiple_design_sites(np.array([1.0, 1.00001]), S)
-    assert not check_multiple_design_sites(np.array([0.5, 0.5]), S)
+    x_obs = np.array([[0.0, 0.0], [1.0, 1.0]])
+    assert check_multiple_design_sites(np.array([1.0, 1.00001]), x_obs)
+    assert not check_multiple_design_sites(np.array([0.5, 0.5]), x_obs)
 
 
 def make_job(root, i, x, y=None, feasible=1, complete=1, batch=1, scheme=None):
@@ -83,9 +85,13 @@ def test_update_db_and_pending_are_zero(tmp_path):
     make_job(tmp_path, 10, [3, 3], y=2.0)
     make_job(tmp_path, 2, [1, 2], y=1.0)  # natural sort: Iter2 before Iter10
     make_job(tmp_path, 3, [5, 5], complete=0)  # pending: no output yet
-    S, Y, F, C = db.update_db(tmp_path)
-    assert S.tolist() == [[1, 2], [5, 5], [3, 3]]
-    assert Y.tolist() == [1.0, 0.0, 2.0] and F.tolist() == [1, 0, 1] and C.tolist() == [1, 0, 1]
+    x_obs, y_obs, f_obs, c_obs = db.update_db(tmp_path)
+    assert x_obs.tolist() == [[1, 2], [5, 5], [3, 3]]
+    assert (
+        y_obs.tolist() == [1.0, 0.0, 2.0]
+        and f_obs.tolist() == [1, 0, 1]
+        and c_obs.tolist() == [1, 0, 1]
+    )
 
 
 def test_timeout_flips_pending_job(tmp_path):
@@ -134,8 +140,8 @@ def test_asynchronous_overlap_and_penalised_search(tmp_path):
 
     cfg = AsyncBOConfig(
         model_name="m",
-        xLB=[0, 0],
-        xUB=[1, 1],
+        x_lb=[0, 0],
+        x_ub=[1, 1],
         exploit_size=2,
         explore_size=1,
         explore_clf_size=1,
@@ -155,6 +161,6 @@ def test_asynchronous_overlap_and_penalised_search(tmp_path):
 
 
 def test_requires_exactly_one_launcher(tmp_path):
-    cfg = AsyncBOConfig(model_name="m", xLB=[0, 0], xUB=[1, 1])
+    cfg = AsyncBOConfig(model_name="m", x_lb=[0, 0], x_ub=[1, 1])
     with pytest.raises(ValueError):
         AsyncBO(tmp_path, cfg)

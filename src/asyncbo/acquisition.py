@@ -33,13 +33,13 @@ def check_constraint(x: np.ndarray) -> float:
     return 1.0
 
 
-def check_multiple_design_sites(x_next: np.ndarray, S: np.ndarray, tol: float = 1e-4) -> bool:
-    """``checkMultipleDesignSites.m``: True if ``x_next`` duplicates a row of ``S``."""
+def check_multiple_design_sites(x_next: np.ndarray, x_obs: np.ndarray, tol: float = 1e-4) -> bool:
+    """``checkMultipleDesignSites.m``: True if ``x_next`` duplicates a row of ``x_obs``."""
     x_next = np.asarray(x_next, dtype=float).reshape(1, -1)
-    S = np.atleast_2d(S)
-    if S.shape[1] != x_next.shape[1]:
-        S = S.T
-    return bool(np.any(np.linalg.norm(S - x_next, axis=1) < tol))
+    x_obs = np.atleast_2d(x_obs)
+    if x_obs.shape[1] != x_next.shape[1]:
+        x_obs = x_obs.T
+    return bool(np.any(np.linalg.norm(x_obs - x_next, axis=1) < tol))
 
 
 def _row(x: np.ndarray) -> torch.Tensor:
@@ -88,8 +88,8 @@ def negative_acquisition(
     model: OmniGP,
     clf: OmniGPC | None,
     acquisition: str,
-    S: np.ndarray,
-    Y: np.ndarray,
+    x_obs: np.ndarray,
+    y_obs: np.ndarray,
     known_constraint: KnownConstraint = check_constraint,
 ) -> float:
     """``calculateNegativeAcquisitionFunction.m``: ``-acq * known * unknown`` (to minimise)."""
@@ -99,8 +99,8 @@ def negative_acquisition(
         return 0.0
     unknown = predict_feasibility(clf, x)
     y, s2 = predict_objective(model, x)
-    t, d = S.shape
-    a = acquisition_value(acquisition, y, s2, float(np.max(Y)), t, d)
+    t, d = x_obs.shape
+    a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)
     return -a * known * unknown
 
 

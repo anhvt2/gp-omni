@@ -46,8 +46,8 @@ class AsyncBOConfig:
     """Settings of ``mainprog_benchR_gpml.m``."""
 
     model_name: str
-    xLB: np.ndarray
-    xUB: np.ndarray
+    x_lb: np.ndarray
+    x_ub: np.ndarray
     exploit_size: int = 3  # concurrent acquisition (GP-Hedge) jobs
     explore_size: int = 2  # concurrent max-variance jobs on the objective model
     explore_clf_size: int = 1  # concurrent max-variance jobs on the constraint classifier
@@ -64,8 +64,8 @@ class AsyncBOConfig:
     known_constraint: KnownConstraint = field(default=check_constraint)
 
     def __post_init__(self):
-        self.xLB, self.xUB = np.asarray(self.xLB, float), np.asarray(self.xUB, float)
-        self.x_scale = np.broadcast_to(np.asarray(self.x_scale, float), self.xLB.shape).copy()
+        self.x_lb, self.x_ub = np.asarray(self.x_lb, float), np.asarray(self.x_ub, float)
+        self.x_scale = np.broadcast_to(np.asarray(self.x_scale, float), self.x_lb.shape).copy()
 
     @property
     def batch(self) -> db.BatchSettings:
@@ -90,7 +90,7 @@ class AsyncBO:
         self.futures: list[Future] = []
         self.model: OmniGP | None = None
         self.clf: OmniGPC | None = None
-        self.Y_halluc: np.ndarray | None = None
+        self.y_halluc: np.ndarray | None = None
         self.root.mkdir(parents=True, exist_ok=True)
         db.write_settings(self.root, config.model_name, config.batch, config.wait_time)
 
@@ -130,36 +130,36 @@ class AsyncBO:
 
     # ------------------------------------------------------------------------ models
     def _load(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        S, Y, F, _ = db.update_db(self.root)
-        return S / self.cfg.x_scale, Y / self.cfg.y_scale, F
+        x_obs, y_obs, f_obs, _ = db.update_db(self.root)
+        return x_obs / self.cfg.x_scale, y_obs / self.cfg.y_scale, f_obs
 
-    def fit_models(self, S: np.ndarray, Y: np.ndarray, F: np.ndarray) -> None:
+    def fit_models(self, x_obs: np.ndarray, y_obs: np.ndarray, f_obs: np.ndarray) -> None:
         """Hallucinate infeasible / pending outputs, then fit objective model and classifier.
 
         1. fit the objective on feasible points only; 2. replace the outputs of infeasible
         and pending points with that model's prediction; 3. refit on everything;
-        4. fit the constraint classifier on ``F`` (skipped while every label is the same).
+        4. fit the constraint classifier on ``f_obs`` (skipped while every label is the same).
         """
         n = self.cfg.gp_max_iter
-        St = torch.as_tensor(S)
-        feasible = torch.as_tensor(F > 0)
-        self.model = self.clf = self.Y_halluc = None
+        x_train = torch.as_tensor(x_obs)
+        feasible = torch.as_tensor(f_obs > 0)
+        self.model = self.clf = self.y_halluc = None
         if feasible.sum() >= 2:
-            interp = OmniGP().fit(St[feasible], torch.as_tensor(Y)[feasible], max_iter=n)
-            Y = Y.copy()
-            for i in np.flatnonzero(F == 0):
-                Y[i] = predict_objective(interp, S[i])[0]
-            self.model = OmniGP().fit(St, torch.as_tensor(Y), max_iter=n)
-            self.Y_halluc = Y
-        if 0 < feasible.sum() < len(F):
-            self.clf = OmniGPC().fit(St, torch.as_tensor(F > 0), max_iter=n)
+            interp = OmniGP().fit(x_train[feasible], torch.as_tensor(y_obs)[feasible], max_iter=n)
+            y_obs = y_obs.copy()
+            for i in np.flatnonzero(f_obs == 0):
+                y_obs[i] = predict_objective(interp, x_obs[i])[0]
+            self.model = OmniGP().fit(x_train, torch.as_tensor(y_obs), max_iter=n)
+            self.y_halluc = y_obs
+        if 0 < feasible.sum() < len(f_obs):
+            self.clf = OmniGPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
 
     # ------------------------------------------------------------------------ proposals
-    def propose(self, batch_id: int, S: np.ndarray) -> tuple[np.ndarray, str | None]:
+    def propose(self, batch_id: int, x_obs: np.ndarray) -> tuple[np.ndarray, str | None]:
         """One new point for slot kind ``batch_id`` (1 acquisition, 2 / 3 exploration)."""
         cfg, scheme = self.cfg, None
         if self.model is None:  # fewer than 2 feasible points: nothing to model yet
-            return cfg.xLB + self.rng.random(len(cfg.xLB)) * (cfg.xUB - cfg.xLB), scheme
+            return cfg.x_lb + self.rng.random(len(cfg.x_lb)) * (cfg.x_ub - cfg.x_lb), scheme
         if batch_id == 1:
             rewards = db.get_rewards(self.root, cfg.num_init_point)
             scheme = db.get_acquisition_scheme(self.root, cfg.num_init_point, rewards, self.rng)
@@ -167,18 +167,18 @@ class AsyncBO:
                 self.model,
                 self.clf,
                 scheme,
-                cfg.xLB,
-                cfg.xUB,
-                S,
-                self.Y_halluc,
+                cfg.x_lb,
+                cfg.x_ub,
+                x_obs,
+                self.y_halluc,
                 self.rng,
                 cfg.known_constraint,
                 cfg.cma_max_evals,
             )
         elif batch_id == 2:
-            x = get_next_sampling_point_reduce_mse(self.model, cfg.xLB, cfg.xUB, self.rng)
+            x = get_next_sampling_point_reduce_mse(self.model, cfg.x_lb, cfg.x_ub, self.rng)
         else:
-            x = get_next_sampling_point_clf_reduce_mse(self.clf, cfg.xLB, cfg.xUB, self.rng)
+            x = get_next_sampling_point_clf_reduce_mse(self.clf, cfg.x_lb, cfg.x_ub, self.rng)
         return x, scheme
 
     # ---------------------------------------------------------------------------- run
@@ -188,7 +188,7 @@ class AsyncBO:
         for i in range(1, cfg.num_init_point + 1):
             if (self._folder(i) / "input.dat").is_file():
                 continue
-            x = cfg.xLB + self.rng.random(len(cfg.xLB)) * (cfg.xUB - cfg.xLB)
+            x = cfg.x_lb + self.rng.random(len(cfg.x_lb)) * (cfg.x_ub - cfg.x_lb)
             self._launch(self._folder(i), x, 0, None)
 
     def _wait_for_initial(self) -> None:
@@ -206,13 +206,13 @@ class AsyncBO:
         cfg = self.cfg
         self._seed_initial_points()
         self._wait_for_initial()
-        S, Y, F = self._load()
-        self.fit_models(S, Y, F)
+        x_obs, y_obs, f_obs = self._load()
+        self.fit_models(x_obs, y_obs, f_obs)
 
         for i in range(cfg.num_init_point + 1, cfg.max_iter + 1):
             batch_id = db.wait_for_slot(self.root, cfg.check_time)  # blocks only if all busy
             log.info("iteration %d: batch %d, %d in flight", i, batch_id, self._in_flight())
-            x, scheme = self.propose(batch_id, S)
+            x, scheme = self.propose(batch_id, x_obs)
             folder = self._folder(i)
             if self.model is not None:  # gpPredictions.dat: predicted mean / variance, unscaled
                 mu, s2 = predict_objective(self.model, x)
@@ -221,8 +221,8 @@ class AsyncBO:
                     f"{mu * cfg.y_scale:.8f}\n{s2 * cfg.y_scale**2:.8f}\n"
                 )
             self._launch(folder, x, batch_id, scheme)
-            S, Y, F = self._load()  # pick up whatever finished in the meantime
-            self.fit_models(S, Y, F)
+            x_obs, y_obs, f_obs = self._load()  # pick up whatever finished in the meantime
+            self.fit_models(x_obs, y_obs, f_obs)
 
         self.drain()
         return self.best()
@@ -240,7 +240,7 @@ class AsyncBO:
         db.update_db(self.root)
 
     def best(self) -> tuple[np.ndarray, float]:
-        S, Y, F, _ = db.update_db(self.root)
-        masked = np.where(F > 0, Y, -np.inf)
+        x_obs, y_obs, f_obs, _ = db.update_db(self.root)
+        masked = np.where(f_obs > 0, y_obs, -np.inf)
         i = int(np.argmax(masked))
-        return S[i], float(masked[i])
+        return x_obs[i], float(masked[i])

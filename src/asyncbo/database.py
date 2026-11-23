@@ -125,16 +125,16 @@ def get_batch(root: Path) -> int:
 
 
 def update_db(root: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """``updateDb.py``: gather every job into ``S, Y, F, C`` and write them to ``*.dat``."""
+    """``updateDb.py``: gather every job into ``x_obs, y_obs, f_obs, c_obs``; write ``*.dat``."""
     model_name, _, _ = read_settings(root)
     rows = [read_folder(f) for f in iter_folders(root, model_name)]
-    S = np.vstack([r[0] for r in rows])
-    Y, F, C = (np.array([r[i] for r in rows]) for i in (1, 2, 3))
-    np.savetxt(root / "S.dat", S, fmt="%.16f", delimiter=",")
-    np.savetxt(root / "Y.dat", Y, fmt="%.16f", delimiter=",")
-    np.savetxt(root / "F.dat", F, fmt="%d", delimiter=",")
-    np.savetxt(root / "C.dat", C, fmt="%d", delimiter=",")
-    return S, Y, F, C
+    x_obs = np.vstack([r[0] for r in rows])
+    y_obs, f_obs, c_obs = (np.array([r[i] for r in rows]) for i in (1, 2, 3))
+    np.savetxt(root / "S.dat", x_obs, fmt="%.16f", delimiter=",")
+    np.savetxt(root / "Y.dat", y_obs, fmt="%.16f", delimiter=",")
+    np.savetxt(root / "F.dat", f_obs, fmt="%d", delimiter=",")
+    np.savetxt(root / "C.dat", c_obs, fmt="%d", delimiter=",")
+    return x_obs, y_obs, f_obs, c_obs
 
 
 def get_rewards(root: Path, num_init_point: int) -> np.ndarray:
@@ -169,11 +169,11 @@ def get_acquisition_scheme(
     Hoffman, Brochu & de Freitas, *Portfolio Allocation for Bayesian Optimization*, UAI 2011.
     """
     model_name, _, _ = read_settings(root)
-    T = max(len(iter_folders(root, model_name)) - (num_init_point - 1), 1)
+    horizon = max(len(iter_folders(root, model_name)) - (num_init_point - 1), 1)
     k = len(ACQUISITIONS)
-    eta = np.sqrt(8 * np.log(k) / T)  # lemma 1, GP-Hedge
-    R = rewards - rewards.max()  # numerical stability: exp of non-positive numbers only
-    pmf = np.exp(eta * R) / np.exp(eta * R).sum()
+    eta = np.sqrt(8 * np.log(k) / horizon)  # lemma 1, GP-Hedge
+    shifted = rewards - rewards.max()  # numerical stability: exp of non-positive numbers only
+    pmf = np.exp(eta * shifted) / np.exp(eta * shifted).sum()
     scheme = str(rng.choice(ACQUISITIONS, p=pmf))
     log.info("%s is selected (pmf=%s)", scheme, np.round(pmf, 3))
     return scheme
