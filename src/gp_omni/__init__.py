@@ -7,4 +7,7 @@ import torch
 
 torch.set_default_dtype(torch.float64)
 
+from gp_omni.models.cokriging import AR1CoKriging
+
+__all__ = ["AR1CoKriging"]
 __version__ = "0.1.0"
