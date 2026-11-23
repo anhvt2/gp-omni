@@ -54,3 +54,31 @@ def test_sparse_gpml_example():
     assert res["vfe_rmse"] < 0.05 and res["fitc_rmse"] < 0.05
     assert abs(res["vfe_noise_sd"] - 0.1) < 0.02  # VFE recovers the true noise level
     assert res["probit_accuracy"] > 0.9
+
+
+def test_omni_multiobjective_example():
+    res = run("omni_multiobjective")
+    assert res["joint_nrmse"] < 0.5 * res["alone_nrmse"], res
+
+
+def test_omni_multifidelity_example():
+    res = run("omni_multifidelity")
+    assert res["mf_rmse"] < 0.6 * res["hi_only_rmse"], res
+
+
+def test_omni_bigdata_example():
+    res = run("omni_bigdata")
+    assert res["vfe_rmse"] < 0.02 and res["fitc_rmse"] < 0.02
+    assert abs(res["vfe_noise_sd"] - 0.1) < 0.02
+
+
+def test_omni_additive_example():
+    res = run("omni_additive")
+    assert res["additive_nrmse"] < 0.1
+    assert res["additive_nrmse"] < 0.3 * res["plain_ard_nrmse"], res
+
+
+def test_omni_combined_example():
+    res = run("omni_combined")
+    assert set(res) == {"mo+mf", "mo+mf+sparse", "mo+mf+sparse+additive"}
+    assert all(v < 0.1 for v in res.values()), res
