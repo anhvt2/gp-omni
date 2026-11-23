@@ -27,13 +27,13 @@ def known_constraint(x):
 
 
 def main(max_iter: int = 20, seed: int = 0) -> dict:
-    cfg = AsyncBOConfig(
+    config = AsyncBOConfig(
         model_name="rosen",
         x_lb=[-1.0, -1.0],
         x_ub=[2.0, 2.0],
         exploit_size=2,
         explore_size=1,
-        explore_clf_size=1,
+        explore_classifier_size=1,
         max_iter=max_iter,
         num_init_point=4,
         check_time=0.01,
@@ -43,7 +43,7 @@ def main(max_iter: int = 20, seed: int = 0) -> dict:
         known_constraint=known_constraint,
     )
     with tempfile.TemporaryDirectory() as root:
-        x, y = AsyncBO(root, cfg, evaluate=simulation).run()
+        x, y = AsyncBO(root, config, evaluate=simulation).run()
     print(f"best feasible x = {np.round(x, 3)}, y = {y:.4f}")
     return {"x": x, "y": y}
 

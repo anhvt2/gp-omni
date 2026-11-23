@@ -14,7 +14,7 @@ from gp_omni.asyncbo.acquisition import (
     check_constraint,
     check_multiple_design_sites,
     negative_acquisition,
-    negative_clf_mse,
+    negative_classifier_mse,
     negative_mse,
 )
 from gp_omni.sparse.omni import OmniGP, OmniGPC
@@ -70,7 +70,7 @@ def minimize_cmaes(
 
 def get_next_sampling_point(
     model: OmniGP,
-    clf: OmniGPC | None,
+    classifier: OmniGPC | None,
     acquisition: str,
     x_lb: np.ndarray,
     x_ub: np.ndarray,
@@ -97,7 +97,9 @@ def get_next_sampling_point(
     sigma = (x_ub - x_lb) / 3
 
     def objective(x):
-        return negative_acquisition(x, model, clf, acquisition, x_obs, y_obs, known_constraint)
+        return negative_acquisition(
+            x, model, classifier, acquisition, x_obs, y_obs, known_constraint
+        )
 
     for attempt in range(max_retries):
         x_init = x_lb + rng.random(d) * (x_ub - x_lb)
@@ -107,7 +109,7 @@ def get_next_sampling_point(
         )
         feasible = known_constraint(x_next) != 0
         duplicate = check_multiple_design_sites(x_next, x_obs)
-        log.info("constraintViolator=%d multipleDesignSitesViolator=%d", not feasible, duplicate)
+        log.info("constraint_violated=%d duplicate_design_site=%d", not feasible, duplicate)
         if feasible and not duplicate:
             return x_next
     log.warning("no admissible point after %d tries; returning the last candidate", max_retries)
@@ -129,8 +131,8 @@ def get_next_sampling_point_reduce_mse(
     )
 
 
-def get_next_sampling_point_clf_reduce_mse(
-    clf: OmniGPC | None,
+def get_next_sampling_point_classifier_reduce_mse(
+    classifier: OmniGPC | None,
     x_lb: np.ndarray,
     x_ub: np.ndarray,
     rng: np.random.Generator,
@@ -143,8 +145,14 @@ def get_next_sampling_point_clf_reduce_mse(
     """
     x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
     x0 = x_lb + rng.random(len(x_lb)) * (x_ub - x_lb)
-    if clf is None:
+    if classifier is None:
         return x0
     return minimize_cmaes(
-        lambda x: negative_clf_mse(x, clf), x0, np.ones(len(x_lb)), x_lb, x_ub, rng, max_evals
+        lambda x: negative_classifier_mse(x, classifier),
+        x0,
+        np.ones(len(x_lb)),
+        x_lb,
+        x_ub,
+        rng,
+        max_evals,
     )
