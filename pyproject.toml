@@ -1,0 +1,33 @@
+[project]
+name = "gp-omni"
+version = "0.1.0"
+description = "Consolidated Gaussian process layer over GPyTorch and BoTorch, with AR1 co-kriging"
+authors = [{ name = "Anh Tran", email = "anh.vt2@gmail.com" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.12"
+dependencies = ["torch", "gpytorch", "botorch", "numpy", "scipy"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+# The package lives directly in src/ and is installed/imported as `gp_omni`.
+[tool.setuptools]
+package-dir = { "gp_omni" = "src" }
+packages = ["gp_omni", "gp_omni.models", "gp_omni.sparse"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.isort]
+known-first-party = ["gp_omni"]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = false
