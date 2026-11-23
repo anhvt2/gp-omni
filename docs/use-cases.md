@@ -13,11 +13,11 @@
 ```python
 from gp_omni import OmniGP
 
-model = OmniGP(num_outputs=2, num_fidelities=2, nu=40, additive=2)   # all four
-model.fit(x, y, output=o, fidelity=f)        # x (n, D), y (n,), o and f: integer index per row
-pred = model.predict(x_new)                  # highest fidelity; every output when O > 1
-pred["fmu"], pred["fs2"]                     # latent mean / variance, shape (m,) or (m, O)
-pred["ymu"], pred["ys2"]                     # with observation noise
+model = OmniGP(num_outputs=2, num_fidelities=2, nu=40, additive=2)  # all four
+model.fit(x, y, output=o, fidelity=f)  # x (n, D), y (n,), o and f: integer index per row
+pred = model.predict(x_new)  # highest fidelity; every output when O > 1
+pred["fmu"], pred["fs2"]  # latent mean / variance, shape (m,) or (m, O)
+pred["ymu"], pred["ys2"]  # with observation noise
 ```
 
 Run any example with `uv run python examples/omni_multiobjective.py`. Each prints a few
@@ -79,8 +79,20 @@ one length scale per input and one amplitude per order.
 ## Combining
 
 Nothing needs to change in the data layout: pass what the features you turn on need.
-[`omni_combined.py`](../examples/omni_combined.py) runs multi-objective + multi-fidelity,
-then adds `nu=40`, then `additive=2`, on the same data. `tests/test_omni.py` runs all 16
+[`omni_combined.py`](../examples/omni_combined.py) lets you pick the features on the command
+line (`mo`, `mf`, `sparse`, `additive`, any subset), for example a high-dimensional
+multi-objective model:
+
+```bash
+uv run python examples/omni_combined.py mo additive
+uv run python examples/omni_combined.py mf sparse
+uv run python examples/omni_combined.py mo mf sparse additive    # or: all
+uv run python examples/omni_combined.py                          # 1+2, then +3, then +4
+```
+
+It generates data to match the features you pick and prints the error at the highest
+fidelity. `tests/test_examples.py` runs all 16 subsets through this script, and
+`tests/test_omni.py` runs all 16
 combinations (including none) and also checks that each feature earns its keep: each of
 multi-objective, multi-fidelity and additive cuts the error to under half of its baseline, sparse
 stays close to exact, and a 15,000-point fit with all four on takes seconds.
