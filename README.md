@@ -5,6 +5,7 @@ built on **GPyTorch** and **BoTorch** with `uv`.
 
 | Feature | Where |
 |---|---|
+| **Any combination** of multi-output, multi-fidelity, sparse and additive: one class, four independent switches | `gp_omni.OmniGP`, see [docs/use-cases.md](docs/use-cases.md) |
 | Exact GP, gpml-style kernel/mean/likelihood names | `gp_omni.builders.exact_gp`, `gp_omni.compat` |
 | Classification (probit, variational) | `gp_omni.builders.SVGP` |
 | Correlated multi-output (ICM / LMC) | `gp_omni.builders.MultitaskExactGP` |
