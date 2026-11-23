@@ -121,3 +121,37 @@ def test_omni_combined_example_command_line_subset():
         check=False,
     )
     assert bad.returncode != 0 and "unknown features" in bad.stderr
+
+
+@pytest.mark.parametrize(
+    "features",
+    [
+        [],
+        ["mo"],
+        ["mf"],
+        ["sparse"],
+        ["additive"],
+        ["mo", "additive"],
+        ["mo", "mf", "sparse", "additive"],
+    ],
+)
+def test_omni_constraints_example_twins_share_any_features(features):
+    mod = _load("omni_constraints")
+    ((name, res),) = mod.main(set(features)).items()
+    assert name == ("+".join(f for f in mod.FEATURES if f in features) or "none")
+    assert res["objective_nrmse"] < 0.1 and res["constraint_accuracy"] > 0.9, res
+
+
+def test_omni_constraints_example_command_line():
+    run_cmd = lambda *a: subprocess.run(
+        [sys.executable, "-W", "ignore", str(EXAMPLES / "omni_constraints.py"), *a],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    ok = run_cmd("mo", "additive")
+    assert ok.returncode == 0
+    res = ast.literal_eval(ok.stdout.strip().splitlines()[-1])
+    assert list(res) == ["mo+additive"] and res["mo+additive"]["constraint_accuracy"] > 0.9
+    bad = run_cmd("bogus")
+    assert bad.returncode != 0 and "unknown features" in bad.stderr
