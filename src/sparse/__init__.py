@@ -8,6 +8,7 @@ from gp_omni.sparse.init import init_inducing, kmeans_landmarks, random_subset
 from gp_omni.sparse.lik import LikErf, LikGauss, LikLogistic, make_lik
 from gp_omni.sparse.mean import Mean
 from gp_omni.sparse.model import SparseGP
+from gp_omni.sparse.omni import OmniGP
 from gp_omni.sparse.train import train
 from gp_omni.sparse.xu_opt import vfe_xu_opt
 
@@ -17,6 +18,7 @@ __all__ = [
     "LikGauss",
     "LikLogistic",
     "Mean",
+    "OmniGP",
     "SparseCov",
     "SparseGP",
     "apx",
