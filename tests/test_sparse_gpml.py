@@ -128,3 +128,13 @@ def test_laplace_classification_matches_gpml(fx, k):
     check(p["fmu"], c.fmu, rtol=1e-6, atol=1e-9)
     check(p["fs2"], c.fs2, rtol=1e-6, atol=1e-9)
     check(p["ymu"], c.ymu, rtol=1e-6, atol=1e-9)
+
+
+def test_vfe_xu_opt_matches_gpml(fx):
+    from gp_omni.sparse.xu_opt import vfe_xu_opt
+
+    c = fx.xu_opt
+    hyp = make_hyp(mean=0.1, cov=np.log([0.4, 0.6, 1.2]), lik=np.log(0.2), xu=T(c.xu0))
+    out, nlZ = vfe_xu_opt(hyp, Mean("const"), Cov("SEard"), T(fx.x), T(fx.yreg), T(fx.x), 6)
+    check(out["xu"], c.xu, rtol=1e-8, atol=1e-10)
+    assert nlZ == pytest.approx(float(c.nlZ), rel=1e-9)
