@@ -1,0 +1,49 @@
+"""Smoke tests: every example runs and reaches a sensible error on its toy problem."""
+
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+EXAMPLES = Path(__file__).parents[1] / "examples"
+
+
+def run(name: str) -> dict:
+    spec = importlib.util.spec_from_file_location(name, EXAMPLES / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.main()
+
+
+LIMITS = {
+    "exact_gp": {"rmse": 0.05},
+    "multioutput": {"icm_rmse": 0.05, "lmc_rmse": 0.05},
+    "sparse": {"sgpr_rmse": 0.05, "kiss_rmse": 0.05, "svgp_rmse": 0.1},
+}
+
+
+@pytest.mark.parametrize("name", LIMITS)
+def test_example_error(name):
+    res = run(name)
+    for key, limit in LIMITS[name].items():
+        assert res[key] < limit, (key, res[key])
+
+
+def test_classification_example():
+    assert run("classification")["accuracy"] > 0.9
+
+
+@pytest.mark.parametrize("name", ["multifidelity_botorch", "cokriging"])
+def test_multifidelity_beats_high_fidelity_only(name):
+    res = run(name)
+    assert res["rmse"] < 0.7 * res["hi_only_rmse"], res
+
+
+def test_cokriging_example_is_accurate():
+    assert run("cokriging")["rmse"] < 0.5
+
+
+def test_additive_example_beats_plain_ard():
+    res = run("additive")
+    assert res["additive_nrmse"] < 0.1
+    assert res["additive_nrmse"] < 0.3 * res["plain_ard_nrmse"]
