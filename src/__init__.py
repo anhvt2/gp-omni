@@ -8,7 +8,7 @@ import torch
 torch.set_default_dtype(torch.float64)
 
 from gp_omni.models.cokriging import AR1CoKriging
-from gp_omni.sparse.omni import OmniGP
+from gp_omni.sparse.omni import OmniGP, OmniGPC
 
-__all__ = ["AR1CoKriging", "OmniGP"]
+__all__ = ["AR1CoKriging", "OmniGP", "OmniGPC"]
 __version__ = "0.1.0"

@@ -122,7 +122,8 @@ def test_classification_works_with_sparse_and_additive():
 def test_input_validation():
     x, y, o, f = problem([[20, 5]])
     with pytest.raises(ValueError):
-        OmniGP(num_fidelities=2, lik="likErf")
+        OmniGP(num_fidelities=2, lik="nonsense")
+    OmniGP(num_fidelities=2, lik="likErf")  # classification is allowed with every feature
     with pytest.raises(ValueError):
         OmniGP(num_fidelities=2).fit(x, y, o, f + 1)  # fidelity index out of range
     with pytest.raises(RuntimeError):
