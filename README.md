@@ -8,7 +8,8 @@ built on **GPyTorch** and **BoTorch** with `uv`.
 | Exact GP, gpml-style kernel/mean/likelihood names | `gp_omni.builders.exact_gp`, `gp_omni.compat` |
 | Classification (probit, variational) | `gp_omni.builders.SVGP` |
 | Correlated multi-output (ICM / LMC) | `gp_omni.builders.MultitaskExactGP` |
-| Big data: SGPR, SVGP, KISS-GP | `sgpr`, `SVGP`, `kiss_gp` |
+| Sparse variational GP, a port of gpml `apxSparse` (FITC / SPEP / VFE, Gaussian and Laplace) | `gp_omni.sparse.SparseGP`, `examples/sparse_gpml.py` |
+| Big data via GPyTorch: SGPR, SVGP, KISS-GP | `sgpr`, `SVGP`, `kiss_gp` |
 | Additive / high-dimensional (gpml `covADD`) | `gp_omni.kernels.AdditiveKernel`, `additive_gp` |
 | Multi-fidelity AR1 co-kriging (port of ooDACE `@CoKriging`) | `gp_omni.AR1CoKriging` |
 | Multi-fidelity via BoTorch | `examples/multifidelity_botorch.py` |
