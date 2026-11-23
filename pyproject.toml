@@ -11,14 +11,22 @@ dependencies = ["torch", "gpytorch", "botorch", "numpy", "scipy"]
 dev = ["pytest", "ruff", "mypy"]
 
 [build-system]
-requires = ["uv_build>=0.11.17,<0.12.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+# The package lives directly in src/ and is installed/imported as `gp_omni`.
+[tool.setuptools]
+package-dir = { "gp_omni" = "src" }
+packages = ["gp_omni", "gp_omni.models"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint.isort]
+known-first-party = ["gp_omni"]
 
 [tool.mypy]
 ignore_missing_imports = true
