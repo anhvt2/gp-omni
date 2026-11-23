@@ -9,6 +9,7 @@
 | 3. Big data, sparse covariance | `nu=<inducing points>` (`s=0` VFE, `1` FITC) | [`examples/omni_bigdata.py`](../examples/omni_bigdata.py) |
 | 4. Additive, high-dimensional | `additive=R` (orders `1..R`) | [`examples/omni_additive.py`](../examples/omni_additive.py) |
 | 1+2, 1+2+3, 1+2+3+4 | any mix of the above | [`examples/omni_combined.py`](../examples/omni_combined.py) |
+| Constraint classifier (twin of the above) | `OmniGPC`, same switches | [`examples/omni_constraints.py`](../examples/omni_constraints.py) |
 
 ```python
 from gp_omni import OmniGP
@@ -102,11 +103,49 @@ the covariance (`gp_omni.sparse.multitask.TaskCov`), additive changes the base k
 (`covADD`), and sparse changes how that covariance is approximated (gpml `apxSparse`). A
 sparse approximation only needs a covariance function, so it applies to any of the others.
 
+## Constraint classifier: the twin of the regression model
+
+`OmniGPC` learns whether a point satisfies a constraint. It is the Gaussian-process
+classifier twin of `OmniGP`: the same constructor, the same four switches and the same
+`fit` / `predict` shape, so the constraint model can mirror the objective model feature for
+feature. If the objective is multi-objective, so is the classifier (one correlated output
+per constraint); if the objective is additive with several fidelities, so is the classifier.
+Each switch still changes independently.
+
+```python
+from gp_omni import OmniGP, OmniGPC
+
+switches = dict(num_outputs=2, num_fidelities=2, nu=40, additive=2)
+objective = OmniGP(**switches).fit(x, y, output=o, fidelity=f)  # y: objective values
+constraint = OmniGPC(**switches).fit(x, c, output=o, fidelity=f)  # c: +1 feasible, -1 infeasible
+
+constraint.predict_proba(x_new)  # P(feasible), shape (m,) or (m, num_outputs)
+constraint.predict_feasible(x_new)  # P(feasible) >= 0.5 (or pass threshold=)
+```
+
+Labels are `+1` feasible, `-1` infeasible; `bool` and `{0, 1}` also work. The likelihood is
+probit (`likErf`, default) or logistic (`lik="likLogistic"`) with the Laplace approximation
+(gpml `infLaplace`), on the same exact or sparse covariance as the regression model. Each
+`(output, fidelity)` has its own labels, so a cheap constraint check can inform an expensive
+one. [`omni_constraints.py`](../examples/omni_constraints.py) fits both twins with the
+features you choose on the command line:
+
+```bash
+uv run python examples/omni_constraints.py mo additive
+uv run python examples/omni_constraints.py mo mf sparse additive    # or: all
+```
+
+`tests/test_omni_gpc.py` runs all 16 combinations and checks that each feature helps the
+classifier too (multi-fidelity labels, correlated constraints and the additive kernel each
+raise accuracy), that sparse decisions agree with exact, and that a 10,000-label fit with all
+four features on finishes in seconds.
+
 ## Choosing between the classes
 
 | You want | Use |
 |---|---|
-| any mix of the four features | `OmniGP` |
+| any mix of the four features, regression | `OmniGP` |
+| the same features, classifying a constraint | `OmniGPC` |
 | gpml-style single-task sparse GP, with `vfe_xu_opt` swaps | `gp_omni.sparse.SparseGP` |
 | two fidelities, noiseless, small design, the sequential, profiled-likelihood fit | `gp_omni.AR1CoKriging` |
 | GPyTorch/BoTorch models directly (SVGP, KISS-GP, ...) | `gp_omni.builders`, `examples/sparse.py` |
@@ -117,9 +156,9 @@ against 1.7, with 3.7 for high-fidelity only. Prefer `AR1CoKriging` in that regi
 
 ## Limits
 
-- Multi-output and multi-fidelity models use Gaussian noise (one level per task).
-  Classification (`lik="likErf"` / `"likLogistic"`, Laplace approximation) works with
-  `nu` and `additive`, for one task only.
+- Regression uses Gaussian noise (one level per task). Classification (`OmniGPC`) uses a
+  probit or logistic likelihood with the Laplace approximation; unlike regression it has no
+  noise level to learn, and its predictions are marginal probabilities per constraint.
 - Several outputs are predicted as marginals; the covariance between outputs at a test
   point is not returned.
 - `vfe_xu_opt` inducing-input swaps are only available through `SparseGP`.

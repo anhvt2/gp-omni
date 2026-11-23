@@ -14,9 +14,9 @@ how the covariance is approximated), so the features compose: e.g. all four at o
 sparse additive GP over several correlated outputs at several fidelities.
 
 Targets are standardised per task, ``(output, fidelity)``, before fitting and predictions are
-mapped back. Multi-output and multi-fidelity models use Gaussian noise (one level per task);
-a single task may also use ``likErf`` / ``likLogistic`` classification through the Laplace
-approximation.
+mapped back. Regression uses Gaussian noise (one level per task);
+classification (``likErf`` / ``likLogistic``, Laplace approximation) works with every
+combination too; see :class:`OmniGPC`, the classifier twin of this regression model.
 """
 
 from __future__ import annotations
@@ -56,7 +56,8 @@ class OmniGP:
     cov, degree : base covariance (``SEard``, ``SEiso``, ``Maternard``, ``Materniso``) when
         ``additive`` is off; ``degree`` is the Matern degree.
     rank : rank of the output coregionalisation ``B = W W' + diag(kappa^2)``.
-    lik : ``likGauss`` (any combination) or ``likErf`` / ``likLogistic`` (one task only).
+    lik : ``likGauss`` (regression), or ``likErf`` / ``likLogistic`` (labels +/-1); any
+        combination of the four features.
     init, seed : inducing-input initialisation (``kmeans`` or ``random``) and its seed.
     """
 
@@ -79,8 +80,7 @@ class OmniGP:
         self.init, self.seed = init, seed
         self.multitask = num_outputs * num_fidelities > 1
         self.lik_name = lik
-        if self.multitask and lik != "likGauss":
-            raise ValueError("multi-output / multi-fidelity models need likGauss")
+        make_lik(lik)  # fail early on an unknown likelihood name
         self.hyp: dict[str, Tensor] | None = None
         self.post: Posterior | None = None
         self.nlZ: float | None = None
@@ -91,10 +91,11 @@ class OmniGP:
             Cov("ADD", orders=self.additive) if self.additive else Cov(self.cov_kind, self.degree)
         )
         self.base = base
+        gauss = self.lik_name == "likGauss"
         if self.multitask:
             self.cov = TaskCov(base, D, self.O, self.L, self.rank)
             self.mean = TaskMean(D, self.O, self.L)
-            self.lik = LikGaussTask(D, self.O, self.L)
+            self.lik = LikGaussTask(D, self.O, self.L) if gauss else make_lik(self.lik_name)
         else:
             self.cov, self.mean, self.lik = base, Mean("const"), make_lik(self.lik_name)
         self.inf = inf_gauss_lik if isinstance(self.lik, LikGauss) else inf_laplace
@@ -169,7 +170,7 @@ class OmniGP:
             hyp = make_hyp(
                 mean=torch.zeros(T),
                 cov=self.cov.initial_hyp(bh),
-                lik=torch.full((T,), math.log(0.1)),
+                lik=torch.full((T,), math.log(0.1)) if gauss else torch.zeros(0),
             )
         else:
             hyp = make_hyp(
@@ -201,6 +202,8 @@ class OmniGP:
         out = gp_predict(
             self.hyp, self.post, self.mean, self._sparse_cov(self._xu0), self.lik, self._xa, xa
         )
+        if not isinstance(self.lik, LikGauss):  # classification: p(y = +1 | data)
+            out["prob"] = torch.clamp((out["ymu"] + 1) / 2, 0.0, 1.0)
         if isinstance(self.lik, LikGauss):  # undo the per-task standardisation
             k = o * self.L + f
             sd, mu = self._sd[k], self._mu[k]
@@ -236,3 +239,86 @@ class OmniGP:
         if self.nu is None:
             return None
         return self.hyp["xu"].detach() if "xu" in self.hyp else self._xu0
+
+
+def _as_labels(y: Tensor) -> Tensor:
+    """Constraint labels as floats in {-1, +1}: bool, {0, 1} or {-1, +1} are accepted."""
+    y = torch.as_tensor(y)
+    if y.dtype == torch.bool:
+        return torch.where(y, 1.0, -1.0).to(torch.float64)
+    y = y.to(torch.float64).reshape(-1)
+    values = set(y.unique().tolist())
+    if values <= {-1.0, 1.0}:
+        return y
+    if values <= {0.0, 1.0}:
+        return 2.0 * y - 1.0
+    raise ValueError("constraint labels must be bool, {0, 1} or {-1, +1}")
+
+
+class OmniGPC(OmniGP):
+    """Constraint classifier: the Gaussian-process classifier twin of :class:`OmniGP`.
+
+    Same constructor, same four independent switches, same ``fit`` / ``predict`` shape, so a
+    classifier can mirror whatever the regression model uses: if the objectives are modelled
+    with several correlated outputs, fidelities, an additive kernel and a sparse
+    approximation, the constraints can be too, and each switch can be changed on its own.
+
+    Labels are ``+1`` = feasible, ``-1`` = infeasible (also accepted: bool and ``{0, 1}``).
+    The latent function ``f`` gets a probit (``likErf``, default) or logistic likelihood
+    and the posterior is the Laplace approximation (gpml ``infLaplace``) on the same exact or
+    sparse covariance approximation as the regression twin. With ``num_outputs > 1``, each
+    output is one constraint, correlated with the others; with ``num_fidelities > 1``, labels
+    can come from cheap and expensive evaluations of the constraint.
+
+    ``predict_proba`` returns ``P(feasible)``; ``predict`` also returns the latent mean
+    ``fmu`` / variance ``fs2`` and ``ymu = 2 P - 1``.
+    """
+
+    def __init__(
+        self,
+        num_outputs: int = 1,
+        num_fidelities: int = 1,
+        additive: int | list[int] | None = None,
+        nu: int | None = None,
+        s: float = 0.0,
+        cov: str = "SEard",
+        degree: int = 3,
+        rank: int = 1,
+        lik: str = "likErf",
+        init: str = "kmeans",
+        seed: int = 0,
+    ):
+        if lik == "likGauss":
+            raise ValueError("OmniGPC needs a classification likelihood: likErf or likLogistic")
+        super().__init__(
+            num_outputs, num_fidelities, additive, nu, s, cov, degree, rank, lik, init, seed
+        )
+
+    def fit(
+        self,
+        x: Tensor,
+        y: Tensor,
+        output: Tensor | None = None,
+        fidelity: Tensor | None = None,
+        max_iter: int = 200,
+        learn_xu: bool = True,
+    ) -> OmniGPC:
+        """Fit on constraint labels ``y`` (``+1`` feasible); see :meth:`OmniGP.fit`."""
+        super().fit(x, _as_labels(y), output, fidelity, max_iter, learn_xu)
+        return self
+
+    def predict_proba(
+        self, xs: Tensor, output: int | None = None, fidelity: int | None = None
+    ) -> Tensor:
+        """``P(feasible)``, shape ``(m,)`` or ``(m, num_outputs)``."""
+        return self.predict(xs, output, fidelity)["prob"]
+
+    def predict_feasible(
+        self,
+        xs: Tensor,
+        output: int | None = None,
+        fidelity: int | None = None,
+        threshold: float = 0.5,
+    ) -> Tensor:
+        """Boolean feasibility decision ``P(feasible) >= threshold``."""
+        return self.predict_proba(xs, output, fidelity) >= threshold
