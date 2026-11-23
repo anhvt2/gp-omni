@@ -29,8 +29,8 @@ def known_constraint(x):
 def main(max_iter: int = 20, seed: int = 0) -> dict:
     cfg = AsyncBOConfig(
         model_name="rosen",
-        xLB=[-1.0, -1.0],
-        xUB=[2.0, 2.0],
+        x_lb=[-1.0, -1.0],
+        x_ub=[2.0, 2.0],
         exploit_size=2,
         explore_size=1,
         explore_clf_size=1,

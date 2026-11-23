@@ -72,10 +72,10 @@ def get_next_sampling_point(
     model: OmniGP,
     clf: OmniGPC | None,
     acquisition: str,
-    xLB: np.ndarray,
-    xUB: np.ndarray,
-    S: np.ndarray,
-    Y: np.ndarray,
+    x_lb: np.ndarray,
+    x_ub: np.ndarray,
+    x_obs: np.ndarray,
+    y_obs: np.ndarray,
     rng: np.random.Generator,
     known_constraint: KnownConstraint = check_constraint,
     max_evals: int = 250,
@@ -87,26 +87,26 @@ def get_next_sampling_point(
     result violates the known constraint or duplicates a design site (capped at
     ``max_retries``, which the MATLAB ``while`` loop does not have).
     """
-    xLB, xUB = np.asarray(xLB, float), np.asarray(xUB, float)
-    d = len(xUB)
+    x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
+    d = len(x_ub)
     if acquisition == "MC":  # Monte Carlo random sampling
         log.info("Monte Carlo random sampling activated")
-        return xLB + rng.random(d) * (xUB - xLB)
+        return x_lb + rng.random(d) * (x_ub - x_lb)
 
-    x_best = S[int(np.argmax(Y))]
-    sigma = (xUB - xLB) / 3
+    x_best = x_obs[int(np.argmax(y_obs))]
+    sigma = (x_ub - x_lb) / 3
 
     def objective(x):
-        return negative_acquisition(x, model, clf, acquisition, S, Y, known_constraint)
+        return negative_acquisition(x, model, clf, acquisition, x_obs, y_obs, known_constraint)
 
     for attempt in range(max_retries):
-        x_init = xLB + rng.random(d) * (xUB - xLB)
+        x_init = x_lb + rng.random(d) * (x_ub - x_lb)
         w = rng.random()
         x_next = minimize_cmaes(
-            objective, w * x_best + (1 - w) * x_init, sigma, xLB, xUB, rng, max_evals
+            objective, w * x_best + (1 - w) * x_init, sigma, x_lb, x_ub, rng, max_evals
         )
         feasible = known_constraint(x_next) != 0
-        duplicate = check_multiple_design_sites(x_next, S)
+        duplicate = check_multiple_design_sites(x_next, x_obs)
         log.info("constraintViolator=%d multipleDesignSitesViolator=%d", not feasible, duplicate)
         if feasible and not duplicate:
             return x_next
@@ -115,20 +115,24 @@ def get_next_sampling_point(
 
 
 def get_next_sampling_point_reduce_mse(
-    model: OmniGP, xLB: np.ndarray, xUB: np.ndarray, rng: np.random.Generator, max_evals: int = 100
+    model: OmniGP,
+    x_lb: np.ndarray,
+    x_ub: np.ndarray,
+    rng: np.random.Generator,
+    max_evals: int = 100,
 ) -> np.ndarray:
     """``getNextSamplingPointReduceMSE.m``: explore where the objective model is most uncertain."""
-    xLB, xUB = np.asarray(xLB, float), np.asarray(xUB, float)
-    x0 = xLB + rng.random(len(xLB)) * (xUB - xLB)
+    x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
+    x0 = x_lb + rng.random(len(x_lb)) * (x_ub - x_lb)
     return minimize_cmaes(
-        lambda x: negative_mse(x, model), x0, np.ones(len(xLB)), xLB, xUB, rng, max_evals
+        lambda x: negative_mse(x, model), x0, np.ones(len(x_lb)), x_lb, x_ub, rng, max_evals
     )
 
 
 def get_next_sampling_point_clf_reduce_mse(
     clf: OmniGPC | None,
-    xLB: np.ndarray,
-    xUB: np.ndarray,
+    x_lb: np.ndarray,
+    x_ub: np.ndarray,
     rng: np.random.Generator,
     max_evals: int = 100,
 ) -> np.ndarray:
@@ -137,10 +141,10 @@ def get_next_sampling_point_clf_reduce_mse(
     With no classifier yet (all simulations feasible) there is nothing to explore, so a
     uniform random point is returned.
     """
-    xLB, xUB = np.asarray(xLB, float), np.asarray(xUB, float)
-    x0 = xLB + rng.random(len(xLB)) * (xUB - xLB)
+    x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
+    x0 = x_lb + rng.random(len(x_lb)) * (x_ub - x_lb)
     if clf is None:
         return x0
     return minimize_cmaes(
-        lambda x: negative_clf_mse(x, clf), x0, np.ones(len(xLB)), xLB, xUB, rng, max_evals
+        lambda x: negative_clf_mse(x, clf), x0, np.ones(len(x_lb)), x_lb, x_ub, rng, max_evals
     )
