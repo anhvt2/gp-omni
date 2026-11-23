@@ -1,0 +1,25 @@
+[project]
+name = "gp-omni"
+version = "0.1.0"
+description = "Consolidated Gaussian process layer over GPyTorch and BoTorch, with AR1 co-kriging"
+authors = [{ name = "Anh Tran", email = "anh.vt2@gmail.com" }]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.12"
+dependencies = ["torch", "gpytorch", "botorch", "numpy", "scipy"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy"]
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = false

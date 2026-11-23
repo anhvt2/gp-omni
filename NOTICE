@@ -1,0 +1,15 @@
+gp-omni
+Copyright 2026 Anh Tran. Licensed under the Apache License 2.0.
+
+This package builds on, and in places derives from, the following works:
+
+* GPyTorch (MIT) and BoTorch (MIT), used as dependencies.
+* gpml-matlab v4.2 (C. E. Rasmussen & H. Nickisch, FreeBSD licence): reference for naming,
+  composition and the additive (covADD) formulation.
+* ooDACE toolbox (I. Couckuyt et al., Ghent University). The AR1 co-kriging model in
+  gp_omni/models/cokriging.py is a Python port of the multi-fidelity extension
+  (@CoKriging) written by the repository owner on top of ooDACE; ooDACE is distributed
+  under the GNU AGPL v3 with a commercial-use provision (see its license.txt). The
+  port follows the owner's own co-kriging code; check ooDACE's terms before
+  redistributing any ooDACE-derived material.
+* GPflow (Apache-2.0): design reference for multi-output kernels (ICM/LMC).
