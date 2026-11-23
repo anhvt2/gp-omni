@@ -1,16 +1,26 @@
-"""Combining the features: they are independent, so any subset can be switched on together.
+"""Pick any subset of the four features and run it end to end.
 
-One problem generator, four feature switches. Runs 1+2 (multi-objective + multi-fidelity),
-1+2+3 (+ sparse) and 1+2+3+4 (+ additive) on the same data and reports the error of each at
-the highest fidelity. The data are laid out as in the single-feature examples: one ``x``, one
-``y``, plus an ``output`` and a ``fidelity`` index per row.
+    python examples/omni_combined.py                      # 1+2, then +3, then +4 (default)
+    python examples/omni_combined.py mo additive          # high-dimensional multi-objective
+    python examples/omni_combined.py mf sparse            # sparse multi-fidelity
+    python examples/omni_combined.py mo mf sparse additive    # or: all
+
+Features: ``mo`` (correlated multi-objective), ``mf`` (multi-fidelity), ``sparse`` (big data,
+sparse covariance), ``additive`` (additive high-dimensional). Any subset works, including one
+feature or none; the data are generated to match the features you pick and the error is
+measured at the highest fidelity of every output. The data layout is the same as in the
+single-feature examples: one ``x``, one ``y``, plus an ``output`` and a ``fidelity`` index
+per row.
 """
+
+import sys
 
 import torch
 
 import gp_omni  # noqa: F401
 from gp_omni import OmniGP
 
+FEATURES = ("mo", "mf", "sparse", "additive")
 W = [1.0, 0.8]  # how each objective loads on the shared structure
 
 
@@ -20,11 +30,23 @@ def truth(x, o, l):
     return f if l == 0 else 0.9 * f + 0.3 * torch.sin(5 * x[:, 0])
 
 
-def main() -> dict:
+def run_features(features, max_iter: int = 80) -> float:
+    """Fit and score the model with exactly the given features switched on.
+
+    Returns the worst normalised RMSE over outputs, at the highest fidelity.
+    """
+    features = set(features)
+    unknown = features - set(FEATURES)
+    if unknown:
+        raise ValueError(f"unknown features {sorted(unknown)}; choose from {FEATURES}")
+    O = 2 if "mo" in features else 1
+    L = 2 if "mf" in features else 1
+    sizes = [200, 30] if L == 2 else [120]  # many cheap, few expensive
+
     g = torch.Generator().manual_seed(0)
     xs, ys, os_, fs = [], [], [], []
-    for o in range(2):
-        for l, n in enumerate([300, 40]):  # many cheap, few expensive
+    for o in range(O):
+        for l, n in enumerate(sizes):
             x = torch.rand(n, 4, generator=g)
             xs.append(x)
             ys.append(truth(x, o, l) + 0.02 * torch.randn(n, generator=g))
@@ -33,22 +55,34 @@ def main() -> dict:
     x, y, o, f = torch.cat(xs), torch.cat(ys), torch.cat(os_), torch.cat(fs)
     xt = torch.rand(400, 4, generator=g)
 
-    configs = {
-        "mo+mf": {},
-        "mo+mf+sparse": {"nu": 40},
-        "mo+mf+sparse+additive": {"nu": 40, "additive": 2},
-    }
-    out = {}
-    for name, kw in configs.items():
-        model = OmniGP(num_outputs=2, num_fidelities=2, **kw).fit(x, y, o, f, max_iter=80)
-        pred = model.predict(xt)["fmu"]  # (400, 2): highest fidelity, every output
-        errs = [
-            ((pred[:, k] - truth(xt, k, 1)) ** 2).mean().sqrt() / truth(xt, k, 1).std()
-            for k in range(2)
+    model = OmniGP(
+        num_outputs=O,
+        num_fidelities=L,
+        nu=40 if "sparse" in features else None,
+        additive=2 if "additive" in features else None,
+    ).fit(x, y, o, f, max_iter=max_iter)
+    pred = model.predict(xt)["fmu"].reshape(400, O)  # highest fidelity, every output
+    errs = [
+        ((pred[:, k] - truth(xt, k, L - 1)) ** 2).mean().sqrt() / truth(xt, k, L - 1).std()
+        for k in range(O)
+    ]
+    return max(e.item() for e in errs)
+
+
+def main(features=None) -> dict:
+    """``features=None`` runs 1+2, then adds sparse, then additive; otherwise just the subset."""
+    if features is None:
+        steps = [
+            ("mo+mf", {"mo", "mf"}),
+            ("mo+mf+sparse", {"mo", "mf", "sparse"}),
+            ("mo+mf+sparse+additive", set(FEATURES)),
         ]
-        out[name] = max(e.item() for e in errs)
-    return out
+    else:
+        features = set(features)
+        steps = [("+".join(f for f in FEATURES if f in features) or "none", features)]
+    return {name: run_features(sel) for name, sel in steps}
 
 
 if __name__ == "__main__":
-    print(main())
+    args = sys.argv[1:]
+    print(main(set(FEATURES) if args == ["all"] else (args or None)))
