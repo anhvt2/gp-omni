@@ -52,12 +52,12 @@ def predict_objective(model: OmniGP, x: np.ndarray) -> tuple[float, float]:
     return float(out["ymu"][0]), max(float(out["ys2"][0]), 0.0)
 
 
-def predict_feasibility(clf: OmniGPC | None, x: np.ndarray) -> float:
+def predict_feasibility(classifier: OmniGPC | None, x: np.ndarray) -> float:
     """``P(feasible | x)`` clipped to [0, 1]; 1 when there is no usable classifier."""
-    if clf is None:
+    if classifier is None:
         return 1.0
     try:
-        p = float(clf.predict_proba(_row(x))[0])
+        p = float(classifier.predict_proba(_row(x))[0])
     except Exception:  # noqa: BLE001 - mirrors the MATLAB try/catch safeguard
         return 1.0
     return min(max(p, 0.0), 1.0)
@@ -86,18 +86,18 @@ def acquisition_value(
 def negative_acquisition(
     x: np.ndarray,
     model: OmniGP,
-    clf: OmniGPC | None,
+    classifier: OmniGPC | None,
     acquisition: str,
     x_obs: np.ndarray,
     y_obs: np.ndarray,
     known_constraint: KnownConstraint = check_constraint,
 ) -> float:
-    """``calculateNegativeAcquisitionFunction.m``: ``-acq * known * unknown`` (to minimise)."""
+    """``calculateNegativeAcquisitionFunction.m``: ``-acquisition * known * unknown``."""
     x = np.asarray(x, dtype=float).reshape(-1)
     known = known_constraint(x)
     if known == 0:
         return 0.0
-    unknown = predict_feasibility(clf, x)
+    unknown = predict_feasibility(classifier, x)
     y, s2 = predict_objective(model, x)
     t, d = x_obs.shape
     a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)
@@ -110,11 +110,11 @@ def negative_mse(x: np.ndarray, model: OmniGP) -> float:
     return -math.sqrt(s2)
 
 
-def negative_clf_mse(x: np.ndarray, clf: OmniGPC) -> float:
+def negative_classifier_mse(x: np.ndarray, classifier: OmniGPC) -> float:
     """``calculateNegativeClfMSE.m``: ``-sqrt(s2)`` of the constraint classifier.
 
     The MATLAB code rescales the latent ``y`` to a probability but takes the sqrt of the
     *latent* variance ``s2``; the same quantity (the latent predictive variance) is used here.
     """
-    out = clf.predict(_row(x))
+    out = classifier.predict(_row(x))
     return -math.sqrt(max(float(out["fs2"][0]), 0.0))

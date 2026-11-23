@@ -1,14 +1,14 @@
 """File-based asynchronous job pool: port of the ``bayesOptSrc-gpml/*.py`` helper scripts.
 
 Layout (unchanged from the MATLAB/Python original so existing ``query*.sh`` scripts and
-``<model>_Template/`` folders keep working)::
+``<model>_template/`` folders keep working)::
 
     root/
-      batchSettings.dat  waitTime.dat  modelName.dat
+      batch_settings.dat  wait_time.dat  model_name.dat
       S.dat Y.dat F.dat C.dat B.dat            global database (written by ``update_db``)
-      <model>_Iter<i>/
-        input.dat output.dat feasible.dat complete.dat batchID.dat
-        acquisitionScheme.dat gpPredictions.dat   per-evaluation files
+      <model>_iter<i>/
+        input.dat output.dat feasible.dat complete.dat batch_id.dat
+        acquisition_scheme.dat gp_predictions.dat   per-evaluation files
 
 A job is *in flight* while its ``complete.dat`` is 0. Batch IDs: 0 initial, 1 acquisition
 (GP-Hedge), 2 explore objective, 3 explore classifier, 4 all slots busy.
@@ -27,20 +27,20 @@ from natsort import natsorted
 
 log = logging.getLogger(__name__)
 
-ACQUISITIONS = ("UCB", "EI", "PI")  # order of the lines in R.dat
+ACQUISITIONS = ("UCB", "EI", "PI")  # order of the lines in rewards.dat
 
 
 @dataclass(frozen=True)
 class BatchSettings:
-    """``batchSettings.dat``: how many jobs of each kind may be in flight."""
+    """``batch_settings.dat``: how many jobs of each kind may be in flight."""
 
     exploit: int
     explore: int
-    explore_clf: int
+    explore_classifier: int
 
     @property
     def total(self) -> int:
-        return self.exploit + self.explore + self.explore_clf
+        return self.exploit + self.explore + self.explore_classifier
 
 
 def _num(path: Path, default: float) -> float:
@@ -52,29 +52,29 @@ def _num(path: Path, default: float) -> float:
 
 
 def iter_folders(root: Path, model_name: str) -> list[Path]:
-    """``<model>_Iter*`` folders in natural order."""
+    """``<model>_iter*`` folders in natural order."""
     return [
-        Path(p) for p in natsorted(str(p) for p in root.glob(f"{model_name}_Iter*") if p.is_dir())
+        Path(p) for p in natsorted(str(p) for p in root.glob(f"{model_name}_iter*") if p.is_dir())
     ]
 
 
 def write_settings(root: Path, model_name: str, batch: BatchSettings, wait_time: float) -> None:
-    (root / "batchSettings.dat").write_text(
-        f"{batch.exploit}\n{batch.explore}\n{batch.explore_clf}\n"
+    (root / "batch_settings.dat").write_text(
+        f"{batch.exploit}\n{batch.explore}\n{batch.explore_classifier}\n"
     )
-    (root / "waitTime.dat").write_text(f"{wait_time:.4f}\n")
-    (root / "modelName.dat").write_text(f"{model_name}\n")
+    (root / "wait_time.dat").write_text(f"{wait_time:.4f}\n")
+    (root / "model_name.dat").write_text(f"{model_name}\n")
 
 
 def read_settings(root: Path) -> tuple[str, BatchSettings, float]:
-    model_name = (root / "modelName.dat").read_text().strip()
-    exploit, explore, explore_clf = (
-        int(v) for v in np.loadtxt(root / "batchSettings.dat", dtype=int)
+    model_name = (root / "model_name.dat").read_text().strip()
+    exploit, explore, explore_classifier = (
+        int(v) for v in np.loadtxt(root / "batch_settings.dat", dtype=int)
     )
     return (
         model_name,
-        BatchSettings(exploit, explore, explore_clf),
-        float(np.loadtxt(root / "waitTime.dat")),
+        BatchSettings(exploit, explore, explore_classifier),
+        float(np.loadtxt(root / "wait_time.dat")),
     )
 
 
@@ -90,8 +90,8 @@ def read_folder(folder: Path) -> tuple[np.ndarray, float, float, float]:
 
 
 def check_complete(root: Path) -> None:
-    """``checkComplete.py``: declare jobs that outlived ``waitTime`` complete and infeasible."""
-    wait_hours = float(np.loadtxt(root / "waitTime.dat"))
+    """``checkComplete.py``: declare jobs that outlived ``wait_time`` complete and infeasible."""
+    wait_hours = float(np.loadtxt(root / "wait_time.dat"))
     for complete_file in root.glob("*/complete.dat"):
         folder = complete_file.parent
         timeout_log = folder / "log.timeout"
@@ -114,11 +114,11 @@ def get_batch(root: Path) -> int:
     """
     model_name, batch, _ = read_settings(root)
     busy = [
-        _num(f / "batchID.dat", 0)
+        _num(f / "batch_id.dat", 0)
         for f in iter_folders(root, model_name)
         if _num(f / "complete.dat", 0) == 0
     ]
-    for batch_id, limit in ((1, batch.exploit), (2, batch.explore), (3, batch.explore_clf)):
+    for batch_id, limit in ((1, batch.exploit), (2, batch.explore), (3, batch.explore_classifier)):
         if busy.count(batch_id) < limit:
             return batch_id
     return 4
@@ -130,15 +130,15 @@ def update_db(root: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarra
     rows = [read_folder(f) for f in iter_folders(root, model_name)]
     x_obs = np.vstack([r[0] for r in rows])
     y_obs, f_obs, c_obs = (np.array([r[i] for r in rows]) for i in (1, 2, 3))
-    np.savetxt(root / "S.dat", x_obs, fmt="%.16f", delimiter=",")
-    np.savetxt(root / "Y.dat", y_obs, fmt="%.16f", delimiter=",")
-    np.savetxt(root / "F.dat", f_obs, fmt="%d", delimiter=",")
-    np.savetxt(root / "C.dat", c_obs, fmt="%d", delimiter=",")
+    np.savetxt(root / "x_obs.dat", x_obs, fmt="%.16f", delimiter=",")
+    np.savetxt(root / "y_obs.dat", y_obs, fmt="%.16f", delimiter=",")
+    np.savetxt(root / "f_obs.dat", f_obs, fmt="%d", delimiter=",")
+    np.savetxt(root / "c_obs.dat", c_obs, fmt="%d", delimiter=",")
     return x_obs, y_obs, f_obs, c_obs
 
 
 def get_rewards(root: Path, num_init_point: int) -> np.ndarray:
-    """``getRewards.py``: GP-Hedge rewards ``[UCB, EI, PI]`` written to ``R.dat``.
+    """``getRewards.py``: GP-Hedge rewards ``[UCB, EI, PI]`` written to ``rewards.dat``.
 
     An acquisition function earns +1 each time one of its points set a new best-so-far
     objective (infeasible / unfinished points, whose output is 0 or missing, never count).
@@ -148,7 +148,7 @@ def get_rewards(root: Path, num_init_point: int) -> np.ndarray:
     for folder in iter_folders(root, model_name):
         output = folder / "output.dat"
         ys.append(_num(output, np.nan))
-        scheme = folder / "acquisitionScheme.dat"
+        scheme = folder / "acquisition_scheme.dat"
         acquisitions.append(scheme.read_text().strip() if scheme.is_file() else None)
 
     best, winners = ys[0], []
@@ -157,7 +157,7 @@ def get_rewards(root: Path, num_init_point: int) -> np.ndarray:
             winners.append(acquisitions[i])
             best = ys[i]
     rewards = np.array([float(winners.count(name)) for name in ACQUISITIONS])
-    (root / "R.dat").write_text("".join(f"{r:.2f}\n" for r in rewards))
+    (root / "rewards.dat").write_text("".join(f"{r:.2f}\n" for r in rewards))
     return rewards
 
 
@@ -180,7 +180,7 @@ def get_acquisition_scheme(
 
 
 def wait_for_slot(root: Path, check_time_minutes: float) -> int:
-    """Poll until ``get_batch`` returns a free slot (the master loop's ``while batchID == 4``)."""
+    """Poll until ``get_batch`` returns a free slot (the master loop's ``while batch_id == 4``)."""
     while True:
         check_complete(root)
         batch_id = get_batch(root)

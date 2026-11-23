@@ -1,7 +1,7 @@
 """Asynchronous parallel constrained GP-Hedge Bayesian optimisation.
 
 Port of the master loop ``mainprog_benchR_gpml.m``. The loop never waits for a batch to
-finish: whenever one of the ``exploit + explore + explore_clf`` slots is free it fits the
+finish: whenever one of the ``exploit + explore + explore_classifier`` slots is free it fits the
 surrogates on everything known so far, proposes one point and launches it, then goes back
 for the next free slot. Jobs still running are *pending*: they sit in the database with
 output 0 / feasible 0, so they are hallucinated with the objective model's own prediction
@@ -31,7 +31,7 @@ from gp_omni.asyncbo import database as db
 from gp_omni.asyncbo.acquisition import KnownConstraint, check_constraint, predict_objective
 from gp_omni.asyncbo.sampling import (
     get_next_sampling_point,
-    get_next_sampling_point_clf_reduce_mse,
+    get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
 from gp_omni.sparse.omni import OmniGP, OmniGPC
@@ -50,7 +50,7 @@ class AsyncBOConfig:
     x_ub: np.ndarray
     exploit_size: int = 3  # concurrent acquisition (GP-Hedge) jobs
     explore_size: int = 2  # concurrent max-variance jobs on the objective model
-    explore_clf_size: int = 1  # concurrent max-variance jobs on the constraint classifier
+    explore_classifier_size: int = 1  # concurrent max-variance jobs on the constraint classifier
     max_iter: int = 400  # total number of evaluations launched, initial ones included
     num_init_point: int = 2
     x_scale: np.ndarray | float = 1.0  # rough scale so scaled inputs are O(1)
@@ -69,7 +69,7 @@ class AsyncBOConfig:
 
     @property
     def batch(self) -> db.BatchSettings:
-        return db.BatchSettings(self.exploit_size, self.explore_size, self.explore_clf_size)
+        return db.BatchSettings(self.exploit_size, self.explore_size, self.explore_classifier_size)
 
 
 class AsyncBO:
@@ -84,38 +84,38 @@ class AsyncBO:
     def __init__(self, root: str | Path, config: AsyncBOConfig, evaluate: Evaluator | None = None):
         if (evaluate is None) == (config.query_script is None):
             raise ValueError("give exactly one of `evaluate` and `config.query_script`")
-        self.root, self.cfg, self.evaluate = Path(root).resolve(), config, evaluate
+        self.root, self.config, self.evaluate = Path(root).resolve(), config, evaluate
         self.rng = np.random.default_rng(config.seed)
         self.pool = ThreadPoolExecutor(max_workers=config.batch.total) if evaluate else None
         self.futures: list[Future] = []
         self.model: OmniGP | None = None
-        self.clf: OmniGPC | None = None
-        self.y_halluc: np.ndarray | None = None
+        self.classifier: OmniGPC | None = None
+        self.y_hallucinated: np.ndarray | None = None
         self.root.mkdir(parents=True, exist_ok=True)
         db.write_settings(self.root, config.model_name, config.batch, config.wait_time)
 
     # ------------------------------------------------------------------ job launching
     def _folder(self, i: int) -> Path:
-        return self.root / f"{self.cfg.model_name}_Iter{i}"
+        return self.root / f"{self.config.model_name}_iter{i}"
 
     def _launch(
         self, folder: Path, x_scaled: np.ndarray, batch_id: int, scheme: str | None
     ) -> None:
         """Create the job folder (copy template, ``input.dat``, ...) and start the job."""
         folder.mkdir(exist_ok=True)
-        template = self.root / f"{self.cfg.model_name}_Template"
+        template = self.root / f"{self.config.model_name}_template"
         if template.is_dir():
             shutil.copytree(template, folder, dirs_exist_ok=True)
-        (folder / "batchID.dat").write_text(f"{batch_id}\n")
+        (folder / "batch_id.dat").write_text(f"{batch_id}\n")
         if scheme:
-            (folder / "acquisitionScheme.dat").write_text(scheme)  # no trailing newline
-        x = x_scaled * self.cfg.x_scale
+            (folder / "acquisition_scheme.dat").write_text(scheme)  # no trailing newline
+        x = x_scaled * self.config.x_scale
         np.savetxt(folder / "input.dat", x.reshape(1, -1), fmt="%0.8e", delimiter=",")
         (folder / "complete.dat").write_text("0\n")  # 0 = queried, not finished
         if self.evaluate is not None:
             self.futures.append(self.pool.submit(self._run_job, folder, x))
         else:
-            subprocess.run(["bash", str(self.cfg.query_script)], cwd=folder, check=False)
+            subprocess.run(["bash", str(self.config.query_script)], cwd=folder, check=False)
 
     def _run_job(self, folder: Path, x: np.ndarray) -> None:
         try:
@@ -131,7 +131,7 @@ class AsyncBO:
     # ------------------------------------------------------------------------ models
     def _load(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         x_obs, y_obs, f_obs, _ = db.update_db(self.root)
-        return x_obs / self.cfg.x_scale, y_obs / self.cfg.y_scale, f_obs
+        return x_obs / self.config.x_scale, y_obs / self.config.y_scale, f_obs
 
     def fit_models(self, x_obs: np.ndarray, y_obs: np.ndarray, f_obs: np.ndarray) -> None:
         """Hallucinate infeasible / pending outputs, then fit objective model and classifier.
@@ -140,55 +140,59 @@ class AsyncBO:
         and pending points with that model's prediction; 3. refit on everything;
         4. fit the constraint classifier on ``f_obs`` (skipped while every label is the same).
         """
-        n = self.cfg.gp_max_iter
+        n = self.config.gp_max_iter
         x_train = torch.as_tensor(x_obs)
         feasible = torch.as_tensor(f_obs > 0)
-        self.model = self.clf = self.y_halluc = None
+        self.model = self.classifier = self.y_hallucinated = None
         if feasible.sum() >= 2:
             interp = OmniGP().fit(x_train[feasible], torch.as_tensor(y_obs)[feasible], max_iter=n)
             y_obs = y_obs.copy()
             for i in np.flatnonzero(f_obs == 0):
                 y_obs[i] = predict_objective(interp, x_obs[i])[0]
             self.model = OmniGP().fit(x_train, torch.as_tensor(y_obs), max_iter=n)
-            self.y_halluc = y_obs
+            self.y_hallucinated = y_obs
         if 0 < feasible.sum() < len(f_obs):
-            self.clf = OmniGPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
+            self.classifier = OmniGPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
 
     # ------------------------------------------------------------------------ proposals
     def propose(self, batch_id: int, x_obs: np.ndarray) -> tuple[np.ndarray, str | None]:
         """One new point for slot kind ``batch_id`` (1 acquisition, 2 / 3 exploration)."""
-        cfg, scheme = self.cfg, None
+        config, scheme = self.config, None
         if self.model is None:  # fewer than 2 feasible points: nothing to model yet
-            return cfg.x_lb + self.rng.random(len(cfg.x_lb)) * (cfg.x_ub - cfg.x_lb), scheme
+            return config.x_lb + self.rng.random(len(config.x_lb)) * (
+                config.x_ub - config.x_lb
+            ), scheme
         if batch_id == 1:
-            rewards = db.get_rewards(self.root, cfg.num_init_point)
-            scheme = db.get_acquisition_scheme(self.root, cfg.num_init_point, rewards, self.rng)
+            rewards = db.get_rewards(self.root, config.num_init_point)
+            scheme = db.get_acquisition_scheme(self.root, config.num_init_point, rewards, self.rng)
             x = get_next_sampling_point(
                 self.model,
-                self.clf,
+                self.classifier,
                 scheme,
-                cfg.x_lb,
-                cfg.x_ub,
+                config.x_lb,
+                config.x_ub,
                 x_obs,
-                self.y_halluc,
+                self.y_hallucinated,
                 self.rng,
-                cfg.known_constraint,
-                cfg.cma_max_evals,
+                config.known_constraint,
+                config.cma_max_evals,
             )
         elif batch_id == 2:
-            x = get_next_sampling_point_reduce_mse(self.model, cfg.x_lb, cfg.x_ub, self.rng)
+            x = get_next_sampling_point_reduce_mse(self.model, config.x_lb, config.x_ub, self.rng)
         else:
-            x = get_next_sampling_point_clf_reduce_mse(self.clf, cfg.x_lb, cfg.x_ub, self.rng)
+            x = get_next_sampling_point_classifier_reduce_mse(
+                self.classifier, config.x_lb, config.x_ub, self.rng
+            )
         return x, scheme
 
     # ---------------------------------------------------------------------------- run
     def _seed_initial_points(self) -> None:
         """Evaluate ``num_init_point`` uniform random points (skipping existing folders)."""
-        cfg = self.cfg
-        for i in range(1, cfg.num_init_point + 1):
+        config = self.config
+        for i in range(1, config.num_init_point + 1):
             if (self._folder(i) / "input.dat").is_file():
                 continue
-            x = cfg.x_lb + self.rng.random(len(cfg.x_lb)) * (cfg.x_ub - cfg.x_lb)
+            x = config.x_lb + self.rng.random(len(config.x_lb)) * (config.x_ub - config.x_lb)
             self._launch(self._folder(i), x, 0, None)
 
     def _wait_for_initial(self) -> None:
@@ -196,29 +200,29 @@ class AsyncBO:
             db.check_complete(self.root)
             if all(
                 db.read_folder(self._folder(i))[3] == 1
-                for i in range(1, self.cfg.num_init_point + 1)
+                for i in range(1, self.config.num_init_point + 1)
             ):
                 return
-            time.sleep(self.cfg.check_time * 60)
+            time.sleep(self.config.check_time * 60)
 
     def run(self) -> tuple[np.ndarray, float]:
         """Run to ``max_iter`` evaluations; return the best feasible ``(x, y)`` (unscaled)."""
-        cfg = self.cfg
+        config = self.config
         self._seed_initial_points()
         self._wait_for_initial()
         x_obs, y_obs, f_obs = self._load()
         self.fit_models(x_obs, y_obs, f_obs)
 
-        for i in range(cfg.num_init_point + 1, cfg.max_iter + 1):
-            batch_id = db.wait_for_slot(self.root, cfg.check_time)  # blocks only if all busy
+        for i in range(config.num_init_point + 1, config.max_iter + 1):
+            batch_id = db.wait_for_slot(self.root, config.check_time)  # blocks only if all busy
             log.info("iteration %d: batch %d, %d in flight", i, batch_id, self._in_flight())
             x, scheme = self.propose(batch_id, x_obs)
             folder = self._folder(i)
-            if self.model is not None:  # gpPredictions.dat: predicted mean / variance, unscaled
+            if self.model is not None:  # gp_predictions.dat: predicted mean / variance, unscaled
                 mu, s2 = predict_objective(self.model, x)
                 folder.mkdir(exist_ok=True)
-                (folder / "gpPredictions.dat").write_text(
-                    f"{mu * cfg.y_scale:.8f}\n{s2 * cfg.y_scale**2:.8f}\n"
+                (folder / "gp_predictions.dat").write_text(
+                    f"{mu * config.y_scale:.8f}\n{s2 * config.y_scale**2:.8f}\n"
                 )
             self._launch(folder, x, batch_id, scheme)
             x_obs, y_obs, f_obs = self._load()  # pick up whatever finished in the meantime
@@ -228,7 +232,7 @@ class AsyncBO:
         return self.best()
 
     def _in_flight(self) -> int:
-        folders = db.iter_folders(self.root, self.cfg.model_name)
+        folders = db.iter_folders(self.root, self.config.model_name)
         return sum(db.read_folder(f)[3] == 0 for f in folders)
 
     def drain(self) -> None:
@@ -237,6 +241,9 @@ class AsyncBO:
             fut.result()
         if self.pool is not None:
             self.pool.shutdown()
+        while self._in_flight():  # shell-script jobs finish on their own schedule
+            db.check_complete(self.root)
+            time.sleep(self.config.check_time * 60)
         db.update_db(self.root)
 
     def best(self) -> tuple[np.ndarray, float]:
