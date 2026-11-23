@@ -43,15 +43,14 @@ def inf_gauss_lik(
     """Exact inference for Gaussian likelihoods; sparse if ``cov`` is a ``SparseCov``."""
     if not isinstance(lik, LikGauss):
         raise TypeError("Exact inference only possible with Gaussian likelihood")
-    n = x.shape[0]
     m = mean(hyp["mean"], x)
-    sn2 = torch.exp(2 * hyp["lik"][0])
-    W = torch.ones(n, dtype=x.dtype) / sn2  # noise precision of likGauss
+    sn2 = lik.noise_var(hyp["lik"], x)  # per-sample (a constant for likGauss)
+    W = 1.0 / sn2  # noise precision
     K = apx(hyp, cov, x, opt)
     wf = K.fun(W)
     alpha = wf.solveKiW(y - m)
     post = Posterior(K.P(alpha), torch.sqrt(W), wf.L, "matrix" if K.sparse else "chol")
-    nlZ = (y - m) @ alpha / 2 + wf.ldB2 + n * torch.log(2 * math.pi * sn2) / 2
+    nlZ = (y - m) @ alpha / 2 + wf.ldB2 + torch.log(2 * math.pi * sn2).sum() / 2
     return post, nlZ
 
 

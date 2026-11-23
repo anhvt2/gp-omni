@@ -7,7 +7,7 @@ from collections.abc import Callable
 import torch
 from torch import Tensor
 
-from gp_omni.sparse.apx import SparseCov
+from gp_omni.sparse.apx import SparseCov, get_xu
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.inf import Posterior, inf_gauss_lik
 from gp_omni.sparse.lik import Lik
@@ -80,7 +80,7 @@ def gp_predict(
         base = cov.cov if isinstance(cov, SparseCov) else cov
         kss = base(hd["cov"], xs, "diag")
         if isinstance(cov, SparseCov):
-            xu = hd.get("xu", cov.xu)
+            xu = get_xu(hd, cov)
             Ks = base(hd["cov"], xu, xs)  # cross-covariances to the inducing inputs
         else:
             Ks = base(hd["cov"], x, xs)
@@ -93,7 +93,7 @@ def gp_predict(
         else:
             fs2 = kss + (Ks * post.L(Ks)).sum(0)
         fs2 = torch.clamp(fs2, min=0.0)
-        lp, ymu, ys2 = lik.predict(hd["lik"], ys, fmu, fs2)
+        lp, ymu, ys2 = lik.predict(hd["lik"], ys, fmu, fs2, xs)
     return {"ymu": ymu, "ys2": ys2, "fmu": fmu, "fs2": fs2, "lp": lp}
 
 
