@@ -138,3 +138,44 @@ def test_vfe_xu_opt_matches_gpml(fx):
     out, nlZ = vfe_xu_opt(hyp, Mean("const"), Cov("SEard"), T(fx.x), T(fx.yreg), T(fx.x), 6)
     check(out["xu"], c.xu, rtol=1e-8, atol=1e-10)
     assert nlZ == pytest.approx(float(c.nlZ), rel=1e-9)
+
+
+def test_additive_covadd_matches_gpml(fx):
+    cov = Cov("ADD", orders=[1, 3])
+    e, sp = fx.add_exact, fx.add_sparse
+    x, y = T(e.x), T(e.y)
+    hyp = hyp_of(mean=0.2, cov=np.log([0.5, 0.8, 1.1, 0.9, 0.6]), lik=np.log(0.2))
+    nlZ, d, _ = gp_nlz(hyp, inf_gauss_lik, Mean("const"), cov, LikGauss(), x, y)
+    check(nlZ, e.nlZ)
+    for k, ref in (("mean", e.dmean), ("cov", e.dcov), ("lik", e.dlik)):
+        check(d[k], ref, rtol=1e-6, atol=1e-9)
+    xu = T(sp.xu)
+    hyp = hyp_of(mean=0.2, cov=np.log([0.5, 0.8, 1.1, 0.9, 0.6]), lik=np.log(0.2), xu=xu)
+    scov = SparseCov(cov, xu)
+    nlZ, d, post = gp_nlz(hyp, inf_gauss_lik, Mean("const"), scov, LikGauss(), x, y, {"s": 0.0})
+    check(nlZ, sp.nlZ)
+    check(d["cov"], sp.dcov, rtol=1e-6, atol=1e-9)
+    check(d["xu"], sp.dxu, rtol=1e-6, atol=1e-8)
+    p = gp_predict(hyp, post, Mean("const"), scov, LikGauss(), x, T(sp.xs))
+    check(p["fmu"], sp.fmu, rtol=1e-6, atol=1e-9)
+    check(p["fs2"], sp.fs2, rtol=1e-6, atol=1e-9)
+
+
+def test_additive_cov_matches_brute_force_elementary_polynomials():
+    import itertools
+
+    g = torch.Generator().manual_seed(0)
+    x, z = torch.rand(6, 4, generator=g), torch.rand(5, 4, generator=g)
+    hyp = torch.tensor(np.log([0.5, 0.7, 0.9, 1.3, 0.8, 1.2, 0.6]))  # 4 ell + 3 sf
+    got = Cov("ADD", orders=3)(hyp, x, z)
+    ell, sf2 = hyp[:4].exp(), (2 * hyp[4:]).exp()
+    kd = torch.exp(-0.5 * ((x[:, None, :] - z[None, :, :]) / ell) ** 2)
+    want = sum(
+        sf2[r - 1]
+        * sum(torch.prod(kd[..., list(c)], -1) for c in itertools.combinations(range(4), r))
+        for r in (1, 2, 3)
+    )
+    torch.testing.assert_close(got, want)
+    torch.testing.assert_close(
+        Cov("ADD", orders=3)(hyp, x, "diag"), torch.diagonal(Cov("ADD", orders=3)(hyp, x))
+    )

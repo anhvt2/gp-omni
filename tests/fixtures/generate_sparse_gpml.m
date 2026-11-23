@@ -73,5 +73,20 @@ hv = struct('mean', 0.1, 'cov', log([0.4; 0.6; 1.2]), 'lik', log(0.2), 'xu', xu(
 [hv2, nlZv] = vfe_xu_opt(hv, {@meanConst}, {@apxSparse, {@covSEard}, hv.xu}, x, yreg, x, 6);
 out.xu_opt = struct('xu0', hv.xu, 'xu', hv2.xu, 'nlZ', nlZv);
 
+%% covADD (additive, orders 1 and 3 of D=3), exact and sparse VFE
+x3 = rand(n, 3); xs3 = rand(10, 3);
+y3 = sin(3*x3(:,1)) + x3(:,2).*x3(:,3) + 0.1*randn(n,1);
+xu3 = x3(1:6,:) + 0.02*randn(6, 3);
+addcov = {@covADD, {[1 3], 'covSEisoU'}};
+ha = struct('mean', 0.2, 'cov', log([0.5; 0.8; 1.1; 0.9; 0.6]), 'lik', log(0.2));
+[nlZa, dnlZa] = gp(ha, @infGaussLik, @meanConst, addcov, @likGauss, x3, y3);
+out.add_exact = struct('x', x3, 'y', y3, 'nlZ', nlZa, 'dmean', dnlZa.mean, 'dcov', dnlZa.cov, 'dlik', dnlZa.lik);
+hb = ha; hb.xu = xu3;
+inf = @(varargin) infGaussLik(varargin{:}, struct('s', 0));
+[nlZb, dnlZb] = gp(hb, inf, @meanConst, {@apxSparse, addcov, xu3}, @likGauss, x3, y3);
+[ymu, ys2, fmu, fs2] = gp(hb, inf, @meanConst, {@apxSparse, addcov, xu3}, @likGauss, x3, y3, xs3);
+out.add_sparse = struct('xu', xu3, 'xs', xs3, 'nlZ', nlZb, 'dcov', dnlZb.cov, 'dxu', dnlZb.xu, ...
+                        'fmu', fmu, 'fs2', fs2);
+
 save('-v6', fullfile(here, 'sparse_gpml_fixture.mat'), '-struct', 'out');
 printf('wrote sparse_gpml_fixture.mat\n');
