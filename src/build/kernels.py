@@ -13,14 +13,14 @@ DEFAULTS = load_defaults("builders")
 
 
 class additive_kernel(Kernel):
-    r"""gpml ``covADD``: ``k(x, x') = sum_{r in orders} s_r^2 e_r(k_1, ..., k_D)``.
+    r"""Additive kernel: ``k(x, x') = sum_{r in orders} s_r^2 e_r(k_1, ..., k_D)``.
 
     ``k_i`` is a squared-exponential kernel on input dimension ``i`` and ``e_r`` is the
     ``r``-th elementary symmetric polynomial of ``(k_1, ..., k_D)``, evaluated with the
     Newton-Girard identities in O(D * R). Orders are ``1..max_degree`` (order 1 = purely
     additive; higher orders add interactions between ``r`` distinct dimensions).
 
-    As in gpml the length scale is shared across dimensions unless ``ard=True``. Each order
+    The length scale is shared across dimensions unless ``ard=True``. Each order
     has its own learned output scale. Replaces GPyTorch's deprecated
     ``NewtonGirardAdditiveKernel``.
     """

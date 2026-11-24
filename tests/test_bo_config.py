@@ -74,7 +74,6 @@ def test_config_round_trip(config_type, tmp_path):
     )
     if config_type is batch_bo_config:
         config.acquisition = "UCB"
-        config.relax_alpha = None
     path = tmp_path / "config.json"
     config.to_json(path)
     assert "known_constraint" not in json.loads(path.read_text())
@@ -91,4 +90,3 @@ def test_config_round_trip(config_type, tmp_path):
     assert config_type.from_json(path).known_constraint(np.zeros(2)) == 1.0
     if config_type is batch_bo_config:
         assert restored.acquisition == "UCB"
-        assert restored.relax_alpha is None

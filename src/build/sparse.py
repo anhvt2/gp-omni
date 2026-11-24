@@ -1,7 +1,7 @@
 """End-to-end sparse variational GP: initialise, (optionally) swap, train, predict.
 
 The default ``s = 0`` is the variational free energy bound (Titsias 2009); ``s = 1`` gives
-FITC and ``0 < s < 1`` sparse power EP, exactly as ``opt.s`` in gpml's ``apx``.
+FITC and ``0 < s < 1`` sparse power EP.
 Gaussian likelihoods use ``infGaussLik``; ``probit`` / ``logistic`` (labels +/-1) use
 ``infLaplace`` on the same sparse covariance approximation.
 """
@@ -29,7 +29,7 @@ INFERENCE = load_defaults("inference")
 
 
 class sparse_gp:
-    """Sparse GP regression / classification following gpml's ``apxSparse``.
+    """Sparse GP regression / classification.
 
     Parameters
     ----------
@@ -39,7 +39,7 @@ class sparse_gp:
     lik : ``"gaussian"``, ``"probit"`` or ``"logistic"``.
     s : sparse power in ``[0, 1]``: ``0`` VFE (default), ``1`` FITC.
     init : ``"kmeans"`` (Improved-Nystrom landmarks, randomised) or ``"random"``.
-    learn_snu : treat the inducing noise as a hyperparameter (gpml ``hyp.snu``).
+    learn_snu : treat the inducing noise as a hyperparameter.
     """
 
     def __init__(

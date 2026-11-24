@@ -1,30 +1,29 @@
 """Exact co-kriging: legacy two-fidelity AR1 and general hierarchical fidelity DAGs.
 
-The AR1 implementation ports the owner's MATLAB ``@CoKriging``. Its model is
+The AR1 model is
 
     f_lo(x) ~ GP(F(x) b1, s1 * Psi1(x, x'))
     f_hi(x) = rho * f_lo(x) + delta(x),   delta ~ GP(F(x) b2, s2 * Psi2(x, x'))
 
-Fitting is sequential, as in ``@CoKriging/fit.m``:
+Fitting is sequential:
 
 1. fit level 1 on the low-fidelity data (concentrated likelihood, ``s1`` profiled out);
 2. fit level 2 on ``y_hi - rho * mu_lo(X_hi)`` over ``(rho, theta2)``;
 3. assemble the *joint* covariance of ``[y_lo; y_hi]`` and compute a generalised
    least-squares mean (``b = [b1; b2]``), used for prediction.
 
-Differences from the MATLAB code, deliberately:
+Notes:
 
-* exactly two fidelity levels (same limit as the MATLAB code);
-* the predictive-variance regression term uses ``(Ft' Ft)^-1 = R^-1 R^-T``; the MATLAB code solves
-  with ``R`` instead of ``R'``, which only differs when the regression basis has > 1 column;
-* hyperparameters are fitted with autograd + L-BFGS-B multi-start instead of SQPLab.
+* exactly two fidelity levels;
+* the predictive-variance regression term uses ``(Ft' Ft)^-1 = R^-1 R^-T``;
+* hyperparameters are fitted with autograd + L-BFGS-B multi-start.
 
-Inputs are used as given (no normalisation), like the MATLAB code. Scale them to a comparable range
+Inputs are used as given (no normalisation). Scale them to a comparable range
 first (e.g. the unit cube), since the default bounds assume that.
 
 ``dag_cokriging`` extends the autoregressive model to arbitrary acyclic graphs,
 with independent per-node discrepancies and joint likelihood fitting. The legacy
-``ar1_cokriging`` retains its sequential fitting and MATLAB compatibility.
+``ar1_cokriging`` retains its sequential fitting.
 """
 
 from __future__ import annotations
@@ -46,7 +45,7 @@ DEFAULTS = load_defaults("models")
 
 @dataclass
 class _level:
-    """One fitted universal-kriging level (MATLAB ``BasicGaussianProcess`` without noise)."""
+    """One fitted universal-kriging level (noise-free)."""
 
     X: Tensor
     theta: Tensor  # log10 precisions
@@ -68,12 +67,12 @@ class ar1_cokriging(ar1_prediction, Model):
     correlation
         ``"gauss"``, ``"exp"``, ``"matern32"`` or ``"matern52"``.
     regression
-        ``"none"`` (zero-mean, the MATLAB default), ``"regpoly0"`` (constant),
+        ``"none"`` (zero-mean, the default), ``"regpoly0"`` (constant),
         ``"regpoly1"`` or ``"regpoly2"``. Shared by both levels.
     hp0, hp_bounds
         Initial ``log10`` precision (scalar or per-dim) and ``(lo, hi)`` bounds.
     rho0, rho_bounds
-        Initial scaling factor and its bounds (MATLAB defaults: 5 and ``[0.1, 5]``).
+        Initial scaling factor and its bounds (defaults: 5 and ``[0.1, 5]``).
     hyperparameters
         Optional ``{"theta1", "theta2", "rho"}``; if given, no optimisation is run.
     """

@@ -1,6 +1,6 @@
 """Binary GP classification (probit likelihood, variational inference).
 
-gpml uses EP/Laplace for ``probit``; GPyTorch has no EP, so this is the svgp counterpart.
+Uses the GPyTorch svgp model with a Bernoulli likelihood.
 """
 
 import torch

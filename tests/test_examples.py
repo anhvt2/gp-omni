@@ -59,8 +59,8 @@ def test_additive_example_beats_plain_ard():
     assert res["additive_nrmse"] < 0.3 * res["plain_ard_nrmse"]
 
 
-def test_sparse_gpml_example():
-    res = run("sparse_gpml")
+def test_sparse_vfe_example():
+    res = run("sparse_vfe")
     assert res["vfe_rmse"] < 0.05 and res["fitc_rmse"] < 0.05
     assert abs(res["vfe_noise_sd"] - 0.1) < 0.02  # VFE recovers the true noise level
     assert res["probit_accuracy"] > 0.9

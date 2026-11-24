@@ -12,7 +12,7 @@ from gp_omni.build.sparse_covariance import sparse_covariance
 
 
 def make_hyperparameters(**kw) -> dict[str, Tensor]:
-    """Build ``hyp`` (gpml's struct): float64 tensors for ``mean``, ``cov``, ``lik`` and
+    """Build ``hyp`` (dictionary): float64 tensors for ``mean``, ``cov``, ``lik`` and
     optional ``xu`` (nu x D) / ``snu``."""
     return {k: _t(k, v) for k, v in kw.items()}
 
@@ -25,7 +25,7 @@ def _t(key: str, v) -> Tensor:
 def check_hyperparameters(
     hyp: dict, mean: mean_function, cov: covariance | sparse_covariance, lik: likelihood, dim: int
 ) -> None:
-    """gpml's hyperparameter-count checks."""
+    """Hyperparameter-count checks."""
     base = cov.cov if isinstance(cov, sparse_covariance) else cov
     for key, need in (
         ("mean", mean.num_hyp(dim)),

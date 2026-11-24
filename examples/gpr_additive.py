@@ -1,4 +1,4 @@
-"""Use case 4: additive GP for high-dimensional regression (gpml ``covADD``).
+"""Use case 4: additive GP for high-dimensional regression (additive kernel).
 
 A 20-D function that is a sum of 1-D effects, 120 samples. ``additive=R`` models interactions
 up to order R (``additive=1`` is purely additive); a plain ARD kernel cannot exploit the

@@ -112,7 +112,7 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
 def test_shipped_config_loads():
     path = Path(__file__).parents[1] / "config" / "batch_seq_bo.json"
     config = batch_bo_config.from_json(path)
-    assert config.acquisition == "EI" and config.relax_alpha == 0.9 and config.batch.total == 5
+    assert config.acquisition == "EI" and config.batch.total == 5
 
 
 def test_launcher_is_required():

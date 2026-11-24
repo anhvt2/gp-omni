@@ -2,9 +2,9 @@
 
 Each likelihood provides
 
-* ``laplace(hyp, y, f)``: ``lp, dlp, d2lp`` of ``log p(y|f)`` w.r.t. ``f`` (gpml's
-  ``inf = 'infLaplace'`` mode), kept differentiable so autograd can reach ``d3lp``;
-* ``predict(hyp, y, mu, s2)``: ``lp, ymu, ys2`` (gpml's prediction mode, ``y`` may be ``None``).
+* ``laplace(hyp, y, f)``: ``lp, dlp, d2lp`` of ``log p(y|f)`` w.r.t. ``f`` (used by
+  Laplace inference), kept differentiable so autograd can reach ``d3lp``;
+* ``predict(hyp, y, mu, s2)``: ``lp, ymu, ys2`` (``y`` may be ``None``).
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def _labels(y: Tensor, like: Tensor) -> Tensor:
 
 
 class probit(_binary):
-    """Probit likelihood ``Phi(y f)``; the predictive moment is closed-form (as gpml)."""
+    """Probit likelihood ``Phi(y f)``; the predictive moment is closed-form."""
 
     kind = "probit"
 
@@ -119,7 +119,7 @@ _C = torch.tensor(
 class logistic(_binary):
     """Logistic likelihood ``1 / (1 + exp(-y f))``.
 
-    The predictive moment follows gpml ``logistic`` (``'infEP'`` branch): a five-component
+    The predictive moment uses a five-component
     scale mixture of probit terms, blended with a tail approximation (Nickisch).
     """
 

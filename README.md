@@ -219,7 +219,7 @@ names are `gaussian`, `probit`, and `logistic`. Covariance names include `se_ard
 The old `sparse`, `models`, `builders`, and `fit` import paths have been replaced by the
 phase packages. Co-kriging now requires an explicit `fit()` call before prediction.
 
-## Work with GPyTorch, BoTorch, and GPML conventions
+## Work with GPyTorch and BoTorch
 
 For direct GPyTorch / BoTorch workflows, [`gp_omni.build.gpytorch`](src/build/gpytorch.py) provides
 exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
@@ -231,7 +231,7 @@ interface.
 - [SGPR, svgp, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
 - [AR1 co-kriging](examples/cokriging.py) · [BoTorch multi-fidelity](examples/multifidelity_botorch.py)
 - [Hierarchical DAG co-kriging](examples/dag_cokriging.py) · [DAG model guide](docs/dag-cokriging.md)
-- [GPML-style sparse inference](examples/sparse_gpml.py)
+- [Sparse variational inference (VFE / FITC)](examples/sparse_vfe.py)
 
 ## Contribute
 

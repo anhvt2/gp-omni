@@ -1,12 +1,12 @@
-% Golden values for the gp-omni sparse GP (apxSparse) straight from gpml-matlab v4.2.
+% Golden values for the gp-omni sparse GP (apxSparse) from the gpml-matlab v4.2 reference implementation.
 % Runs in Octave or MATLAB:
-%     octave --no-gui tests/fixtures/generate_sparse_gpml.m
-% Writes sparse_gpml_fixture.mat next to this script.
+%     octave --no-gui tests/fixtures/generate_sparse_reference.m
+% Writes sparse_reference_fixture.mat next to this script.
 
 here = fileparts(mfilename('fullpath'));
 gpml = getenv('GPML_DIR');
 if isempty(gpml)
-  gpml = '/Users/jingsun/Documents/gp/gp.GitHub/gpml-matlab/gpml-matlab-v4.2-2018-06-11';
+  error('set GPML_DIR to the gpml-matlab v4.2 directory');
 end
 addpath(gpml); startup;
 rand('state', 1); randn('state', 1);
@@ -88,5 +88,5 @@ inf = @(varargin) infGaussLik(varargin{:}, struct('s', 0));
 out.add_sparse = struct('xu', xu3, 'xs', xs3, 'nlZ', nlZb, 'dcov', dnlZb.cov, 'dxu', dnlZb.xu, ...
                         'fmu', fmu, 'fs2', fs2);
 
-save('-v6', fullfile(here, 'sparse_gpml_fixture.mat'), '-struct', 'out');
-printf('wrote sparse_gpml_fixture.mat\n');
+save('-v6', fullfile(here, 'sparse_reference_fixture.mat'), '-struct', 'out');
+printf('wrote sparse_reference_fixture.mat\n');

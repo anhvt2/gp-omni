@@ -1,7 +1,7 @@
 """Inducing-input initialisation.
 
 ``kmeans`` follows the landmark selection of the Improved Nystrom method (Zhang, Tsang &
-Kwok, ICML 2008; K. Zhang's ``eff_kmeans.m``, BSD): a random subset of the data seeds a few
+Kwok, ICML 2008): a random subset of the data seeds a few
 Lloyd iterations, and the cluster centres become the landmarks. Clusters that end up empty
 are dropped, so fewer than ``nu`` points can come back (as in the original). The randomness
 makes the result depend on ``seed``.

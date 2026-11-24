@@ -1,4 +1,4 @@
-"""Inner acquisition search: port of ``getNextSamplingPoint{,ReduceMSE,ClfReduceMSE}.m``."""
+"""Inner acquisition search with CMA-ES."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def minimize_cmaes(
 ) -> np.ndarray:
     """Bounded CMA-ES with restarts (``OPTS.Restarts = 3``); returns the best point seen.
 
-    ``sigma`` is the per-coordinate initial step size, as in ``cmaes.m``.
+    ``sigma`` is the per-coordinate initial step size.
     """
     best_x, best_f = np.clip(x0, lb, ub), np.inf
 
@@ -84,13 +84,12 @@ def get_next_sampling_point(
     known_constraint: known_constraint_fn = check_constraint,
     max_evals: int = DEFAULTS["acquisition_search"]["max_evals"],
     max_retries: int = DEFAULTS["acquisition_search"]["max_retries"],
-    relax_alpha: float | None = None,
 ) -> np.ndarray:
-    """``getNextSamplingPoint.m``: maximise the penalised acquisition with CMA-ES.
+    """Maximise the penalised acquisition with CMA-ES.
 
     Starts from a random blend of the incumbent and a random point, and retries while the
     result violates the known constraint or duplicates a design site (capped at
-    ``max_retries``, which the MATLAB ``while`` loop does not have).
+    ``max_retries``).
     """
     x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
     d = len(x_ub)
@@ -103,7 +102,7 @@ def get_next_sampling_point(
 
     def objective(x):
         return negative_acquisition(
-            x, model, classifier, acquisition, x_obs, y_obs, known_constraint, relax_alpha
+            x, model, classifier, acquisition, x_obs, y_obs, known_constraint
         )
 
     for attempt in range(max_retries):
@@ -128,7 +127,7 @@ def get_next_sampling_point_reduce_mse(
     rng: np.random.Generator,
     max_evals: int = DEFAULTS["objective_exploration"]["max_evals"],
 ) -> np.ndarray:
-    """``getNextSamplingPointReduceMSE.m``: explore where the objective model is most uncertain."""
+    """Explore where the objective model is most uncertain."""
     x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
     x0 = x_lb + rng.random(len(x_lb)) * (x_ub - x_lb)
     return minimize_cmaes(
@@ -143,7 +142,7 @@ def get_next_sampling_point_classifier_reduce_mse(
     rng: np.random.Generator,
     max_evals: int = DEFAULTS["constraint_exploration"]["max_evals"],
 ) -> np.ndarray:
-    """``getNextSamplingPointClfReduceMSE.m``: explore where the constraint is most uncertain.
+    """Explore where the constraint is most uncertain.
 
     With no classifier yet (all simulations feasible) there is nothing to explore, so a
     uniform random point is returned.
