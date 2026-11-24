@@ -23,6 +23,10 @@ import math
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
+
+DEFAULTS = load_defaults("models")
+
 _KINDS = ("SEard", "SEiso", "Maternard", "Materniso", "ADD")
 
 
@@ -36,7 +40,12 @@ def _safe_sqrt(s: Tensor) -> Tensor:
 class Cov:
     """A gpml covariance function."""
 
-    def __init__(self, kind: str = "SEard", degree: int = 3, orders: int | list[int] = 2):
+    def __init__(
+        self,
+        kind: str = DEFAULTS["covariance"]["kind"],
+        degree: int = DEFAULTS["covariance"]["degree"],
+        orders: int | list[int] = DEFAULTS["covariance"]["orders"],
+    ):
         """``degree`` is the Matern degree; ``orders`` (``ADD`` only) is the maximum
         interaction order ``R`` (meaning ``1..R``) or an explicit list such as ``[1, 3]``."""
         self.orders = list(range(1, orders + 1)) if isinstance(orders, int) else list(orders)

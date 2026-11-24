@@ -42,6 +42,9 @@ from torch import Tensor
 
 from gp_omni.correlation import CORRELATIONS, correlation
 from gp_omni.regression import regression_matrix
+from gp_omni.settings import load_defaults
+
+DEFAULTS = load_defaults("models")
 
 _EPS = float(torch.finfo(torch.float64).eps)
 _BIG = 1e10
@@ -154,15 +157,15 @@ class AR1CoKriging(Model):
         self,
         train_X: list[Tensor],
         train_Y: list[Tensor],
-        correlation: str = "matern32",
-        regression: str = "none",
-        hp0: float | list[float] = 0.5,
-        hp_bounds: tuple[float, float] = (-2.0, 2.0),
-        rho0: float = 5.0,
-        rho_bounds: tuple[float, float] = (0.1, 5.0),
-        num_restarts: int = 4,
-        seed: int = 0,
-        hyperparameters: dict | None = None,
+        correlation: str = DEFAULTS["ar1"]["correlation"],
+        regression: str = DEFAULTS["ar1"]["regression"],
+        hp0: float | list[float] = DEFAULTS["ar1"]["hp0"],
+        hp_bounds: tuple[float, float] = tuple(DEFAULTS["ar1"]["hp_bounds"]),
+        rho0: float = DEFAULTS["ar1"]["rho0"],
+        rho_bounds: tuple[float, float] = tuple(DEFAULTS["ar1"]["rho_bounds"]),
+        num_restarts: int = DEFAULTS["ar1"]["num_restarts"],
+        seed: int = DEFAULTS["ar1"]["seed"],
+        hyperparameters: dict | None = DEFAULTS["ar1"]["hyperparameters"],
     ) -> None:
         super().__init__()
         if len(train_X) != 2 or len(train_Y) != 2:
@@ -412,17 +415,17 @@ class DAGCoKriging(Model):
         train_X: list[Tensor],
         train_Y: list[Tensor],
         edges: list[tuple[int, int]],
-        target: int | None = None,
-        correlation: str = "matern32",
-        regression: str = "none",
-        hp0: float | list[float] = 0.5,
-        hp_bounds: tuple[float, float] = (-2.0, 2.0),
-        rho0: float = 1.0,
-        rho_bounds: tuple[float, float] = (-5.0, 5.0),
-        log_variance_bounds: tuple[float, float] = (-6.0, 6.0),
-        num_restarts: int = 4,
-        seed: int = 0,
-        hyperparameters: dict | None = None,
+        target: int | None = DEFAULTS["dag"]["target"],
+        correlation: str = DEFAULTS["dag"]["correlation"],
+        regression: str = DEFAULTS["dag"]["regression"],
+        hp0: float | list[float] = DEFAULTS["dag"]["hp0"],
+        hp_bounds: tuple[float, float] = tuple(DEFAULTS["dag"]["hp_bounds"]),
+        rho0: float = DEFAULTS["dag"]["rho0"],
+        rho_bounds: tuple[float, float] = tuple(DEFAULTS["dag"]["rho_bounds"]),
+        log_variance_bounds: tuple[float, float] = tuple(DEFAULTS["dag"]["log_variance_bounds"]),
+        num_restarts: int = DEFAULTS["dag"]["num_restarts"],
+        seed: int = DEFAULTS["dag"]["seed"],
+        hyperparameters: dict | None = DEFAULTS["dag"]["hyperparameters"],
     ) -> None:
         super().__init__()
         self.num_nodes = len(train_X)

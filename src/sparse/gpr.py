@@ -26,6 +26,7 @@ import math
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.apx import SparseCov
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.gp import gp_nlz, gp_predict, make_hyp
@@ -41,6 +42,8 @@ from gp_omni.sparse.multitask import (
     task_expand,
 )
 from gp_omni.sparse.train import train
+
+DEFAULTS = load_defaults("models")
 
 
 class GPR:
@@ -63,17 +66,17 @@ class GPR:
 
     def __init__(
         self,
-        num_outputs: int = 1,
-        num_fidelities: int = 1,
-        additive: int | list[int] | None = None,
-        nu: int | None = None,
-        s: float = 0.0,
-        cov: str = "SEard",
-        degree: int = 3,
-        rank: int = 1,
-        lik: str = "likGauss",
-        init: str = "kmeans",
-        seed: int = 0,
+        num_outputs: int = DEFAULTS["gpr"]["num_outputs"],
+        num_fidelities: int = DEFAULTS["gpr"]["num_fidelities"],
+        additive: int | list[int] | None = DEFAULTS["gpr"]["additive"],
+        nu: int | None = DEFAULTS["gpr"]["nu"],
+        s: float = DEFAULTS["gpr"]["s"],
+        cov: str = DEFAULTS["gpr"]["cov"],
+        degree: int = DEFAULTS["gpr"]["degree"],
+        rank: int = DEFAULTS["gpr"]["rank"],
+        lik: str = DEFAULTS["gpr"]["lik"],
+        init: str = DEFAULTS["gpr"]["init"],
+        seed: int = DEFAULTS["gpr"]["seed"],
     ):
         self.O, self.L, self.nu, self.s = num_outputs, num_fidelities, nu, s
         self.additive, self.cov_kind, self.degree, self.rank = additive, cov, degree, rank
@@ -102,7 +105,7 @@ class GPR:
 
     def _base_hyp(self, x: Tensor, sf: float) -> Tensor:
         D = x.shape[1]
-        ell = torch.log(x.std(0).clamp_min(1e-3))
+        ell = torch.log(x.std(0).clamp_min(DEFAULTS["initialization"]["lengthscale_floor"]))
         if self.base.kind == "ADD":
             amp = torch.tensor([-0.5 * math.log(math.comb(D, r)) for r in self.base.orders])
             return torch.cat([ell, amp])
@@ -125,8 +128,8 @@ class GPR:
         y: Tensor,
         output: Tensor | None = None,
         fidelity: Tensor | None = None,
-        max_iter: int = 200,
-        learn_xu: bool = True,
+        max_iter: int = DEFAULTS["gpr_fit"]["max_iter"],
+        learn_xu: bool = DEFAULTS["gpr_fit"]["learn_xu"],
     ) -> GPR:
         """Fit on inputs ``x`` (n, D), targets ``y`` (n,), and, for multi-output /
         multi-fidelity models, the integer ``output`` / ``fidelity`` index of every row."""
@@ -164,19 +167,25 @@ class GPR:
                     self._sd[k] = y[m].std()
             ys = (y - self._mu[t]) / self._sd[t]
 
-        sf = 1.0 if gauss else 2.0
+        sf = DEFAULTS["initialization"][
+            "regression_signal_std" if gauss else "classification_signal_std"
+        ]
         bh = self._base_hyp(x, sf)
         if self.multitask:
             hyp = make_hyp(
                 mean=torch.zeros(T),
                 cov=self.cov.initial_hyp(bh),
-                lik=torch.full((T,), math.log(0.1)) if gauss else torch.zeros(0),
+                lik=torch.full((T,), math.log(DEFAULTS["initialization"]["noise_std"]))
+                if gauss
+                else torch.zeros(0),
             )
         else:
             hyp = make_hyp(
                 mean=torch.zeros(1),
                 cov=bh,
-                lik=torch.full((1,), math.log(0.1)) if gauss else torch.zeros(0),
+                lik=torch.full((1,), math.log(DEFAULTS["initialization"]["noise_std"]))
+                if gauss
+                else torch.zeros(0),
             )
         xu0 = None
         if self.nu is not None:

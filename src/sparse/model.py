@@ -13,6 +13,7 @@ import math
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.apx import SparseCov
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.gp import gp_nlz, gp_predict, make_hyp
@@ -22,6 +23,8 @@ from gp_omni.sparse.lik import LikGauss, make_lik
 from gp_omni.sparse.mean import Mean
 from gp_omni.sparse.train import train
 from gp_omni.sparse.xu_opt import vfe_xu_opt
+
+DEFAULTS = load_defaults("models")
 
 
 class SparseGP:
@@ -41,14 +44,14 @@ class SparseGP:
     def __init__(
         self,
         nu: int,
-        cov: str = "SEard",
-        degree: int = 3,
-        mean: str = "const",
-        lik: str = "likGauss",
-        s: float = 0.0,
-        init: str = "kmeans",
-        learn_snu: bool = False,
-        seed: int = 0,
+        cov: str = DEFAULTS["sparse"]["cov"],
+        degree: int = DEFAULTS["sparse"]["degree"],
+        mean: str = DEFAULTS["sparse"]["mean"],
+        lik: str = DEFAULTS["sparse"]["lik"],
+        s: float = DEFAULTS["sparse"]["s"],
+        init: str = DEFAULTS["sparse"]["init"],
+        learn_snu: bool = DEFAULTS["sparse"]["learn_snu"],
+        seed: int = DEFAULTS["sparse"]["seed"],
     ):
         self.nu, self.s, self.init, self.seed, self.learn_snu = nu, s, init, seed, learn_snu
         self.cov, self.mean, self.lik = Cov(cov, degree), Mean(mean), make_lik(lik)
@@ -60,9 +63,13 @@ class SparseGP:
     # ----------------------------------------------------------------------- helpers
     def _initial_hyp(self, x: Tensor, y: Tensor, learn_xu: bool) -> dict[str, Tensor]:
         d = x.shape[1]
-        ell = torch.log(x.std(0).clamp_min(1e-3))
+        ell = torch.log(x.std(0).clamp_min(DEFAULTS["initialization"]["lengthscale_floor"]))
         gauss = isinstance(self.lik, LikGauss)
-        sf = torch.log(y.std().clamp_min(1e-3)) if gauss else torch.tensor(math.log(2.0))
+        sf = (
+            torch.log(y.std().clamp_min(DEFAULTS["initialization"]["signal_std_floor"]))
+            if gauss
+            else torch.tensor(math.log(DEFAULTS["initialization"]["classification_signal_std"]))
+        )
         hc = (
             torch.cat([ell, sf[None]])
             if self.cov.kind.endswith("ard")
@@ -72,7 +79,11 @@ class SparseGP:
         if self.mean.kind in ("const", "linear+const") and gauss:
             hm[-1] = y.mean()
         hyp = make_hyp(
-            mean=hm, cov=hc, lik=torch.log(y.std() / 2)[None] if gauss else torch.zeros(0)
+            mean=hm,
+            cov=hc,
+            lik=torch.log(y.std() / DEFAULTS["initialization"]["sparse_noise_std_divisor"])[None]
+            if gauss
+            else torch.zeros(0),
         )
         xu = init_inducing(x, self.nu, self.init, self.seed)
         self._xu0 = xu
@@ -90,9 +101,9 @@ class SparseGP:
         self,
         x: Tensor,
         y: Tensor,
-        learn_xu: bool = True,
-        swap: int = 0,
-        max_iter: int = 200,
+        learn_xu: bool = DEFAULTS["sparse_fit"]["learn_xu"],
+        swap: int = DEFAULTS["sparse_fit"]["swap"],
+        max_iter: int = DEFAULTS["sparse_fit"]["max_iter"],
         hyp: dict[str, Tensor] | None = None,
     ) -> SparseGP:
         """Train hyperparameters (and inducing inputs if ``learn_xu``) on ``(x, y)``.
