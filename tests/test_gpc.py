@@ -89,13 +89,30 @@ def test_classifier_is_a_twin_of_the_regression_model():
 
 
 def test_multifidelity_labels_help_a_scarce_high_fidelity_classifier():
+    # Isolate transfer: a well-sampled low fidelity reveals two feasible regions,
+    # while six high-fidelity labels cannot resolve both on their own. Shift the
+    # high-fidelity boundaries slightly so the fidelities are not interchangeable.
+    xt = torch.linspace(0, 1, 601).unsqueeze(-1)
+
+    def labels(x, phase):
+        return torch.where(torch.sin(4 * torch.pi * x[:, 0] + phase) > 0, 1.0, -1.0)
+
     gains = []
     for seed in range(3):
-        x, y, o, f = problem([[150, 10]], seed=seed)
-        mf = GPC(num_fidelities=2).fit(x, y, o, f)
-        hi_only = GPC().fit(x[f == 1], y[f == 1])
-        gains.append(accuracy(mf, 0, 1) - accuracy(hi_only, 0, 0))
-    assert sum(gains) / 3 > 0.03, gains
+        generator = torch.Generator().manual_seed(seed)
+        low_x = torch.rand(80, 1, generator=generator)
+        high_x = torch.rand(6, 1, generator=generator)
+        x = torch.cat([low_x, high_x])
+        y = torch.cat([labels(low_x, 0), labels(high_x, 0.15)])
+        fidelity = torch.cat([torch.zeros(80), torch.ones(6)]).long()
+        mf = GPC(num_fidelities=2).fit(x, y, fidelity=fidelity)
+        hi_only = GPC().fit(high_x, labels(high_x, 0.15))
+        expected = labels(xt, 0.15) > 0
+        mf_accuracy = float((mf.predict_feasible(xt, fidelity=1) == expected).double().mean())
+        hi_accuracy = float((hi_only.predict_feasible(xt) == expected).double().mean())
+        assert mf_accuracy > 0.9, (seed, mf_accuracy)
+        gains.append(mf_accuracy - hi_accuracy)
+    assert sum(gains) / len(gains) > 0.15, gains
 
 
 def test_correlated_constraints_help_a_data_poor_constraint():
