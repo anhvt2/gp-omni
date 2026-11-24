@@ -9,7 +9,9 @@ torch.set_default_dtype(torch.float64)
 
 from gp_omni.bo_config import BOConfig
 from gp_omni.models.cokriging import AR1CoKriging, DAGCoKriging
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 from gp_omni.sparse.omni import OmniGP, OmniGPC
 
-__all__ = ["AR1CoKriging", "BOConfig", "DAGCoKriging", "OmniGP", "OmniGPC"]
+__all__ = ["GPC", "GPR", "AR1CoKriging", "BOConfig", "DAGCoKriging", "OmniGP", "OmniGPC"]
 __version__ = "0.1.0"
