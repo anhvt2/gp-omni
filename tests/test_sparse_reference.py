@@ -1,4 +1,4 @@
-"""Parity of gp_omni.infer with gpml-matlab v4.2 (golden values from Octave)."""
+"""Parity of gp_omni.infer with reference golden values (see fixtures/generate_sparse_reference.m)."""
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,8 +18,8 @@ from gp_omni.infer.moments import predict_gp
 from gp_omni.infer.posterior import gaussian_posterior, laplace_posterior
 from gp_omni.train.objectives import negative_log_evidence
 
-FIX = Path(__file__).parent / "fixtures" / "sparse_gpml_fixture.mat"
-pytestmark = pytest.mark.skipif(not FIX.exists(), reason="run generate_sparse_gpml.m")
+FIX = Path(__file__).parent / "fixtures" / "sparse_reference_fixture.mat"
+pytestmark = pytest.mark.skipif(not FIX.exists(), reason="run generate_sparse_reference.m")
 
 
 @pytest.fixture(scope="module")
@@ -46,7 +46,7 @@ def check(got, want, rtol=1e-7, atol=1e-9):
 
 
 @pytest.mark.parametrize("i", [0, 1, 2])  # s = 1, 0, 0.5
-def test_gaussian_matches_gpml(fx, i):
+def test_gaussian_matches_reference(fx, i):
     c = fx.gauss[i]
     x, y, xs, xu = T(fx.x), T(fx.yreg), T(fx.xs), T(fx.xu)
     hyp = hyp_of(mean=0.1, cov=np.log([0.4, 0.6, 1.2]), lik=np.log(0.2), xu=xu)
@@ -64,7 +64,7 @@ def test_gaussian_matches_gpml(fx, i):
         check(p[k], getattr(c, k), rtol=1e-6, atol=1e-9)
 
 
-def test_learnable_inducing_noise_matches_gpml(fx):
+def test_learnable_inducing_noise_matches_reference(fx):
     c = fx.snu
     x, y, xu = T(fx.x), T(fx.yreg), T(fx.xu)
     hyp = hyp_of(mean=0.1, cov=np.log([0.4, 0.6, 1.2]), lik=np.log(0.2), xu=xu, snu=np.log(3e-3))
@@ -83,7 +83,7 @@ def test_learnable_inducing_noise_matches_gpml(fx):
     check(d["cov"], c.dcov, rtol=1e-6, atol=1e-9)
 
 
-def test_exact_matern_with_linear_mean_matches_gpml(fx):
+def test_exact_matern_with_linear_mean_matches_reference(fx):
     c = fx.exact_matern
     hyp = hyp_of(mean=[0.3, -0.2, 0.05], cov=np.log([0.5, 0.7, 1.1]), lik=np.log(0.15))
     nlZ, d, _ = negative_log_evidence(
@@ -101,7 +101,7 @@ def test_exact_matern_with_linear_mean_matches_gpml(fx):
     check(d["lik"], c.dlik)
 
 
-def test_sparse_matern_vfe_matches_gpml(fx):
+def test_sparse_matern_vfe_matches_reference(fx):
     c = fx.sparse_matern
     xu = T(fx.xu)
     hyp = hyp_of(mean=[0.3, -0.2, 0.05], cov=np.log([0.5, 0.7, 1.1]), lik=np.log(0.15), xu=xu)
@@ -123,7 +123,7 @@ def test_sparse_matern_vfe_matches_gpml(fx):
 
 
 @pytest.mark.parametrize("k", [0, 1, 2, 3])
-def test_laplace_classification_matches_gpml(fx, k):
+def test_laplace_classification_matches_reference(fx, k):
     c = fx.laplace[k]
     lik = {"erf": probit, "logistic": logistic}[str(c.lik)]()
     x, y, xs, xu = T(fx.x), T(fx.ycls), T(fx.xs), T(fx.xu)
@@ -143,7 +143,7 @@ def test_laplace_classification_matches_gpml(fx, k):
     check(p["ymu"], c.ymu, rtol=1e-6, atol=1e-9)
 
 
-def test_vfe_xu_opt_matches_gpml(fx):
+def test_vfe_xu_opt_matches_reference(fx):
     from gp_omni.train.inducing import vfe_xu_opt
 
     c = fx.xu_opt
@@ -155,7 +155,7 @@ def test_vfe_xu_opt_matches_gpml(fx):
     assert nlZ == pytest.approx(float(c.nlZ), rel=1e-9)
 
 
-def test_additive_covadd_matches_gpml(fx):
+def test_additive_covadd_matches_reference(fx):
     cov = covariance("additive", orders=[1, 3])
     e, sp = fx.add_exact, fx.add_sparse
     x, y = T(e.x), T(e.y)

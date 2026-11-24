@@ -1,6 +1,6 @@
 """Batch-sequential parallel constrained Bayesian optimisation.
 
-Port of the master loop ``mainprog_benchR.m``. Every iteration proposes a whole batch of
+Every iteration proposes a whole batch of
 points, runs the batch in parallel, and moves on only when the *entire* batch has finished
 (the asynchronous variant in :mod:`gp_omni.train.asyncbo` instead refills slots one by one).
 
@@ -16,7 +16,7 @@ The batch is filled in three parts, each launched as soon as its point is chosen
 After the batch completes, the real results are collected (infeasible outputs are
 hallucinated from the feasible ones) and the models are refitted for the next iteration.
 
-``max_iter`` counts iterations as in the MATLAB loop: the initial points are iterations
+``max_iter`` counts iterations the initial points are iterations
 ``1..num_init_point`` and every later iteration launches one batch of
 ``exploit_size + explore_size + explore_classifier_size`` jobs.
 """
@@ -60,9 +60,6 @@ class batch_bo_config(bo_config):
     acquisition: str = DEFAULTS["batch"][
         "acquisition"
     ]  # PI, EI or UCB for the exploitation part of the batch
-    relax_alpha: float | None = DEFAULTS["batch"][
-        "relax_alpha"
-    ]  # classifier probabilities rounded outside [1-a, a]; None=off
 
 
 class batch_bo(async_bo):
@@ -97,7 +94,6 @@ class batch_bo(async_bo):
             return get_next_sampling_point(
                 self.model, self.classifier, c.acquisition, c.x_lb, c.x_ub, x_obs,
                 self.y_hallucinated, self.rng, c.known_constraint, c.cma_max_evals,
-                relax_alpha=c.relax_alpha,
             )  # fmt: skip
         if batch_id == 2:
             return get_next_sampling_point_reduce_mse(self.model, c.x_lb, c.x_ub, self.rng)

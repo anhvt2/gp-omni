@@ -1,4 +1,4 @@
-"""Hyperparameter training, the role of gpml's ``minimize(hyp, @gp, -n, ...)``."""
+"""Hyperparameter training, minimising the negative log evidence."""
 
 from __future__ import annotations
 

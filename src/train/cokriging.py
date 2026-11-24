@@ -24,7 +24,7 @@ def _level_objective(
     """Concentrated negative log-likelihood of one level.
 
     Returns ``(nll, sigma2, beta, L, gamma)``. ``sigma2 = RSS / n`` and the
-    trend coefficients are profiled out (GLS), as in ``marginalLikelihood.m``.
+    trend coefficients are profiled out (GLS).
     """
     n = X.shape[0]
     psi = correlation(name, theta, X, X)

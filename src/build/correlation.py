@@ -2,7 +2,7 @@
 
 Hyperparameters ``hp`` are ``log10`` of per-dimension precisions ``ell`` (``ell = 10**hp``),
 so ``corrgauss(d) = exp(-sum(ell * d**2))``. A length-1 ``hp`` is broadcast over all
-dimensions (isotropic). Mirrors the MATLAB ``corr*.m`` basis functions.
+dimensions (isotropic).
 """
 
 from __future__ import annotations

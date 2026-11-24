@@ -1,4 +1,4 @@
-"""Use case 3: big data with a sparse covariance approximation (gpml ``apxSparse``).
+"""Use case 3: big data with a sparse covariance approximation (VFE / FITC).
 
 20,000 points are fit through 40 inducing inputs: O(n nu^2) instead of O(n^3). ``s`` picks the
 method: 0 = variational free energy (default), 1 = FITC, in between = sparse power EP.

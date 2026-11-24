@@ -6,7 +6,7 @@ Restart Python after editing defaults. The files are also included in built whee
 
 | File | Settings |
 | --- | --- |
-| [models.json](models.json) | GPR, GPC, GPML sparse models, AR1/DAG co-kriging, covariance/mean defaults, initial hyperparameters |
+| [models.json](models.json) | GPR, GPC, sparse models, AR1/DAG co-kriging, covariance/mean defaults, initial hyperparameters |
 | [training.json](training.json) | Fit budgets, learning rates, restarts, optimizer tolerances, inducing-input initialization |
 | [inference.json](inference.json) | Laplace iterations, tolerance and line search; sparse approximation and inducing noise |
 | [builders.json](builders.json) | GPyTorch builder and additive-kernel defaults |
@@ -15,12 +15,11 @@ Restart Python after editing defaults. The files are also included in built whee
 | [batch_seq_bo.json](batch_seq_bo.json) | Example batch-sequential BO run |
 
 Sections match the consuming model or operation. `gpr` and `gpc` contain constructor
-settings; `gpr_fit` and `gpc_fit` contain `fit()` defaults. The generic GPML sparse model
+settings; `gpr_fit` and `gpc_fit` contain `fit()` defaults. The generic sparse model
 uses `sparse` and `sparse_fit`. Numerical defaults retain their previous values. Likelihood and covariance selectors
 use snake_case names such as `gaussian`, `probit`, `logistic`, and `matern_ard`.
 
-For sparse inference, `inference.json` has a low-level default power `s=1` (FITC), matching
-GPML. The high-level models explicitly pass their own `s=0` (VFE) default from `models.json`.
+For sparse inference, `inference.json` has a low-level default power `s=1` (FITC). The high-level models explicitly pass their own `s=0` (VFE) default from `models.json`.
 
 Explicit Python arguments override defaults. Load model constructor settings for a run
 from a flat JSON object, for example `{"nu": 20, "cov": "matern_ard", "seed": 42}`:

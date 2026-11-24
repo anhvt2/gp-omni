@@ -20,7 +20,7 @@ class GPC(GPR):
 
     Labels are ``+1`` = feasible, ``-1`` = infeasible (also accepted: bool and ``{0, 1}``).
     The latent function ``f`` gets a probit (``probit``, default) or logistic likelihood
-    and the posterior is the Laplace approximation (gpml ``infLaplace``) on the same exact or
+    and the posterior is the Laplace approximation on the same exact or
     sparse covariance approximation as the regression twin. With ``num_outputs > 1``, each
     output is one constraint, correlated with the others; with ``num_fidelities > 1``, labels
     can come from cheap and expensive evaluations of the constraint.
