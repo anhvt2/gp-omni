@@ -1,5 +1,10 @@
 # gp-omni
 
+[![CI](https://github.com/anhvt2/gp-omni/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/anhvt2/gp-omni/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](#install)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Lint: Ruff](https://img.shields.io/badge/lint-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
+
 **Versatile Gaussian processes for Bayesian optimization. A plug-and-play pipeline from observations to the next experiment.**
 
 gp-omni is an open-source Python toolkit for modeling expensive black-box functions and

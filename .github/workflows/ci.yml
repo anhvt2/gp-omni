@@ -4,6 +4,16 @@ on: [push, pull_request]
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# These small GP problems run faster without competing BLAS/OpenMP thread pools.
+env:
+  OMP_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -25,4 +35,12 @@ jobs:
         run: uv run --no-sync ruff check .
 
       - name: Test
-        run: uv run --no-sync pytest -q
+        run: uv run --no-sync pytest -q --durations=10 --junitxml=test-results/pytest.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: test-results/pytest.xml
+          if-no-files-found: ignore

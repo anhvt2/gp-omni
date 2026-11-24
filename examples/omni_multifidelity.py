@@ -12,12 +12,14 @@ from gp_omni import OmniGP
 
 
 def main() -> dict:
-    g = torch.Generator().manual_seed(0)
     hi = lambda x: (6 * x[:, 0] - 2) ** 2 * torch.sin(12 * x[:, 0] - 4)
     lo = lambda x: 0.5 * hi(x) + 10 * (x[:, 0] - 0.5) - 5
-    xl, xh = torch.rand(30, 1, generator=g), torch.linspace(0, 1, 4).reshape(-1, 1)
+    # A nested, space-filling design covers both boundaries at each fidelity.
+    # Sparse random coverage can send marginal-likelihood fitting to a poor local optimum.
+    xl = torch.linspace(0, 1, 31).reshape(-1, 1)
+    xh = xl[::10]
     x = torch.cat([xl, xh])
-    fidelity = torch.cat([torch.zeros(30), torch.ones(4)]).long()
+    fidelity = torch.cat([torch.zeros(len(xl)), torch.ones(len(xh))]).long()
     y = torch.cat([lo(xl), hi(xh)])
 
     model = OmniGP(num_fidelities=2).fit(x, y, fidelity=fidelity)  # <- the feature switch
