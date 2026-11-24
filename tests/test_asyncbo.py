@@ -11,7 +11,11 @@ import gp_omni  # noqa: F401
 from gp_omni import OmniGP, OmniGPC
 from gp_omni.asyncbo import AsyncBO, AsyncBOConfig, negative_acquisition
 from gp_omni.asyncbo import database as db
-from gp_omni.asyncbo.acquisition import acquisition_value, check_multiple_design_sites
+from gp_omni.asyncbo.acquisition import (
+    acquisition_value,
+    check_multiple_design_sites,
+    predict_feasibility,
+)
 
 
 @pytest.fixture(scope="module")
@@ -224,3 +228,18 @@ def test_config_json_round_trip(tmp_path):
     assert config.x_scale.tolist() == [1.0, 1.0] and config.batch.total == 4
     config.to_json(tmp_path / "copy.json")
     assert AsyncBOConfig.from_json(tmp_path / "copy.json").x_ub.tolist() == config.x_ub.tolist()
+
+
+def test_relaxed_feasibility_probability():
+    class Fixed:
+        def __init__(self, p):
+            self.p = p
+
+        def predict_proba(self, xs):
+            return torch.tensor([self.p])
+
+    x = np.zeros(2)
+    assert predict_feasibility(Fixed(0.95), x, relax_alpha=0.9) == 1.0
+    assert predict_feasibility(Fixed(0.05), x, relax_alpha=0.9) == 0.0
+    assert predict_feasibility(Fixed(0.5), x, relax_alpha=0.9) == 0.5
+    assert predict_feasibility(Fixed(0.95), x) == 0.95  # off by default
