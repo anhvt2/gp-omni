@@ -100,13 +100,14 @@ def negative_acquisition(
     x_obs: np.ndarray,
     y_obs: np.ndarray,
     known_constraint: KnownConstraint = check_constraint,
+    relax_alpha: float | None = None,
 ) -> float:
     """``calculateNegativeAcquisitionFunction.m``: ``-acquisition * known * unknown``."""
     x = np.asarray(x, dtype=float).reshape(-1)
     known = known_constraint(x)
     if known == 0:
         return 0.0
-    unknown = predict_feasibility(classifier, x)
+    unknown = predict_feasibility(classifier, x, relax_alpha)
     y, s2 = predict_objective(model, x)
     t, d = x_obs.shape
     a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)

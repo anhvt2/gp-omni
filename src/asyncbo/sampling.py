@@ -80,6 +80,7 @@ def get_next_sampling_point(
     known_constraint: KnownConstraint = check_constraint,
     max_evals: int = 250,
     max_retries: int = 100,
+    relax_alpha: float | None = None,
 ) -> np.ndarray:
     """``getNextSamplingPoint.m``: maximise the penalised acquisition with CMA-ES.
 
@@ -98,7 +99,7 @@ def get_next_sampling_point(
 
     def objective(x):
         return negative_acquisition(
-            x, model, classifier, acquisition, x_obs, y_obs, known_constraint
+            x, model, classifier, acquisition, x_obs, y_obs, known_constraint, relax_alpha
         )
 
     for attempt in range(max_retries):
