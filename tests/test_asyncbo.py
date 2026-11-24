@@ -207,7 +207,9 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
     jobs = db.iter_folders(tmp_path, "toy")
     assert len(jobs) == 12
     assert all(db.read_folder(job)[3] == 1 for job in jobs)  # every job finished
-    assert not subprocess.run(["pgrep", "-f", "simulate.py"], capture_output=True).stdout
+    assert not subprocess.run(
+        ["pgrep", "-f", "simulate.py"], capture_output=True, check=False
+    ).stdout
     for name in ("x_obs", "y_obs", "f_obs", "c_obs"):
         assert (tmp_path / f"{name}.dat").is_file()
     proposals = jobs[3:]
