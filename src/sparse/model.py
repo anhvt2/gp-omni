@@ -25,6 +25,7 @@ from gp_omni.sparse.train import train
 from gp_omni.sparse.xu_opt import vfe_xu_opt
 
 DEFAULTS = load_defaults("models")
+INFERENCE = load_defaults("inference")
 
 
 class SparseGP:
@@ -90,7 +91,9 @@ class SparseGP:
         if learn_xu:
             hyp["xu"] = xu
         if self.learn_snu:
-            hyp["snu"] = torch.log(1e-3 * hyp["cov"][-1].exp())[None]
+            hyp["snu"] = torch.log(
+                INFERENCE["sparse"]["inducing_noise_variance_ratio"] ** 0.5 * hyp["cov"][-1].exp()
+            )[None]
         return hyp
 
     def _cov(self) -> SparseCov:

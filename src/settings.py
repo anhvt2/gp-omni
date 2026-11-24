@@ -13,6 +13,6 @@ from typing import Any
 
 def load_defaults(name: str) -> dict[str, Any]:
     """Return a fresh copy of a named, packaged defaults document."""
-    if name not in {"models"}:
+    if name not in {"inference", "models", "training"}:
         raise ValueError(f"unknown defaults document: {name!r}")
     return json.loads(files("gp_omni.config").joinpath(f"{name}.json").read_text())
