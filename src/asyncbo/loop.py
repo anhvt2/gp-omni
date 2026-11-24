@@ -15,26 +15,26 @@ The maximisation convention is kept: to minimise, negate the objective.
 
 from __future__ import annotations
 
-import json
 import logging
 import shutil
 import subprocess
 import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import torch
 
 from gp_omni.asyncbo import database as db
-from gp_omni.asyncbo.acquisition import KnownConstraint, check_constraint, predict_objective
+from gp_omni.asyncbo.acquisition import predict_objective
 from gp_omni.asyncbo.sampling import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
+from gp_omni.bo_config import BOConfig
 from gp_omni.sparse.omni import OmniGP, OmniGPC
 
 log = logging.getLogger(__name__)
@@ -43,50 +43,8 @@ Evaluator = Callable[[np.ndarray], tuple[float, bool]]  # x (unscaled) -> (objec
 
 
 @dataclass
-class AsyncBOConfig:
-    """Settings of ``mainprog_benchR_gpml.m``."""
-
-    model_name: str
-    x_lb: np.ndarray
-    x_ub: np.ndarray
-    exploit_size: int = 3  # concurrent acquisition (GP-Hedge) jobs
-    explore_size: int = 2  # concurrent max-variance jobs on the objective model
-    explore_classifier_size: int = 1  # concurrent max-variance jobs on the constraint classifier
-    max_iter: int = 400  # total number of evaluations launched, initial ones included
-    num_init_point: int = 2
-    x_scale: np.ndarray | float = 1.0  # rough scale so scaled inputs are O(1)
-    y_scale: float = 1.0
-    check_time: float = 0.10  # minutes between polls while every slot is busy
-    wait_time: float = 1.0  # hours before an unfinished job is declared failed
-    gp_max_iter: int = 200  # hyper-parameter optimiser iterations per fit
-    cma_max_evals: int = 250  # CMA-ES budget per acquisition proposal (explore uses 100)
-    seed: int | None = None
-    query_script: str | None = None  # bash script run inside the job folder (async by itself)
-    known_constraint: KnownConstraint = field(default=check_constraint)
-
-    def __post_init__(self):
-        self.x_lb, self.x_ub = np.asarray(self.x_lb, float), np.asarray(self.x_ub, float)
-        self.x_scale = np.broadcast_to(np.asarray(self.x_scale, float), self.x_lb.shape).copy()
-
-    @classmethod
-    def from_json(cls, path: str | Path, **overrides) -> AsyncBOConfig:
-        """Load settings from a JSON file (see ``config/async_bo.json``).
-
-        Keys are the field names; ``overrides`` (e.g. ``known_constraint=...``, which cannot
-        live in JSON) take precedence over the file.
-        """
-        values = json.loads(Path(path).read_text())
-        return cls(**{**values, **overrides})
-
-    def to_json(self, path: str | Path) -> None:
-        """Write the JSON-representable settings (everything but ``known_constraint``)."""
-        values = {k: v for k, v in self.__dict__.items() if k != "known_constraint"}
-        values = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in values.items()}
-        Path(path).write_text(json.dumps(values, indent=2) + "\n")
-
-    @property
-    def batch(self) -> db.BatchSettings:
-        return db.BatchSettings(self.exploit_size, self.explore_size, self.explore_classifier_size)
+class AsyncBOConfig(BOConfig):
+    """Asynchronous GP-Hedge settings; ``max_iter`` counts evaluations launched."""
 
 
 class AsyncBO:
@@ -98,7 +56,7 @@ class AsyncBO:
     long-running work, exactly like the original ``query*.sh``).
     """
 
-    def __init__(self, root: str | Path, config: AsyncBOConfig, evaluate: Evaluator | None = None):
+    def __init__(self, root: str | Path, config: BOConfig, evaluate: Evaluator | None = None):
         if (evaluate is None) == (config.query_script is None):
             raise ValueError("give exactly one of `evaluate` and `config.query_script`")
         self.root, self.config, self.evaluate = Path(root).resolve(), config, evaluate

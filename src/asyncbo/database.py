@@ -19,28 +19,16 @@ from __future__ import annotations
 import datetime
 import logging
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from natsort import natsorted
 
+from gp_omni.bo_config import BatchSettings
+
 log = logging.getLogger(__name__)
 
 ACQUISITIONS = ("UCB", "EI", "PI")  # order of the lines in rewards.dat
-
-
-@dataclass(frozen=True)
-class BatchSettings:
-    """``batch_settings.dat``: how many jobs of each kind may be in flight."""
-
-    exploit: int
-    explore: int
-    explore_classifier: int
-
-    @property
-    def total(self) -> int:
-        return self.exploit + self.explore + self.explore_classifier
 
 
 def _num(path: Path, default: float) -> float:

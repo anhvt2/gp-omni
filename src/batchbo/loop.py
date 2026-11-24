@@ -32,12 +32,13 @@ import torch
 
 from gp_omni.asyncbo import database as db
 from gp_omni.asyncbo.acquisition import predict_objective
-from gp_omni.asyncbo.loop import AsyncBO, AsyncBOConfig
+from gp_omni.asyncbo.loop import AsyncBO
 from gp_omni.asyncbo.sampling import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
+from gp_omni.bo_config import BOConfig
 from gp_omni.sparse.omni import OmniGP, OmniGPC
 
 log = logging.getLogger(__name__)
@@ -46,8 +47,8 @@ KINDS = (("exploit", 1), ("explore", 2), ("explore_classifier", 3))  # (folder n
 
 
 @dataclass
-class BatchSeqBOConfig(AsyncBOConfig):
-    """``AsyncBOConfig`` plus the batch-sequential settings.
+class BatchSeqBOConfig(BOConfig):
+    """Batch-sequential settings; ``max_iter`` counts iterations.
 
     ``check_time`` is the polling interval (minutes) while waiting for a batch to finish.
     """
