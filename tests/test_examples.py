@@ -47,6 +47,12 @@ def test_cokriging_example_is_accurate():
     assert run("cokriging")["rmse"] < 0.5
 
 
+def test_dag_cokriging_example():
+    res = run("dag_cokriging")
+    assert res["rmse"] < 0.08 and res["parent_rmse"] < 0.05, res
+    assert res["min_variance"] >= 0 and res["posterior_shape"] == (4, 1)
+
+
 def test_additive_example_beats_plain_ard():
     res = run("additive")
     assert res["additive_nrmse"] < 0.1
