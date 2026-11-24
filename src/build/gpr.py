@@ -5,8 +5,8 @@ feature                switch                       what it does
 =====================  ===========================  ===================================
 correlated outputs     ``num_outputs > 1``          coregionalised (ICM/LMC) outputs
 multi-fidelity         ``num_fidelities > 1``       autoregressive fidelities (AR1)
-big data / sparse      ``nu = <int>``               gpml sparse VFE / FITC / SPEP
-additive (high-dim)    ``additive = R`` or list     gpml ``covADD`` of orders ``1..R``
+big data / sparse      ``nu = <int>``               sparse VFE / FITC / SPEP
+additive (high-dim)    ``additive = R`` or list     additive kernel of orders ``1..R``
 =====================  ===========================  ===================================
 
 Every combination is valid. Each switch changes one ingredient only (the covariance, or

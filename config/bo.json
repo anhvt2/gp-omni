@@ -32,8 +32,7 @@
     "query_script": null
   },
   "batch": {
-    "acquisition": "EI",
-    "relax_alpha": 0.9
+    "acquisition": "EI"
   },
   "acquisition": {
     "delta": 0.95

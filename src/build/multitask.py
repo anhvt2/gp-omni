@@ -1,4 +1,4 @@
-"""Independent multi-output and multi-fidelity structure, as one gpml-style covariance.
+"""Independent multi-output and multi-fidelity structure, as one covariance.
 
 Tasks are ``(output o, fidelity l)`` pairs. Inputs carry two extra trailing columns
 ``[..., o, l]`` (see :func:`augment`), so the covariance, mean and likelihood below plug into

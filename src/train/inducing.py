@@ -1,4 +1,4 @@
-"""gpml's ``vfe_xu_opt.m``: greedy swapping of inducing inputs for the VFE bound.
+"""Greedy swapping of inducing inputs for the VFE bound.
 
 Starting from the inducing inputs in ``hyp['xu']`` and a pool of candidates ``z`` (typically
 the training inputs), each round evaluates the VFE negative log marginal likelihood and, in

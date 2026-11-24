@@ -1,4 +1,4 @@
-"""Additive GP (gpml covADD) vs plain ARD on a purely additive 20-D function."""
+"""Additive GP  vs plain ARD on a purely additive 20-D function."""
 
 import torch
 

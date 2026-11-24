@@ -95,8 +95,7 @@ posterior transforms and `output_indices=[0]`. Observation noise is unsupported;
 small relative diagonal jitter is numerical stabilization only. Selecting the
 next fidelity or optimizing jointly over fidelities requires a custom workflow.
 
-The existing `ar1_cokriging` retains its two-level interface, sequential fitting,
-and MATLAB parity behavior. With the same two-node kernel parameters, edge
+The existing `ar1_cokriging` retains its two-level interface and sequential fitting. With the same two-node kernel parameters, edge
 weight, and discrepancy variances, the new model gives the same high-fidelity
 predictions up to numerical jitter. Joint fitting can produce different fitted
 parameters. Lower-node predictions in the DAG model incorporate descendant data;

@@ -9,7 +9,7 @@ from gp_omni.infer.moments import predict_gp
 
 
 def predict(model, xs: Tensor) -> dict[str, Tensor]:
-    """gpml's ``[ymu, ys2, fmu, fs2]`` (dictionary)."""
+    """``ymu, ys2, fmu, fs2`` as a dictionary."""
     if model.hyp is None or model.post is None:
         raise RuntimeError("call fit() first")
     xs = xs.to(torch.float64)

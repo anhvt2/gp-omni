@@ -1,6 +1,6 @@
 """Asynchronous parallel constrained GP-Hedge Bayesian optimisation.
 
-Port of the master loop ``mainprog_benchR_gpml.m``. The loop never waits for a batch to
+The master loop never waits for a batch to
 finish: whenever one of the ``exploit + explore + explore_classifier`` slots is free it fits the
 surrogates on everything known so far, proposes one point and launches it, then goes back
 for the next free slot. Jobs still running are *pending*: they sit in the database with

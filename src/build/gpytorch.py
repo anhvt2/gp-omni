@@ -58,7 +58,7 @@ def exact_gpr(train_x: Tensor, train_y: Tensor, kernel: Kernel | None = None) ->
 def additive_gpr(
     train_x: Tensor, train_y: Tensor, max_degree: int = DEFAULTS["additive"]["max_degree"]
 ) -> _exact_gpr:
-    """Additive GP of interaction orders 1..``max_degree`` (gpml ``covADD`` with ``1:R``).
+    """Additive GP of interaction orders 1..``max_degree``.
 
     Uses :class:`gp_omni.build.kernels.additive_kernel` (one learned output scale per order).
     """

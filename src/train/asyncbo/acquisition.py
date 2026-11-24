@@ -1,14 +1,14 @@
-"""Penalised acquisition functions: port of ``bayesOptSrc-gpml/calculateNegative*.m``.
+"""Penalised acquisition functions.
 
 The objective of the CMA-ES inner search is (minimised)::
 
     -acquisition(x) * known_constraint(x) * unknown_constraint(x)
 
-* ``known_constraint``: ``checkConstraint.m``; 1 when ``x`` satisfies the analytic constraints,
-  0 when it violates one (the MATLAB code returns 0 immediately in that case).
+* ``known_constraint``: 1 when ``x`` satisfies the analytic constraints, 0 when it violates
+  one (the objective returns 0 immediately in that case).
 * ``unknown_constraint``: ``P(feasible | x)`` from the constraint classifier (``GPC``),
   clipped to ``[0, 1]``; 1 when no classifier could be fitted (e.g. every simulation so far
-  was feasible), as in the MATLAB ``try/catch``.
+  was feasible).
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ DEFAULTS = load_defaults("bo")
 def check_multiple_design_sites(
     x_next: np.ndarray, x_obs: np.ndarray, tol: float = DEFAULTS["duplicate_detection"]["tol"]
 ) -> bool:
-    """``checkMultipleDesignSites.m``: True if ``x_next`` duplicates a row of ``x_obs``."""
+    """True if ``x_next`` duplicates a row of ``x_obs``."""
     x_next = np.asarray(x_next, dtype=float).reshape(1, -1)
     x_obs = np.atleast_2d(x_obs)
     if x_obs.shape[1] != x_next.shape[1]:
@@ -48,24 +48,19 @@ def predict_objective(model: GPR, x: np.ndarray) -> tuple[float, float]:
     return float(out["ymu"][0]), max(float(out["ys2"][0]), 0.0)
 
 
-def predict_feasibility(
-    classifier: GPC | None, x: np.ndarray, relax_alpha: float | None = None
-) -> float:
-    """``P(feasible | x)`` clipped to [0, 1]; 1 when there is no usable classifier.
+def predict_feasibility(classifier: GPC | None, x: np.ndarray) -> float:
+    """``P(feasible | x)`` in [0, 1]; 1 when there is no usable classifier.
 
-    With ``relax_alpha`` (``classifPredictor.m``, 0.9 there) probabilities above ``alpha`` are
-    rounded to 1 and below ``1 - alpha`` to 0, so only the uncertain band is penalised softly.
+    ``GPC.predict_proba`` is already a probability, so it is used as is (the clip only guards
+    against floating-point round-off).
     """
     if classifier is None:
         return 1.0
     try:
         p = float(classifier.predict_proba(_row(x))[0])
-    except Exception:  # noqa: BLE001 - mirrors the MATLAB try/catch safeguard
+    except Exception:  # noqa: BLE001 - a failed classifier must not stop the search
         return 1.0
-    p = min(max(p, 0.0), 1.0)
-    if relax_alpha is not None:
-        p = 1.0 if p > relax_alpha else 0.0 if p < 1 - relax_alpha else p
-    return p
+    return min(max(p, 0.0), 1.0)
 
 
 def acquisition_value(
@@ -77,13 +72,13 @@ def acquisition_value(
     d: int,
     delta: float = DEFAULTS["acquisition"]["delta"],
 ) -> float:
-    """PI / EI / UCB for a maximisation problem (``calculateNegativeAcquisitionFunction.m``)."""
+    """PI / EI / UCB for a maximisation problem."""
     s = math.sqrt(s2)
     if name == "UCB":
         # option-2, Srinivas et al. theorem 2 / Daniel et al.
         kappa = 2 * math.log(t ** (d / 2 + 2) * math.pi**2 / 3 / delta)
         return y + math.sqrt(kappa) * s
-    if s == 0.0:  # MATLAB divides by zero here; PI/EI of a deterministic point are step functions
+    if s == 0.0:  # avoid dividing by zero; PI/EI of a deterministic point are step functions
         gain = y - f_best
         return float(gain > 0) if name == "PI" else max(gain, 0.0)
     gamma = (y - f_best) / s
@@ -102,14 +97,13 @@ def negative_acquisition(
     x_obs: np.ndarray,
     y_obs: np.ndarray,
     known_constraint: known_constraint_fn = check_constraint,
-    relax_alpha: float | None = None,
 ) -> float:
-    """``calculateNegativeAcquisitionFunction.m``: ``-acquisition * known * unknown``."""
+    """``-acquisition * known * unknown``."""
     x = np.asarray(x, dtype=float).reshape(-1)
     known = known_constraint(x)
     if known == 0:
         return 0.0
-    unknown = predict_feasibility(classifier, x, relax_alpha)
+    unknown = predict_feasibility(classifier, x)
     y, s2 = predict_objective(model, x)
     t, d = x_obs.shape
     a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)
@@ -117,16 +111,12 @@ def negative_acquisition(
 
 
 def negative_mse(x: np.ndarray, model: GPR) -> float:
-    """``calculateNegativeMSE.m``: ``-sqrt(s2)`` of the objective model."""
+    """``-sqrt(s2)`` of the objective model."""
     _, s2 = predict_objective(model, x)
     return -math.sqrt(s2)
 
 
 def negative_classifier_mse(x: np.ndarray, classifier: GPC) -> float:
-    """``calculateNegativeClfMSE.m``: ``-sqrt(s2)`` of the constraint classifier.
-
-    The MATLAB code rescales the latent ``y`` to a probability but takes the sqrt of the
-    *latent* variance ``s2``; the same quantity (the latent predictive variance) is used here.
-    """
+    """``-sqrt(s2)`` of the constraint classifier, with ``s2`` the *latent* predictive variance."""
     out = classifier.predict(_row(x))
     return -math.sqrt(max(float(out["fs2"][0]), 0.0))

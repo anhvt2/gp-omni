@@ -1,4 +1,4 @@
-"""gpml mean functions (``meanZero``, ``meanConst``, ``meanLinear`` and their sum)."""
+"""Mean functions (``meanZero``, ``meanConst``, ``meanLinear`` and their sum)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _KINDS = ("zero", "const", "linear", "linear+const")
 
 class mean_function:
     """``zero`` (no hyp), ``const`` (``[c]``), ``linear`` (``[a_1..a_D]``) or
-    ``linear+const`` (``[a_1..a_D, c]``, gpml ``{@meanSum,{@meanLinear,@meanConst}}``)."""
+    ``linear+const`` (``[a_1..a_D, c]``)."""
 
     def __init__(self, kind: str = DEFAULTS["mean"]["kind"]):
         if kind not in _KINDS:

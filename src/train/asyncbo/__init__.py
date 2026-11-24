@@ -1,5 +1,4 @@
-"""Asynchronous parallel constrained GP-Hedge Bayesian optimisation (python port of
-``ooDaceAsyncParHedge``: ``mainprog_benchR_gpml.m`` + ``bayesOptSrc-gpml/``)."""
+"""Asynchronous parallel constrained GP-Hedge Bayesian optimisation."""
 
 from gp_omni.train.asyncbo.acquisition import check_constraint, negative_acquisition
 from gp_omni.train.asyncbo.loop import async_bo, async_bo_config

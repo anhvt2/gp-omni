@@ -1,8 +1,7 @@
 """inference_method methods that work with exact and sparse covariance approximations.
 
-Ports of gpml's ``infGaussLik.m`` and ``infLaplace.m`` (v4.2). Each returns ``(post, nlZ)``
-with gpml's posterior parameters ``alpha``, ``sW`` and ``L``. Derivatives of ``nlZ`` are not
-hand-coded as in gpml: they come from autograd through ``nlZ`` (see ``gp.negative_log_evidence``).
+Gaussian-likelihood and Laplace inference. Each returns ``(post, nlZ)``
+with the posterior parameters ``alpha``, ``sW`` and ``L``. Derivatives of ``nlZ`` come from autograd through ``nlZ`` (see ``gp.negative_log_evidence``).
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ DEFAULTS = load_defaults("inference")
 
 @dataclass
 class posterior_state:
-    """gpml's ``post`` struct. ``L`` is an upper Cholesky factor (``L_kind='chol'``), a
+    """The ``post`` struct. ``L`` is an upper Cholesky factor (``L_kind='chol'``), a
     matrix (``'matrix'``) or a callable acting on cross-covariances (``'callable'``)."""
 
     alpha: Tensor
@@ -65,7 +64,7 @@ def _psi(alpha: Tensor, m: Tensor, mvm, likfun):
 
 
 def _irls(alpha: Tensor, m: Tensor, K: covariance_operator, likfun, opt: dict) -> Tensor:
-    """Newton iterations with step-size search, as gpml's ``irls`` (run without autograd)."""
+    """Newton iterations with step-size search, (IRLS) (run without autograd)."""
     maxit = int(opt.get("irls_maxit", DEFAULTS["laplace"]["irls_maxit"]))
     wmin = float(opt.get("irls_Wmin", DEFAULTS["laplace"]["irls_Wmin"]))
     tol = float(opt.get("irls_tol", DEFAULTS["laplace"]["irls_tol"]))
@@ -99,9 +98,9 @@ def laplace_posterior(
 ) -> tuple[posterior_state, Tensor]:
     """Laplace approximation; sparse if ``cov`` is a ``sparse_covariance``.
 
-    The posterior mode is found without autograd (gpml's ``irls``). The returned ``nlZ`` is
+    The posterior mode is found without autograd (IRLS). The returned ``nlZ`` is
     then rebuilt with one differentiable Newton step from the mode, which (by the implicit
-    function theorem) gives exactly gpml's total derivative including the ``dfhat`` term.
+    function theorem) gives exactly the total derivative including the ``dfhat`` term.
     """
     opt = opt or {}
     n = x.shape[0]

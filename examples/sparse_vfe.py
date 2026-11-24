@@ -1,4 +1,4 @@
-"""Sparse variational GP, ported from gpml-matlab ``apxSparse``.
+"""Sparse variational GP (VFE vs FITC).
 
 VFE (``s=0``) vs FITC (``s=1``) on 3000 noisy points with 30 inducing inputs, plus a probit
 classifier on the same sparse approximation. The true noise standard deviation is 0.1.

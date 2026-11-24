@@ -1,4 +1,4 @@
-"""Covariance approximations, a port of gpml's ``apx.m`` and ``apxSparse.m`` (v4.2).
+"""Exact and sparse covariance approximations.
 
 Any sparse approximation to the posterior of a GP is equivalent to using the covariance
 
@@ -7,14 +7,12 @@ Any sparse approximation to the posterior of a GP is equivalent to using the cov
 where ``s`` in ``[0, 1]`` interpolates between FITC (``s = 1``, Snelson & Ghahramani 2006)
 and the variational free energy bound VFE (``s = 0``, Titsias 2009), with sparse power EP
 (Bui, Yan & Turner 2016) in between. All linear algebra is O(n nu^2) via the Woodbury
-identity, following gpml's variable names (``V``, ``g``, ``Luu``, ``Lu``, ``LuV``, ``d``).
+identity, using the names (``V``, ``g``, ``Luu``, ``Lu``, ``LuV``, ``d``).
 
-gpml also hand-codes the derivatives with respect to every hyperparameter
-(``ldB2_deriv_sparse``); here they come from autograd, so the same code differentiates
+Derivatives come from autograd, so the same code differentiates
 w.r.t. covariance hyperparameters, inducing inputs ``xu`` and inducing noise ``snu``.
 
-Conventions: gpml's ``chol`` returns an upper triangular factor, and so does everything
-named ``L*`` below.
+Convention: Cholesky factors are upper triangular, and so is everything named ``L*`` below.
 """
 
 from __future__ import annotations
@@ -40,7 +38,7 @@ def _tri_solve(R: Tensor, b: Tensor, upper: bool) -> Tensor:
 
 @dataclass
 class covariance_operator:
-    """gpml's ``K`` structure: ``mvm``, ``P``, ``Pt`` and ``fun(W)``."""
+    """The ``K`` structure: ``mvm``, ``P``, ``Pt`` and ``fun(W)``."""
 
     mvm: Callable[[Tensor], Tensor]
     P: Callable[[Tensor], Tensor]
@@ -53,7 +51,7 @@ class covariance_operator:
 @dataclass
 class weighted_covariance:
     """Outputs of ``K.fun(W)``: ``ldB2 = log det(B)/2``, ``solveKiW(r) = (K + inv(W)) \\ r``
-    and ``L`` (the matrix defining the predictive variance, see gpml ``gp.m``)."""
+    and ``L`` (the matrix defining the predictive variance, see ``gp``)."""
 
     ldB2: Tensor
     solveKiW: Callable[[Tensor], Tensor]
@@ -71,7 +69,7 @@ def apx(
     opt: dict | None = None,
     want_L: bool = True,
 ) -> covariance_operator:
-    """Build the covariance approximation: exact (dense) or sparse, like gpml's ``apx``."""
+    """Build the covariance approximation: exact (dense) or sparse"""
     opt = opt or {}
     if isinstance(cov, sparse_covariance):
         return _sparse(hyp, cov, x, float(opt.get("s", DEFAULTS["sparse"]["s"])), want_L)
@@ -108,7 +106,7 @@ def _sparse(
 ) -> covariance_operator:
     if not 0.0 <= s <= 1.0:
         raise ValueError("opt['s'] must lie in [0, 1]")
-    xu = get_xu(hyp, sc)  # hyp.xu has priority (gpml)
+    xu = get_xu(hyp, sc)  # hyp.xu has priority
     if xu.shape[1] != x.shape[1]:
         raise ValueError("Dimensionality of inducing inputs must match training inputs")
     cov, hc = sc.cov, hyp["cov"]
@@ -116,7 +114,7 @@ def _sparse(
     Kuu, Ku, diagK = cov(hc, xu), cov(hc, xu, x), cov(hc, x, "diag")
     if "snu" in hyp:  # learnable inducing noise: log standard deviation
         snu2 = torch.exp(2 * hyp["snu"]) * torch.ones(nu, dtype=x.dtype)
-    else:  # gpml default: one per mil of the signal standard deviation
+    else:  # default: one per mil of the signal standard deviation
         snu2 = (
             DEFAULTS["sparse"]["inducing_noise_variance_ratio"]
             * (torch.trace(Kuu) / nu)
