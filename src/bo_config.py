@@ -10,6 +10,11 @@ from typing import Self
 
 import numpy as np
 
+from gp_omni.settings import load_defaults
+
+DEFAULTS = load_defaults("bo")
+
+
 KnownConstraint = Callable[[np.ndarray], float]
 
 
@@ -41,19 +46,37 @@ class BOConfig:
     model_name: str
     x_lb: np.ndarray
     x_ub: np.ndarray
-    exploit_size: int = 3  # acquisition jobs per batch / concurrent slots
-    explore_size: int = 2  # objective-model exploration jobs
-    explore_classifier_size: int = 1  # constraint-classifier exploration jobs
-    max_iter: int = 400  # includes initial points; units depend on the loop
-    num_init_point: int = 2
-    x_scale: np.ndarray | float = 1.0  # rough scale so scaled inputs are O(1)
-    y_scale: float = 1.0
-    check_time: float = 0.10  # minutes between polls while waiting for jobs
-    wait_time: float = 1.0  # hours before an unfinished job is declared failed
-    gp_max_iter: int = 200  # hyper-parameter optimiser iterations per fit
-    cma_max_evals: int = 250  # CMA-ES budget per acquisition proposal (explore uses 100)
-    seed: int | None = None
-    query_script: str | None = None  # bash script run inside the job folder (async by itself)
+    exploit_size: int = DEFAULTS["loop"][
+        "exploit_size"
+    ]  # acquisition jobs per batch / concurrent slots
+    explore_size: int = DEFAULTS["loop"]["explore_size"]  # objective-model exploration jobs
+    explore_classifier_size: int = DEFAULTS["loop"][
+        "explore_classifier_size"
+    ]  # constraint-classifier exploration jobs
+    max_iter: int = DEFAULTS["loop"][
+        "max_iter"
+    ]  # includes initial points; units depend on the loop
+    num_init_point: int = DEFAULTS["loop"]["num_init_point"]
+    x_scale: np.ndarray | float = DEFAULTS["loop"][
+        "x_scale"
+    ]  # rough scale so scaled inputs are O(1)
+    y_scale: float = DEFAULTS["loop"]["y_scale"]
+    check_time: float = DEFAULTS["loop"][
+        "check_time"
+    ]  # minutes between polls while waiting for jobs
+    wait_time: float = DEFAULTS["loop"][
+        "wait_time"
+    ]  # hours before an unfinished job is declared failed
+    gp_max_iter: int = DEFAULTS["loop"][
+        "gp_max_iter"
+    ]  # hyper-parameter optimiser iterations per fit
+    cma_max_evals: int = DEFAULTS["loop"][
+        "cma_max_evals"
+    ]  # CMA-ES budget per acquisition proposal (explore uses 100)
+    seed: int | None = DEFAULTS["loop"]["seed"]
+    query_script: str | None = DEFAULTS["loop"][
+        "query_script"
+    ]  # bash script run inside the job folder (async by itself)
     known_constraint: KnownConstraint = field(default=check_constraint)
 
     def __post_init__(self):

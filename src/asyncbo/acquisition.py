@@ -20,11 +20,16 @@ import torch
 from scipy.stats import norm
 
 from gp_omni.bo_config import KnownConstraint, check_constraint
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.gpc import GPC
 from gp_omni.sparse.gpr import GPR
 
+DEFAULTS = load_defaults("bo")
 
-def check_multiple_design_sites(x_next: np.ndarray, x_obs: np.ndarray, tol: float = 1e-4) -> bool:
+
+def check_multiple_design_sites(
+    x_next: np.ndarray, x_obs: np.ndarray, tol: float = DEFAULTS["duplicate_detection"]["tol"]
+) -> bool:
     """``checkMultipleDesignSites.m``: True if ``x_next`` duplicates a row of ``x_obs``."""
     x_next = np.asarray(x_next, dtype=float).reshape(1, -1)
     x_obs = np.atleast_2d(x_obs)
@@ -64,7 +69,13 @@ def predict_feasibility(
 
 
 def acquisition_value(
-    name: str, y: float, s2: float, f_best: float, t: int, d: int, delta: float = 0.95
+    name: str,
+    y: float,
+    s2: float,
+    f_best: float,
+    t: int,
+    d: int,
+    delta: float = DEFAULTS["acquisition"]["delta"],
 ) -> float:
     """PI / EI / UCB for a maximisation problem (``calculateNegativeAcquisitionFunction.m``)."""
     s = math.sqrt(s2)

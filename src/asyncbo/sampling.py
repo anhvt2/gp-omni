@@ -17,8 +17,11 @@ from gp_omni.asyncbo.acquisition import (
     negative_classifier_mse,
     negative_mse,
 )
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.gpc import GPC
 from gp_omni.sparse.gpr import GPR
+
+DEFAULTS = load_defaults("bo")
 
 log = logging.getLogger(__name__)
 
@@ -30,8 +33,8 @@ def minimize_cmaes(
     lb: np.ndarray,
     ub: np.ndarray,
     rng: np.random.Generator,
-    max_evals: int = 250,
-    restarts: int = 3,
+    max_evals: int = DEFAULTS["cmaes"]["max_evals"],
+    restarts: int = DEFAULTS["cmaes"]["restarts"],
 ) -> np.ndarray:
     """Bounded CMA-ES with restarts (``OPTS.Restarts = 3``); returns the best point seen.
 
@@ -79,8 +82,8 @@ def get_next_sampling_point(
     y_obs: np.ndarray,
     rng: np.random.Generator,
     known_constraint: KnownConstraint = check_constraint,
-    max_evals: int = 250,
-    max_retries: int = 100,
+    max_evals: int = DEFAULTS["acquisition_search"]["max_evals"],
+    max_retries: int = DEFAULTS["acquisition_search"]["max_retries"],
     relax_alpha: float | None = None,
 ) -> np.ndarray:
     """``getNextSamplingPoint.m``: maximise the penalised acquisition with CMA-ES.
@@ -123,7 +126,7 @@ def get_next_sampling_point_reduce_mse(
     x_lb: np.ndarray,
     x_ub: np.ndarray,
     rng: np.random.Generator,
-    max_evals: int = 100,
+    max_evals: int = DEFAULTS["objective_exploration"]["max_evals"],
 ) -> np.ndarray:
     """``getNextSamplingPointReduceMSE.m``: explore where the objective model is most uncertain."""
     x_lb, x_ub = np.asarray(x_lb, float), np.asarray(x_ub, float)
@@ -138,7 +141,7 @@ def get_next_sampling_point_classifier_reduce_mse(
     x_lb: np.ndarray,
     x_ub: np.ndarray,
     rng: np.random.Generator,
-    max_evals: int = 100,
+    max_evals: int = DEFAULTS["constraint_exploration"]["max_evals"],
 ) -> np.ndarray:
     """``getNextSamplingPointClfReduceMSE.m``: explore where the constraint is most uncertain.
 
