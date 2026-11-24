@@ -15,12 +15,21 @@ from gp_omni.batchbo import BatchSeqBO, BatchSeqBOConfig
 
 
 def make_config(**overrides):
-    values = dict(
-        model_name="toy", x_lb=[0, 0], x_ub=[1, 1], exploit_size=2, explore_size=1,
-        explore_classifier_size=1, max_iter=6, num_init_point=3, check_time=0.005,
-        gp_max_iter=40, cma_max_evals=40, seed=1,
-        known_constraint=lambda x: float(x[0] + x[1] <= 1.5),
-    )  # fmt: skip
+    values = {
+        "model_name": "toy",
+        "x_lb": [0, 0],
+        "x_ub": [1, 1],
+        "exploit_size": 2,
+        "explore_size": 1,
+        "explore_classifier_size": 1,
+        "max_iter": 6,
+        "num_init_point": 3,
+        "check_time": 0.005,
+        "gp_max_iter": 40,
+        "cma_max_evals": 40,
+        "seed": 1,
+        "known_constraint": lambda x: float(x[0] + x[1] <= 1.5),
+    }
     return BatchSeqBOConfig(**{**values, **overrides})
 
 

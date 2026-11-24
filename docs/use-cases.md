@@ -1,168 +1,106 @@
-# Setting up a use case
+# Choose a model and workflow
 
-`OmniGP` has four switches. They are independent: turn on any subset, in any combination.
+## Model switches
 
-| Feature | Switch | Example |
+`OmniGP` predicts objective values. Combine any of these four options:
+
+| Need | Option | Example |
 |---|---|---|
-| 1. Correlated multi-objective | `num_outputs=O` | [`examples/omni_multiobjective.py`](../examples/omni_multiobjective.py) |
-| 2. Multi-fidelity | `num_fidelities=L` | [`examples/omni_multifidelity.py`](../examples/omni_multifidelity.py) |
-| 3. Big data, sparse covariance | `nu=<inducing points>` (`s=0` VFE, `1` FITC) | [`examples/omni_bigdata.py`](../examples/omni_bigdata.py) |
-| 4. Additive, high-dimensional | `additive=R` (orders `1..R`) | [`examples/omni_additive.py`](../examples/omni_additive.py) |
-| 1+2, 1+2+3, 1+2+3+4 | any mix of the above | [`examples/omni_combined.py`](../examples/omni_combined.py) |
-| Constraint classifier (twin of the above) | `OmniGPC`, same switches | [`examples/omni_constraints.py`](../examples/omni_constraints.py) |
+| Correlated responses or objectives | `num_outputs=O` | [Multiple outputs](../examples/omni_multiobjective.py) |
+| Cheap and expensive evaluations | `num_fidelities=L` | [Multiple fidelities](../examples/omni_multifidelity.py) |
+| Larger datasets | `nu=M` inducing locations | [Sparse GP](../examples/omni_bigdata.py) |
+| Low-order effects across many inputs | `additive=R` for orders `1..R` | [Additive GP](../examples/omni_additive.py) |
+
+For sparse inference, `s=0` selects VFE (default), `s=1` selects FITC, and values between
+select sparse power EP. Inducing locations are learned unless `fit(..., learn_xu=False)`.
+With multiple outputs or fidelities, `M` locations expand to `M * O * L` inducing inputs.
+
+For additive models, `R` must not exceed the input dimension. Use a list such as
+`additive=[1, 3]` to select specific interaction orders.
 
 ```python
 from gp_omni import OmniGP
 
-model = OmniGP(num_outputs=2, num_fidelities=2, nu=40, additive=2)  # all four
-model.fit(x, y, output=o, fidelity=f)  # x (n, D), y (n,), o and f: integer index per row
-pred = model.predict(x_new)  # highest fidelity; every output when O > 1
-pred["fmu"], pred["fs2"]  # latent mean / variance, shape (m,) or (m, O)
-pred["ymu"], pred["ys2"]  # with observation noise
+# x, y, output, and fidelity are your observation tensors; see the table below.
+model = OmniGP(num_outputs=2, num_fidelities=2, nu=40, additive=2)
+model.fit(x, y, output=output, fidelity=fidelity)
+prediction = model.predict(x_new)
+mean, variance = prediction["fmu"], prediction["fs2"]
 ```
 
-Run any example with `uv run python examples/omni_multiobjective.py`. Each prints a few
-numbers and compares against a baseline.
+## Data and predictions
 
-## Data layout
+Store each observation as one row. Different outputs and fidelities can use different inputs.
 
-Always one table: stack every observation as a row, then say which output and fidelity it
-belongs to. Rows of different outputs or fidelities may sit at different inputs and need not
-be nested.
+| Tensor | Shape | Meaning |
+|---|---|---|
+| `x` | `(n, D)` | Input values; scale to comparable ranges, such as `[0, 1]` |
+| `y` | `(n,)` | Observed target values |
+| `output` | `(n,)` | Integer output index, `0..O-1`; omit for one output |
+| `fidelity` | `(n,)` | Integer fidelity index, `0..L-1`; omit for one fidelity |
 
-| Argument | Meaning |
-|---|---|
-| `x` | inputs, shape `(n, D)` |
-| `y` | targets, shape `(n,)` |
-| `output` | integer in `0..O-1` per row (omit when `O = 1`) |
-| `fidelity` | integer in `0..L-1` per row, `0` cheapest and `L-1` the one you want (omit when `L = 1`) |
+Fidelity `0` is cheapest; `L-1` is highest. Targets are standardized per output/fidelity
+pair during fitting and predictions return to the original units.
 
-Targets are standardised per `(output, fidelity)` before fitting and mapped back afterwards,
-so you do not need to rescale them. Scale the inputs to a comparable range (e.g. the unit
-cube); the default length scales start at the standard deviation of each input.
+`predict(x_new)` returns every output at the highest fidelity. Pass `output=k` or
+`fidelity=l` to select one. Results have shape `(m,)` for one output or `(m, O)` for all
+outputs. `fmu` / `fs2` are latent mean / variance; `ymu` / `ys2` include observation noise.
+Cross-output predictive covariances are not returned.
 
-## 1. Correlated multi-objective
+## Unknown constraints
 
-Use when several objectives share structure and some have little data. Outputs are
-coregionalised, `B = W W' + diag(kappa^2)` (`rank=` sets the rank of `W`, default 1), so
-the data-rich objectives sharpen the data-poor ones. In
-[`omni_multiobjective.py`](../examples/omni_multiobjective.py) an output with only 8
-samples reaches 0.03 normalised error jointly, against 0.75 alone.
-`predict(x)` returns all outputs as columns; `predict(x, output=k)` returns one.
-
-## 2. Multi-fidelity
-
-Use for cheap low-fidelity data plus a few expensive points. Fidelities are autoregressive,
-`f_l = rho_l * f_{l-1} + delta_l`, with one `rho` per output and any number of levels
-(not only two). [`omni_multifidelity.py`](../examples/omni_multifidelity.py) uses 30
-cheap and 4 expensive points. `predict(x, fidelity=l)` chooses the level, default the
-highest.
-
-## 3. Big data with a sparse covariance
-
-Use when `n` is too large for a dense `n x n` matrix. `nu` inducing locations replace the
-data in the covariance (cost `O(n nu^2)`); [`omni_bigdata.py`](../examples/omni_bigdata.py)
-fits 20,000 points with 40. The inducing locations are learned unless `learn_xu=False`, and
-start from randomised k-means centres (`init="kmeans"`, or `"random"`). `s=0` is the
-variational free energy bound and recovers the noise level (0.0998 vs 0.1 in the example);
-`s=1` is FITC; values in between are sparse power EP. With several tasks, each location is
-shared by every `(output, fidelity)`, so `nu` locations give `nu x O x L` inducing inputs.
-
-## 4. Additive GP for high-dimensional regression
-
-Use when the response is a sum of low-order effects of a few inputs. `additive=R` uses
-orders `1..R` (`additive=1` purely additive; a list such as `[1, 3]` picks orders). It has
-one length scale per input and one amplitude per order.
-[`omni_additive.py`](../examples/omni_additive.py) recovers a 20-D additive function from
-120 points (0.013 normalised error, against 0.39 for a plain ARD kernel). `R` cannot exceed
-`D`, and cost grows with `D * R`.
-
-## Combining
-
-Nothing needs to change in the data layout: pass what the features you turn on need.
-[`omni_combined.py`](../examples/omni_combined.py) lets you pick the features on the command
-line (`mo`, `mf`, `sparse`, `additive`, any subset), for example a high-dimensional
-multi-objective model:
-
-```bash
-uv run python examples/omni_combined.py mo additive
-uv run python examples/omni_combined.py mf sparse
-uv run python examples/omni_combined.py mo mf sparse additive    # or: all
-uv run python examples/omni_combined.py                          # 1+2, then +3, then +4
-```
-
-It generates data to match the features you pick and prints the error at the highest
-fidelity. `tests/test_examples.py` runs all 16 subsets through this script, and
-`tests/test_omni.py` runs all 16
-combinations (including none) and also checks that each feature earns its keep: each of
-multi-objective, multi-fidelity and additive cuts the error to under half of its baseline, sparse
-stays close to exact, and a 15,000-point fit with all four on takes seconds.
-
-Why this works: each switch changes one ingredient. Multi-output and multi-fidelity change
-the covariance (`gp_omni.sparse.multitask.TaskCov`), additive changes the base kernel
-(`covADD`), and sparse changes how that covariance is approximated (gpml `apxSparse`). A
-sparse approximation only needs a covariance function, so it applies to any of the others.
-
-## Constraint classifier: the twin of the regression model
-
-`OmniGPC` learns whether a point satisfies a constraint. It is the Gaussian-process
-classifier twin of `OmniGP`: the same constructor, the same four switches and the same
-`fit` / `predict` shape, so the constraint model can mirror the objective model feature for
-feature. If the objective is multi-objective, so is the classifier (one correlated output
-per constraint); if the objective is additive with several fidelities, so is the classifier.
-Each switch still changes independently.
+`OmniGPC` uses the same four model switches to learn feasibility. Labels can be boolean,
+`0/1`, or `-1/+1`; positive labels mean feasible.
 
 ```python
-from gp_omni import OmniGP, OmniGPC
+from gp_omni import OmniGPC
 
-switches = dict(num_outputs=2, num_fidelities=2, nu=40, additive=2)
-objective = OmniGP(**switches).fit(x, y, output=o, fidelity=f)  # y: objective values
-constraint = OmniGPC(**switches).fit(x, c, output=o, fidelity=f)  # c: +1 feasible, -1 infeasible
-
-constraint.predict_proba(x_new)  # P(feasible), shape (m,) or (m, num_outputs)
-constraint.predict_feasible(x_new)  # P(feasible) >= 0.5 (or pass threshold=)
+constraint = OmniGPC().fit(x, feasible)
+probability = constraint.predict_proba(x_new)
+decision = constraint.predict_feasible(x_new)  # probability >= 0.5
 ```
 
-Labels are `+1` feasible, `-1` infeasible; `bool` and `{0, 1}` also work. The likelihood is
-probit (`likErf`, default) or logistic (`lik="likLogistic"`) with the Laplace approximation
-(gpml `infLaplace`), on the same exact or sparse covariance as the regression model. Each
-`(output, fidelity)` has its own labels, so a cheap constraint check can inform an expensive
-one. [`omni_constraints.py`](../examples/omni_constraints.py) fits both twins with the
-features you choose on the command line:
+Classification uses a probit likelihood by default, or `lik="likLogistic"`, with a Laplace
+approximation. With multiple constraints, predictions are marginal probabilities per output.
+See the [combined objective and constraint example](../examples/omni_constraints.py).
 
-```bash
-uv run python examples/omni_constraints.py mo additive
-uv run python examples/omni_constraints.py mo mf sparse additive    # or: all
-```
+## Bayesian optimization
 
-`tests/test_omni_gpc.py` runs all 16 combinations and checks that each feature helps the
-classifier too (multi-fidelity labels, correlated constraints and the additive kernel each
-raise accuracy), that sparse decisions agree with exact, and that a 10,000-label fit with all
-four features on finishes in seconds.
+Supply `evaluate(x) -> (objective_value, feasible)`. Both built-in loops maximize the
+objective; negate a loss to minimize it. The [quickstart](../README.md#plug-in-your-objective)
+contains a complete runnable pipeline.
 
-## Choosing between the classes
+| Execution mode | Use | Budget |
+|---|---|---|
+| Sequential | `AsyncBO`, one exploitation slot and zero exploration slots | `max_iter` total evaluations |
+| Batch-sequential | `BatchSeqBO` | Initial evaluations, then one batch per remaining iteration |
+| Asynchronous | `AsyncBO`, multiple slots | `max_iter` total evaluations |
 
-| You want | Use |
+Batch size is `exploit_size + explore_size + explore_classifier_size`. For batch BO,
+total evaluations are `num_init_point + (max_iter - num_init_point) * batch_size`.
+
+Async BO selects PI, EI, or UCB through GP-Hedge. Batch BO uses the configured acquisition
+(EI by default). Known constraint callbacks and learned feasibility weight exploitation
+proposals; initial and exploration points can still be infeasible.
+
+The built-in loops use a scalar, single-fidelity objective with default models. Multi-output
+optimization, fidelity selection, and other surrogate configurations need a custom workflow.
+Settings and runnable examples: [async BO](../examples/async_bo.py),
+[batch BO](../examples/batch_seq_bo.py), [async config](../config/async_bo.json),
+[batch config](../config/batch_seq_bo.json).
+
+## Other model choices
+
+| Need | Use |
 |---|---|
-| any mix of the four features, regression | `OmniGP` |
-| the same features, classifying a constraint | `OmniGPC` |
-| gpml-style single-task sparse GP, with `vfe_xu_opt` swaps | `gp_omni.sparse.SparseGP` |
-| two fidelities, noiseless, small design, the sequential, profiled-likelihood fit | `gp_omni.AR1CoKriging` |
-| GPyTorch/BoTorch models directly (SVGP, KISS-GP, ...) | `gp_omni.builders`, `examples/sparse.py` |
+| Small, noiseless, two-fidelity designs | [`AR1CoKriging`](../examples/cokriging.py) |
+| Direct GPyTorch models: exact, SGPR, SVGP, KISS-GP, or ICM/LMC | [`gp_omni.builders`](../src/builders.py) |
+| GPML-style sparse inference and inducing-input swaps | [`SparseGP`](../examples/sparse_gpml.py) |
 
-On the tiny noiseless Forrester problem, `AR1CoKriging` (sequential, profiled fit) is far
-more accurate than `OmniGP` (joint marginal likelihood with learned noise): RMSE 0.13
-against 1.7, with 3.7 for high-fidelity only. Prefer `AR1CoKriging` in that regime.
+The exact GP builders and `AR1CoKriging` expose BoTorch-compatible posteriors.
+`OmniGP` and `OmniGPC` use the prediction interface above.
 
-## Limits
+## Related Notes
 
-- Regression uses Gaussian noise (one level per task). Classification (`OmniGPC`) uses a
-  probit or logistic likelihood with the Laplace approximation; unlike regression it has no
-  noise level to learn, and its predictions are marginal probabilities per constraint.
-- Several outputs are predicted as marginals; the covariance between outputs at a test
-  point is not returned.
-- `vfe_xu_opt` inducing-input swaps are only available through `SparseGP`.
-- The structured multi-task covariance reproduces `AR1CoKriging` at fixed hyperparameters
-  (tested). `AR1CoKriging` itself has not been compared against output from the MATLAB code
-  (see `tests/fixtures/generate_cokriging.m`).
-- Bayesian optimization (acquisitions, GP-Hedge, async scheduler) is not built yet.
+- [Documentation index](README.md) — guide overview.
+- [Project README](../README.md) — installation, runnable pipeline, and contributions.
