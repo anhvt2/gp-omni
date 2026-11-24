@@ -1,0 +1,18 @@
+{
+  "model_name": "rosen",
+  "x_lb": [-1.0, -1.0],
+  "x_ub": [2.0, 2.0],
+  "exploit_size": 2,
+  "explore_size": 1,
+  "explore_classifier_size": 1,
+  "max_iter": 20,
+  "num_init_point": 4,
+  "x_scale": 1.0,
+  "y_scale": 1.0,
+  "check_time": 0.01,
+  "wait_time": 1.0,
+  "gp_max_iter": 60,
+  "cma_max_evals": 60,
+  "seed": 0,
+  "query_script": null
+}
