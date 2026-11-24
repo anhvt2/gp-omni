@@ -7,6 +7,10 @@ from gpytorch.constraints import Positive
 from gpytorch.kernels import Kernel
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
+
+DEFAULTS = load_defaults("builders")
+
 
 class AdditiveKernel(Kernel):
     r"""gpml ``covADD``: ``k(x, x') = sum_{r in orders} s_r^2 e_r(k_1, ..., k_D)``.
@@ -23,7 +27,13 @@ class AdditiveKernel(Kernel):
 
     has_lengthscale = True
 
-    def __init__(self, num_dims: int, max_degree: int = 2, ard: bool = False, **kwargs):
+    def __init__(
+        self,
+        num_dims: int,
+        max_degree: int = DEFAULTS["additive_kernel"]["max_degree"],
+        ard: bool = DEFAULTS["additive_kernel"]["ard"],
+        **kwargs,
+    ):
         super().__init__(ard_num_dims=num_dims if ard else None, **kwargs)
         if not 1 <= max_degree <= num_dims:
             raise ValueError("need 1 <= max_degree <= num_dims")
