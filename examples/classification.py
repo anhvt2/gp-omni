@@ -1,6 +1,6 @@
 """Binary GP classification (probit likelihood, variational inference).
 
-gpml uses EP/Laplace for ``likErf``; GPyTorch has no EP, so this is the svgp counterpart.
+gpml uses EP/Laplace for ``probit``; GPyTorch has no EP, so this is the svgp counterpart.
 """
 
 import torch
@@ -8,6 +8,7 @@ from gpytorch.likelihoods import BernoulliLikelihood
 
 import gp_omni  # noqa: F401
 from gp_omni.build.gpytorch import svgp
+from gp_omni.infer import predict
 from gp_omni.train.gpytorch import fit_variational
 
 
@@ -18,7 +19,12 @@ def main() -> dict:
     model, lik = svgp(X[:40].clone()), BernoulliLikelihood()
     fit_variational(model, lik, X, rule(X), epochs=300)
     with torch.no_grad():
-        acc = ((lik(model(Xt)).probs > 0.5).double() == rule(Xt)).double().mean().item()
+        acc = (
+            ((predict(model, Xt, likelihood=lik)["ymu"] > 0.5).double() == rule(Xt))
+            .double()
+            .mean()
+            .item()
+        )
     return {"accuracy": acc}
 
 
