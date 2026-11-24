@@ -11,3 +11,5 @@ restart Python after editing them. Explicit Python arguments override defaults.
 tolerances and inducing initialization. [inference.json](inference.json) supplies Laplace
 iterations, tolerance and line search, and sparse inducing noise. Low-level sparse
 inference defaults to FITC (`s=1`); high-level models explicitly pass VFE (`s=0`).
+
+[builders.json](builders.json) supplies GPyTorch builder and additive-kernel defaults.
