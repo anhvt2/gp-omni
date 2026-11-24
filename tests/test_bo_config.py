@@ -1,13 +1,66 @@
 """Shared BO configuration works independently of the scheduling strategy."""
 
 import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+import gp_omni.config
 from gp_omni import bo_config
 from gp_omni.train.asyncbo import async_bo_config
 from gp_omni.train.batchbo import batch_bo_config
+
+
+@pytest.mark.parametrize("scale", [1.5, [1.0, 2.0]])
+def test_packaged_scale_defaults_import_and_remain_independent(scale, tmp_path):
+    # Import a fresh package with edited defaults, before any dataclass is created.
+    package = tmp_path / "gp_omni"
+    shutil.copytree(
+        Path(gp_omni.__file__).parent,
+        package,
+        ignore=shutil.ignore_patterns("__pycache__", "config"),
+    )
+    shutil.copytree(Path(gp_omni.config.__file__).parent, package / "config")
+    settings = package / "config" / "bo.json"
+    defaults = json.loads(settings.read_text())
+    defaults["loop"]["x_scale"] = scale
+    settings.write_text(json.dumps(defaults))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import numpy as np
+from gp_omni import bo_config
+from gp_omni.settings import load_defaults
+from gp_omni.train.asyncbo import async_bo_config
+from gp_omni.train.batchbo import batch_bo_config
+
+expected = np.broadcast_to(load_defaults("bo")["loop"]["x_scale"], (2,))
+for cls in (bo_config, async_bo_config, batch_bo_config):
+    first = cls(model_name="first", x_lb=[0, 0], x_ub=[1, 1])
+    second = cls(model_name="second", x_lb=[0, 0], x_ub=[1, 1])
+    np.testing.assert_array_equal(first.x_scale, expected)
+    first.x_scale[0] = 99
+    np.testing.assert_array_equal(second.x_scale, expected)
+    override = cls(model_name="override", x_lb=[0, 0], x_ub=[1, 1], x_scale=3)
+    np.testing.assert_array_equal(override.x_scale, [3, 3])
+    third = cls(model_name="third", x_lb=[0, 0], x_ub=[1, 1])
+    np.testing.assert_array_equal(third.x_scale, expected)
+""",
+        ],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(tmp_path)},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize("config_type", [bo_config, async_bo_config, batch_bo_config])
