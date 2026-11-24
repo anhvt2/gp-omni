@@ -9,11 +9,14 @@ take random time on a thread pool, so proposals are made while others are still 
 
 import tempfile
 import time
+from pathlib import Path
 
 import numpy as np
 
 import gp_omni  # noqa: F401
 from gp_omni.asyncbo import AsyncBO, AsyncBOConfig
+
+CONFIG = Path(__file__).parents[1] / "config" / "async_bo.json"
 
 
 def simulation(x):
@@ -26,22 +29,10 @@ def known_constraint(x):
     return float(x[0] + x[1] <= 2.5)
 
 
-def main(max_iter: int = 20, seed: int = 0) -> dict:
-    config = AsyncBOConfig(
-        model_name="rosen",
-        x_lb=[-1.0, -1.0],
-        x_ub=[2.0, 2.0],
-        exploit_size=2,
-        explore_size=1,
-        explore_classifier_size=1,
-        max_iter=max_iter,
-        num_init_point=4,
-        check_time=0.01,
-        gp_max_iter=60,
-        cma_max_evals=60,
-        seed=seed,
-        known_constraint=known_constraint,
-    )
+def main(max_iter: int | None = None, seed: int | None = None) -> dict:
+    """Settings come from ``config/async_bo.json``; arguments override the file."""
+    overrides = {k: v for k, v in {"max_iter": max_iter, "seed": seed}.items() if v is not None}
+    config = AsyncBOConfig.from_json(CONFIG, known_constraint=known_constraint, **overrides)
     with tempfile.TemporaryDirectory() as root:
         x, y = AsyncBO(root, config, evaluate=simulation).run()
     print(f"best feasible x = {np.round(x, 3)}, y = {y:.4f}")

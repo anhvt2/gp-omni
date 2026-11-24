@@ -15,6 +15,7 @@ The maximisation convention is kept: to minimise, negate the objective.
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import subprocess
@@ -66,6 +67,22 @@ class AsyncBOConfig:
     def __post_init__(self):
         self.x_lb, self.x_ub = np.asarray(self.x_lb, float), np.asarray(self.x_ub, float)
         self.x_scale = np.broadcast_to(np.asarray(self.x_scale, float), self.x_lb.shape).copy()
+
+    @classmethod
+    def from_json(cls, path: str | Path, **overrides) -> AsyncBOConfig:
+        """Load settings from a JSON file (see ``config/async_bo.json``).
+
+        Keys are the field names; ``overrides`` (e.g. ``known_constraint=...``, which cannot
+        live in JSON) take precedence over the file.
+        """
+        values = json.loads(Path(path).read_text())
+        return cls(**{**values, **overrides})
+
+    def to_json(self, path: str | Path) -> None:
+        """Write the JSON-representable settings (everything but ``known_constraint``)."""
+        values = {k: v for k, v in self.__dict__.items() if k != "known_constraint"}
+        values = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in values.items()}
+        Path(path).write_text(json.dumps(values, indent=2) + "\n")
 
     @property
     def batch(self) -> db.BatchSettings:
