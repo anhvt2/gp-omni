@@ -182,6 +182,10 @@ uv run python examples/gpr_combined.py all
 uv run python examples/gpr_gpc_constraints.py all
 ```
 
+Model, training, inference, and BO defaults live in [`config/`](config/README.md).
+Explicit arguments override them; use `GPR.from_json(...)` or `GPC.from_json(...)` for
+per-run constructor settings. Defaults are read at module import time.
+
 The surrogate API is now `GPR` / `GPC` (previously `OmniGP` / `OmniGPC`), available from
 `gp_omni` and `gp_omni.sparse`. Direct module imports use `sparse.gpr` and `sparse.gpc`;
 update existing imports and references to the renamed `gpr_*` examples.
