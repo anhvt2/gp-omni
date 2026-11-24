@@ -22,8 +22,10 @@ def main() -> dict:
     fit_exact(m)
     with torch.no_grad():
         out["kiss_rmse"] = ((m.likelihood(m(Xt)).mean - f(Xt)) ** 2).mean().sqrt().item()
-    sv, lik = SVGP(X[:25].clone()), gpytorch.likelihoods.GaussianLikelihood()
-    fit_variational(sv, lik, X, y, epochs=300)
+    # Cover the domain before learning inducing locations; random sites can cluster.
+    inducing = torch.linspace(0, 1, 25).reshape(-1, 1)
+    sv, lik = SVGP(inducing), gpytorch.likelihoods.GaussianLikelihood()
+    fit_variational(sv, lik, X, y, epochs=500, lr=0.03)
     with torch.no_grad():
         out["svgp_rmse"] = ((sv(Xt).mean - f(Xt)) ** 2).mean().sqrt().item()
     return out
