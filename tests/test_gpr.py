@@ -1,4 +1,4 @@
-"""OmniGP: every combination of the four independent features works, and each one matters."""
+"""GPR: every combination of the four independent features works, and each one matters."""
 
 import itertools
 import time
@@ -7,7 +7,7 @@ import pytest
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 WEIGHTS = [1.0, 0.8, -0.6]
 
@@ -49,7 +49,7 @@ def test_every_combination_of_the_four_features(mo, mf, sp, ad):
     O, L = (3 if mo else 1), (2 if mf else 1)
     sizes = [[120 if l == 0 else 30 for l in range(L)] for _ in range(O)]
     x, y, o, f = problem(sizes)
-    model = OmniGP(O, L, additive=2 if ad else None, nu=25 if sp else None)
+    model = GPR(O, L, additive=2 if ad else None, nu=25 if sp else None)
     model.fit(x, y, o, f, max_iter=120)
     pred = model.predict(XT)
     shape = (400, O) if O > 1 else (400,)
@@ -66,17 +66,17 @@ def test_every_combination_of_the_four_features(mo, mf, sp, ad):
 
 def test_multifidelity_beats_high_fidelity_only():
     x, y, o, f = problem([[150, 8]])
-    mf = OmniGP(num_fidelities=2).fit(x, y, o, f)
+    mf = GPR(num_fidelities=2).fit(x, y, o, f)
     hi = f == 1
-    single = OmniGP().fit(x[hi], y[hi])
+    single = GPR().fit(x[hi], y[hi])
     assert nrmse(mf, 0, 1) < 0.5 * nrmse(single, 0, 0), (nrmse(mf, 0, 1), nrmse(single, 0, 0))
 
 
 def test_correlated_outputs_help_a_data_poor_output():
     x, y, o, f = problem([[150], [8]])
-    mo = OmniGP(num_outputs=2).fit(x, y, o, f)
+    mo = GPR(num_outputs=2).fit(x, y, o, f)
     poor = o == 1
-    single = OmniGP().fit(x[poor], y[poor])
+    single = GPR().fit(x[poor], y[poor])
     assert nrmse(mo, 1, 0) < 0.5 * nrmse(single, 0, 0), (nrmse(mo, 1, 0), nrmse(single, 0, 0))
 
 
@@ -88,15 +88,15 @@ def test_additive_beats_plain_ard_in_eight_dimensions():
     y = fn(x) + 0.02 * torch.randn(120, generator=g)
     err = {}
     for name, add in (("add", 2), ("ard", None)):
-        m = OmniGP(additive=add).fit(x, y)
+        m = GPR(additive=add).fit(x, y)
         err[name] = float(((m.predict(xt)["fmu"] - fn(xt)) ** 2).mean().sqrt() / fn(xt).std())
     assert err["add"] < 0.5 * err["ard"], err
 
 
 def test_sparse_close_to_exact_and_independent_of_other_switches():
     x, y, o, f = problem([[100, 25], [100, 25]])
-    exact = OmniGP(2, 2, additive=2).fit(x, y, o, f, max_iter=100)
-    sparse = OmniGP(2, 2, additive=2, nu=40).fit(x, y, o, f, max_iter=100)
+    exact = GPR(2, 2, additive=2).fit(x, y, o, f, max_iter=100)
+    sparse = GPR(2, 2, additive=2, nu=40).fit(x, y, o, f, max_iter=100)
     a, b = exact.predict(XT)["fmu"], sparse.predict(XT)["fmu"]
     assert float(((a - b) ** 2).mean().sqrt() / a.std()) < 0.05
 
@@ -104,7 +104,7 @@ def test_sparse_close_to_exact_and_independent_of_other_switches():
 def test_all_four_features_scale_to_many_points():
     x, y, o, f = problem([[6000, 1500], [6000, 1500]], seed=3)  # 15,000 points, 4 tasks
     t = time.time()
-    m = OmniGP(2, 2, additive=2, nu=30).fit(x, y, o, f, max_iter=15)
+    m = GPR(2, 2, additive=2, nu=30).fit(x, y, o, f, max_iter=15)
     elapsed = time.time() - t
     assert elapsed < 180, elapsed
     for k in range(2):
@@ -115,16 +115,16 @@ def test_classification_works_with_sparse_and_additive():
     g = torch.Generator().manual_seed(4)
     rule = lambda z: torch.where(torch.sin(3 * z[:, 0]) + z[:, 1] ** 2 > 0.6, 1.0, -1.0)
     x, xt = torch.rand(300, 3, generator=g), torch.rand(400, 3, generator=g)
-    m = OmniGP(additive=2, nu=20, lik="likErf").fit(x, rule(x), max_iter=60)
+    m = GPR(additive=2, nu=20, lik="likErf").fit(x, rule(x), max_iter=60)
     assert float((torch.sign(m.predict(xt)["ymu"]) == rule(xt)).double().mean()) > 0.9
 
 
 def test_input_validation():
     x, y, o, f = problem([[20, 5]])
     with pytest.raises(ValueError):
-        OmniGP(num_fidelities=2, lik="nonsense")
-    OmniGP(num_fidelities=2, lik="likErf")  # classification is allowed with every feature
+        GPR(num_fidelities=2, lik="nonsense")
+    GPR(num_fidelities=2, lik="likErf")  # classification is allowed with every feature
     with pytest.raises(ValueError):
-        OmniGP(num_fidelities=2).fit(x, y, o, f + 1)  # fidelity index out of range
+        GPR(num_fidelities=2).fit(x, y, o, f + 1)  # fidelity index out of range
     with pytest.raises(RuntimeError):
-        OmniGP().predict(x)
+        GPR().predict(x)

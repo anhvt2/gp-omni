@@ -8,7 +8,7 @@ structure and fails with so few points.
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 
 def main() -> dict:
@@ -20,7 +20,7 @@ def main() -> dict:
     y = f(x) + 0.02 * torch.randn(120, generator=g)
     out = {}
     for name, add in (("additive", 2), ("plain_ard", None)):
-        model = OmniGP(additive=add).fit(x, y)  # <- the feature switch
+        model = GPR(additive=add).fit(x, y)  # <- the feature switch
         out[f"{name}_nrmse"] = (
             ((model.predict(xt)["fmu"] - f(xt)) ** 2).mean().sqrt() / f(xt).std()
         ).item()

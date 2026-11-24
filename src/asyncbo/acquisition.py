@@ -6,7 +6,7 @@ The objective of the CMA-ES inner search is (minimised)::
 
 * ``known_constraint``: ``checkConstraint.m``; 1 when ``x`` satisfies the analytic constraints,
   0 when it violates one (the MATLAB code returns 0 immediately in that case).
-* ``unknown_constraint``: ``P(feasible | x)`` from the constraint classifier (``OmniGPC``),
+* ``unknown_constraint``: ``P(feasible | x)`` from the constraint classifier (``GPC``),
   clipped to ``[0, 1]``; 1 when no classifier could be fitted (e.g. every simulation so far
   was feasible), as in the MATLAB ``try/catch``.
 """
@@ -20,7 +20,8 @@ import torch
 from scipy.stats import norm
 
 from gp_omni.bo_config import KnownConstraint, check_constraint
-from gp_omni.sparse.omni import OmniGP, OmniGPC
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 
 
 def check_multiple_design_sites(x_next: np.ndarray, x_obs: np.ndarray, tol: float = 1e-4) -> bool:
@@ -36,14 +37,14 @@ def _row(x: np.ndarray) -> torch.Tensor:
     return torch.as_tensor(np.asarray(x, dtype=float).reshape(1, -1))
 
 
-def predict_objective(model: OmniGP, x: np.ndarray) -> tuple[float, float]:
+def predict_objective(model: GPR, x: np.ndarray) -> tuple[float, float]:
     """``[y, s2] = gp(hyp, @infGaussLik, ...)``: predictive mean and variance at one point."""
     out = model.predict(_row(x))
     return float(out["ymu"][0]), max(float(out["ys2"][0]), 0.0)
 
 
 def predict_feasibility(
-    classifier: OmniGPC | None, x: np.ndarray, relax_alpha: float | None = None
+    classifier: GPC | None, x: np.ndarray, relax_alpha: float | None = None
 ) -> float:
     """``P(feasible | x)`` clipped to [0, 1]; 1 when there is no usable classifier.
 
@@ -84,8 +85,8 @@ def acquisition_value(
 
 def negative_acquisition(
     x: np.ndarray,
-    model: OmniGP,
-    classifier: OmniGPC | None,
+    model: GPR,
+    classifier: GPC | None,
     acquisition: str,
     x_obs: np.ndarray,
     y_obs: np.ndarray,
@@ -104,13 +105,13 @@ def negative_acquisition(
     return -a * known * unknown
 
 
-def negative_mse(x: np.ndarray, model: OmniGP) -> float:
+def negative_mse(x: np.ndarray, model: GPR) -> float:
     """``calculateNegativeMSE.m``: ``-sqrt(s2)`` of the objective model."""
     _, s2 = predict_objective(model, x)
     return -math.sqrt(s2)
 
 
-def negative_classifier_mse(x: np.ndarray, classifier: OmniGPC) -> float:
+def negative_classifier_mse(x: np.ndarray, classifier: GPC) -> float:
     """``calculateNegativeClfMSE.m``: ``-sqrt(s2)`` of the constraint classifier.
 
     The MATLAB code rescales the latent ``y`` to a probability but takes the sqrt of the

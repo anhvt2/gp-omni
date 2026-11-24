@@ -8,7 +8,7 @@ ordered from cheapest (0) to most expensive.
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 
 def main() -> dict:
@@ -22,8 +22,8 @@ def main() -> dict:
     fidelity = torch.cat([torch.zeros(len(xl)), torch.ones(len(xh))]).long()
     y = torch.cat([lo(xl), hi(xh)])
 
-    model = OmniGP(num_fidelities=2).fit(x, y, fidelity=fidelity)  # <- the feature switch
-    hi_only = OmniGP().fit(xh, hi(xh))
+    model = GPR(num_fidelities=2).fit(x, y, fidelity=fidelity)  # <- the feature switch
+    hi_only = GPR().fit(xh, hi(xh))
 
     xt = torch.linspace(0, 1, 200).reshape(-1, 1)
     rmse = lambda p: ((p - hi(xt)) ** 2).mean().sqrt().item()

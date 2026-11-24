@@ -2,14 +2,14 @@
 
 ## Model switches
 
-`OmniGP` predicts objective values. Combine any of these four options:
+`GPR` predicts objective values. Combine any of these four options:
 
 | Need | Option | Example |
 |---|---|---|
-| Correlated responses or objectives | `num_outputs=O` | [Multiple outputs](../examples/omni_multiobjective.py) |
-| Cheap and expensive evaluations | `num_fidelities=L` | [Multiple fidelities](../examples/omni_multifidelity.py) |
-| Larger datasets | `nu=M` inducing locations | [Sparse GP](../examples/omni_bigdata.py) |
-| Low-order effects across many inputs | `additive=R` for orders `1..R` | [Additive GP](../examples/omni_additive.py) |
+| Correlated responses or objectives | `num_outputs=O` | [Multiple outputs](../examples/gpr_multioutput.py) |
+| Cheap and expensive evaluations | `num_fidelities=L` | [Multiple fidelities](../examples/gpr_multifidelity.py) |
+| Larger datasets | `nu=M` inducing locations | [Sparse GP](../examples/gpr_sparse.py) |
+| Low-order effects across many inputs | `additive=R` for orders `1..R` | [Additive GP](../examples/gpr_additive.py) |
 
 For sparse inference, `s=0` selects VFE (default), `s=1` selects FITC, and values between
 select sparse power EP. Inducing locations are learned unless `fit(..., learn_xu=False)`.
@@ -19,10 +19,10 @@ For additive models, `R` must not exceed the input dimension. Use a list such as
 `additive=[1, 3]` to select specific interaction orders.
 
 ```python
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 # x, y, output, and fidelity are your observation tensors; see the table below.
-model = OmniGP(num_outputs=2, num_fidelities=2, nu=40, additive=2)
+model = GPR(num_outputs=2, num_fidelities=2, nu=40, additive=2)
 model.fit(x, y, output=output, fidelity=fidelity)
 prediction = model.predict(x_new)
 mean, variance = prediction["fmu"], prediction["fs2"]
@@ -49,20 +49,20 @@ Cross-output predictive covariances are not returned.
 
 ## Unknown constraints
 
-`OmniGPC` uses the same four model switches to learn feasibility. Labels can be boolean,
+`GPC` uses the same four model switches to learn feasibility. Labels can be boolean,
 `0/1`, or `-1/+1`; positive labels mean feasible.
 
 ```python
-from gp_omni import OmniGPC
+from gp_omni import GPC
 
-constraint = OmniGPC().fit(x, feasible)
+constraint = GPC().fit(x, feasible)
 probability = constraint.predict_proba(x_new)
 decision = constraint.predict_feasible(x_new)  # probability >= 0.5
 ```
 
 Classification uses a probit likelihood by default, or `lik="likLogistic"`, with a Laplace
 approximation. With multiple constraints, predictions are marginal probabilities per output.
-See the [combined objective and constraint example](../examples/omni_constraints.py).
+See the [combined objective and constraint example](../examples/gpr_gpc_constraints.py).
 
 ## Bayesian optimization
 
@@ -99,7 +99,7 @@ Settings and runnable examples: [async BO](../examples/async_bo.py),
 | GPML-style sparse inference and inducing-input swaps | [`SparseGP`](../examples/sparse_gpml.py) |
 
 The exact GP builders, `AR1CoKriging`, and `DAGCoKriging` expose BoTorch-compatible posteriors.
-`OmniGP` and `OmniGPC` use the prediction interface above.
+`GPR` and `GPC` use the prediction interface above.
 
 ## Related Notes
 

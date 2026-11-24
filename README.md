@@ -20,17 +20,17 @@ BoTorch-compatible models. Released under the [Apache 2.0 license](LICENSE).
 
 | Your problem | What to plug in | Example |
 |---|---|---|
-| Several objectives or responses share structure | `OmniGP(num_outputs=O)` for correlated outputs | [Multi-output surrogate](examples/omni_multiobjective.py) |
-| Cheap approximations and expensive experiments | `OmniGP(num_fidelities=L)` for autoregressive fidelity levels | [Multi-fidelity](examples/omni_multifidelity.py) |
-| Too many observations for a dense GP | `OmniGP(nu=M)` for inducing-point inference: VFE, FITC, or sparse power EP | [Sparse inference](examples/omni_bigdata.py) |
-| Many inputs with low-order interactions | `OmniGP(additive=R)` for interaction orders `1..R` | [Additive modeling](examples/omni_additive.py) |
-| Unknown feasibility or simulation failures | `OmniGPC` for learned feasibility probabilities, with the same four switches | [Objective + constraint models](examples/omni_constraints.py) |
+| Several objectives or responses share structure | `GPR(num_outputs=O)` for correlated outputs | [Multi-output surrogate](examples/gpr_multioutput.py) |
+| Cheap approximations and expensive experiments | `GPR(num_fidelities=L)` for autoregressive fidelity levels | [Multi-fidelity](examples/gpr_multifidelity.py) |
+| Too many observations for a dense GP | `GPR(nu=M)` for inducing-point inference: VFE, FITC, or sparse power EP | [Sparse inference](examples/gpr_sparse.py) |
+| Many inputs with low-order interactions | `GPR(additive=R)` for interaction orders `1..R` | [Additive modeling](examples/gpr_additive.py) |
+| Unknown feasibility or simulation failures | `GPC` for learned feasibility probabilities, with the same four switches | [Objective + constraint models](examples/gpr_gpc_constraints.py) |
 | Evaluations run in parallel and finish together | `BatchSeqBO` for batch-sequential constrained BO | [Batch BO](examples/batch_seq_bo.py) |
 | Evaluations finish at different times | `AsyncBO` for asynchronous constrained BO with GP-Hedge | [Async BO](examples/async_bo.py) |
 
 The four surrogate switches are independent: use any subset, including all four together.
 The built-in BO loops currently optimize one scalar objective at one fidelity using default
-`OmniGP` / `OmniGPC` models. Multi-output and multi-fidelity surrogates are available for
+`GPR` / `GPC` models. Multi-output and multi-fidelity surrogates are available for
 custom optimization workflows; Pareto search and cost-aware fidelity selection require
 your own acquisition and orchestration logic.
 
@@ -141,7 +141,7 @@ two correlated outputs, two fidelities, sparse inference, and additive interacti
 ```python
 import torch
 
-from gp_omni import OmniGP, OmniGPC
+from gp_omni import GPR, GPC
 
 torch.manual_seed(0)
 x = torch.rand(160, 3)
@@ -151,8 +151,8 @@ y = torch.sin(6 * x[:, 0]) + 0.3 * output + 0.2 * fidelity
 feasible = x[:, 0] + x[:, 1] < 1.2
 
 settings = dict(num_outputs=2, num_fidelities=2, nu=20, additive=2)
-objective = OmniGP(**settings).fit(x, y, output=output, fidelity=fidelity)
-constraint = OmniGPC(**settings).fit(x, feasible, output=output, fidelity=fidelity)
+objective = GPR(**settings).fit(x, y, output=output, fidelity=fidelity)
+constraint = GPC(**settings).fit(x, feasible, output=output, fidelity=fidelity)
 
 x_next = torch.rand(5, 3)
 prediction = objective.predict(x_next)
@@ -169,25 +169,29 @@ highest. Predictions default to every output at the highest fidelity; pass `outp
 Regression targets are standardized per output/fidelity pair and predictions are returned
 in the original units. Scale inputs to comparable ranges, such as the unit cube.
 `fmu` / `fs2` describe the latent function; `ymu` / `ys2` include observation noise.
-`OmniGPC` accepts boolean, `{0, 1}`, or `{-1, +1}` labels and returns marginal feasibility
+`GPC` accepts boolean, `{0, 1}`, or `{-1, +1}` labels and returns marginal feasibility
 probabilities for each constraint output.
 
 See the [documentation](docs/README.md) for model choices, inference options,
 data layouts, and model limitations. Run combinations directly:
 
 ```bash
-uv run python examples/omni_combined.py mo additive
-uv run python examples/omni_combined.py mf sparse
-uv run python examples/omni_combined.py all
-uv run python examples/omni_constraints.py all
+uv run python examples/gpr_combined.py mo additive
+uv run python examples/gpr_combined.py mf sparse
+uv run python examples/gpr_combined.py all
+uv run python examples/gpr_gpc_constraints.py all
 ```
+
+The surrogate API is now `GPR` / `GPC` (previously `OmniGP` / `OmniGPC`), available from
+`gp_omni` and `gp_omni.sparse`. Direct module imports use `sparse.gpr` and `sparse.gpc`;
+update existing imports and references to the renamed `gpr_*` examples.
 
 ## Work with GPyTorch, BoTorch, and GPML conventions
 
 For direct GPyTorch / BoTorch workflows, [`gp_omni.builders`](src/builders.py) provides
 exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
 [`gp_omni.fit`](src/fit.py) for fitting helpers. The exact GP builders, `AR1CoKriging`, and `DAGCoKriging`
-expose BoTorch-compatible posteriors; `OmniGP` / `OmniGPC` expose their own prediction
+expose BoTorch-compatible posteriors; `GPR` / `GPC` expose their own prediction
 interface.
 
 - [Exact GP](examples/exact_gp.py) · [Correlated outputs](examples/multioutput.py)

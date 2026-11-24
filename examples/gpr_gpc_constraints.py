@@ -1,12 +1,12 @@
 """A constraint classifier that mirrors the objective model, feature for feature.
 
-    python examples/omni_constraints.py                       # no feature switches
-    python examples/omni_constraints.py mo additive           # correlated + additive
-    python examples/omni_constraints.py mo mf sparse additive # everything (or: all)
+    python examples/gpr_gpc_constraints.py                       # no feature switches
+    python examples/gpr_gpc_constraints.py mo additive           # correlated + additive
+    python examples/gpr_gpc_constraints.py mo mf sparse additive # everything (or: all)
 
 Features: ``mo`` (several correlated outputs), ``mf`` (several fidelities), ``sparse``
 (inducing points), ``additive`` (additive covariance). The same switches configure both
-twins: ``OmniGP`` regresses the objective, ``OmniGPC`` classifies the constraint, so the
+twins: ``GPR`` regresses the objective, ``GPC`` classifies the constraint, so the
 two models share structure (outputs, fidelities, kernel, sparsity) and each feature can be
 changed independently. Labels are +1 = feasible, -1 = infeasible.
 
@@ -19,7 +19,7 @@ import sys
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP, OmniGPC
+from gp_omni import GPC, GPR
 
 FEATURES = ("mo", "mf", "sparse", "additive")
 W = [1.0, 0.8]  # how each output loads on the shared structure
@@ -69,8 +69,8 @@ def run_features(features, max_iter: int = 80) -> dict:
     x, y, c, o, f = (torch.cat(t) for t in (xs, ys, labels, os_, fs))
     xt = torch.rand(500, 4, generator=g)
 
-    gpr = OmniGP(**switches).fit(x, y, o, f, max_iter=max_iter)  # objective
-    gpc = OmniGPC(**switches).fit(x, c, o, f, max_iter=max_iter)  # constraint: same switches
+    gpr = GPR(**switches).fit(x, y, o, f, max_iter=max_iter)  # objective
+    gpc = GPC(**switches).fit(x, c, o, f, max_iter=max_iter)  # constraint: same switches
     mu = gpr.predict(xt)["fmu"].reshape(500, O)
     p = gpc.predict_proba(xt).reshape(500, O)  # P(feasible) at the highest fidelity
     nrmse = [

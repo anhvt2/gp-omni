@@ -17,7 +17,8 @@ from gp_omni.asyncbo.acquisition import (
     negative_classifier_mse,
     negative_mse,
 )
-from gp_omni.sparse.omni import OmniGP, OmniGPC
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 
 log = logging.getLogger(__name__)
 
@@ -69,8 +70,8 @@ def minimize_cmaes(
 
 
 def get_next_sampling_point(
-    model: OmniGP,
-    classifier: OmniGPC | None,
+    model: GPR,
+    classifier: GPC | None,
     acquisition: str,
     x_lb: np.ndarray,
     x_ub: np.ndarray,
@@ -118,7 +119,7 @@ def get_next_sampling_point(
 
 
 def get_next_sampling_point_reduce_mse(
-    model: OmniGP,
+    model: GPR,
     x_lb: np.ndarray,
     x_ub: np.ndarray,
     rng: np.random.Generator,
@@ -133,7 +134,7 @@ def get_next_sampling_point_reduce_mse(
 
 
 def get_next_sampling_point_classifier_reduce_mse(
-    classifier: OmniGPC | None,
+    classifier: GPC | None,
     x_lb: np.ndarray,
     x_ub: np.ndarray,
     rng: np.random.Generator,
