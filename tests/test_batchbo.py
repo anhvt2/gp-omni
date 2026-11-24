@@ -34,16 +34,25 @@ def make_config(**overrides):
 
 
 def test_batches_run_in_parallel_but_never_overlap(tmp_path):
+    config = make_config()
     lock, events = threading.Lock(), []
+    initial = threading.Barrier(config.num_init_point, timeout=30)
+    batch = threading.Barrier(config.batch.total, timeout=30)
+    launched = 0
 
     def simulation(x):
+        nonlocal launched
         start = time.monotonic()
-        time.sleep(0.15)
+        with lock:
+            launched += 1
+            barrier = initial if launched <= config.num_init_point else batch
+        # Wait for every job to start, even when proposal/model fitting is slow.
+        # A serial launcher or an incomplete batch breaks the barrier and fails.
+        barrier.wait()
         with lock:
             events.append((start, time.monotonic()))
         return -np.sum((x - 0.3) ** 2), bool(x[0] < 0.8)  # unknown constraint x0 < 0.8
 
-    config = make_config()
     x, y = BatchSeqBO(tmp_path, config, evaluate=simulation).run()
 
     size = config.batch.total
