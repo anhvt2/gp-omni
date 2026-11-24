@@ -1,6 +1,6 @@
-"""Two-fidelity AR1 co-kriging (Kennedy & O'Hagan 2000; Forrester et al. 2007).
+"""Exact co-kriging: legacy two-fidelity AR1 and general hierarchical fidelity DAGs.
 
-Port of the owner's MATLAB ``@CoKriging``. The model is
+The AR1 implementation ports the owner's MATLAB ``@CoKriging``. Its model is
 
     f_lo(x) ~ GP(F(x) b1, s1 * Psi1(x, x'))
     f_hi(x) = rho * f_lo(x) + delta(x),   delta ~ GP(F(x) b2, s2 * Psi2(x, x'))
@@ -21,11 +21,16 @@ Differences from the MATLAB code, deliberately:
 
 Inputs are used as given (no normalisation), like the MATLAB code. Scale them to a comparable range
 first (e.g. the unit cube), since the default bounds assume that.
+
+``DAGCoKriging`` extends the autoregressive model to arbitrary acyclic graphs,
+with independent per-node discrepancies and joint likelihood fitting. The legacy
+``AR1CoKriging`` retains its sequential fitting and MATLAB compatibility.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Integral
 
 import numpy as np
 import torch
@@ -378,4 +383,350 @@ class AR1CoKriging(Model):
         return post
 
     def forward(self, X: Tensor) -> MultivariateNormal:  # pragma: no cover - API completeness
+        return self.posterior(X).distribution
+
+
+class DAGCoKriging(Model):
+    r"""Exact, noiseless co-kriging on a supplied directed acyclic graph.
+
+    Node ``j`` is ``sum(rho[i,j] * f_i for i in parents(j)) + delta_j``,
+    with independent discrepancy GPs. Missing edges fix direct weights to zero;
+    indirect paths and common ancestors can still induce covariance.
+
+    ``train_X`` and ``train_Y`` are lists indexed by node, with nonnested designs
+    allowed. ``edges`` contains directed ``(parent, child)`` pairs in any order.
+    A unique sink is the default prediction target; otherwise ``target`` is required.
+    All nodes share the correlation family and regression degree, with independent
+    per-node precisions and variances. Joint maximum likelihood profiles out trends.
+
+    ``hyperparameters`` skips fitting and requires ``theta`` of shape ``(L, d)``
+    (or ``(L, 1)`` for isotropic kernels), ``rho`` of shape ``(E,)`` in supplied
+    edge order, and positive ``sigma2`` of shape ``(L,)``. Unlike the legacy model,
+    fixed variances are honored. Inputs should be scaled, e.g. to the unit cube.
+    Fit uses CPU float64; the fitted model supports device/dtype conversion with
+    ``to``. Dense fitting costs O(N^3) time and O(N^2) memory.
+    """
+
+    def __init__(
+        self,
+        train_X: list[Tensor],
+        train_Y: list[Tensor],
+        edges: list[tuple[int, int]],
+        target: int | None = None,
+        correlation: str = "matern32",
+        regression: str = "none",
+        hp0: float | list[float] = 0.5,
+        hp_bounds: tuple[float, float] = (-2.0, 2.0),
+        rho0: float = 1.0,
+        rho_bounds: tuple[float, float] = (-5.0, 5.0),
+        log_variance_bounds: tuple[float, float] = (-6.0, 6.0),
+        num_restarts: int = 4,
+        seed: int = 0,
+        hyperparameters: dict | None = None,
+    ) -> None:
+        super().__init__()
+        self.num_nodes = len(train_X)
+        if not self.num_nodes or len(train_Y) != self.num_nodes:
+            raise ValueError("need matching nonempty lists of node inputs and outputs")
+        if correlation not in CORRELATIONS:
+            raise ValueError(f"unknown correlation {correlation!r}")
+        self.correlation_name, self.regression = correlation, regression
+        self.edges = tuple(tuple(e) for e in edges)
+        parents = [[] for _ in train_X]
+        children = [[] for _ in train_X]
+        if len(set(self.edges)) != len(self.edges):
+            raise ValueError("duplicate edges are not allowed")
+        for e in self.edges:
+            if len(e) != 2 or any(
+                not isinstance(i, Integral) or isinstance(i, bool) or not 0 <= i < self.num_nodes
+                for i in e
+            ):
+                raise ValueError("edges must contain valid integer (parent, child) pairs")
+            i, j = e
+            parents[j].append(i)
+            children[i].append(j)
+        pending = [len(p) for p in parents]
+        order = [i for i, count in enumerate(pending) if count == 0]
+        for i in order:
+            for j in children[i]:
+                pending[j] -= 1
+                if pending[j] == 0:
+                    order.append(j)
+        if len(order) != self.num_nodes:
+            raise ValueError("graph must be acyclic (self-edges are also forbidden)")
+        self.topological_order = tuple(order)
+        sinks = [i for i, c in enumerate(children) if not c]
+        if target is None:
+            if len(sinks) != 1:
+                raise ValueError("target is required when the graph has multiple sinks")
+            target = sinks[0]
+        self.target = self._node(target)
+        for i, (x, y) in enumerate(zip(train_X, train_Y)):
+            x = torch.as_tensor(x, dtype=torch.float64, device="cpu").detach().clone()
+            y = torch.as_tensor(y, dtype=torch.float64, device="cpu").detach().clone()
+            if x.ndim != 2 or not x.shape[0] or not x.shape[1]:
+                raise ValueError("each X must be a nonempty (n, d) matrix")
+            if y.shape not in ((x.shape[0],), (x.shape[0], 1)):
+                raise ValueError("each Y must have shape (n,) or (n, 1)")
+            if not torch.isfinite(x).all() or not torch.isfinite(y).all():
+                raise ValueError("training data must be finite")
+            if i == 0:
+                self.dim = x.shape[1]
+            elif x.shape[1] != self.dim:
+                raise ValueError("all nodes must share the input dimension")
+            F = regression_matrix(regression, x)
+            if F.shape[1] and (
+                x.shape[0] <= F.shape[1] or torch.linalg.matrix_rank(F) < F.shape[1]
+            ):
+                raise ValueError(
+                    "each node needs a full-rank trend and residual degrees of freedom"
+                )
+            self.register_buffer(f"_X{i}", x)
+            self.register_buffer(f"_Y{i}", y.reshape(-1))
+
+        size = self.num_nodes * self.dim
+        if hyperparameters is not None:
+            theta = torch.as_tensor(hyperparameters["theta"], dtype=torch.float64, device="cpu")
+            if theta.shape == (self.num_nodes, 1):
+                theta = theta.expand(-1, self.dim).clone()
+            rho = torch.as_tensor(hyperparameters["rho"], dtype=torch.float64, device="cpu")
+            variances = torch.as_tensor(
+                hyperparameters["sigma2"], dtype=torch.float64, device="cpu"
+            )
+        else:
+            bounds = (hp_bounds, rho_bounds, log_variance_bounds)
+            if any(len(b) != 2 or not np.isfinite(b).all() or b[0] >= b[1] for b in bounds):
+                raise ValueError("hyperparameter bounds must be finite increasing pairs")
+            if not isinstance(num_restarts, Integral) or num_restarts < 0:
+                raise ValueError("num_restarts must be a nonnegative integer")
+            h0 = np.broadcast_to(np.asarray(hp0, dtype=float), (self.dim,)).copy()
+            if not np.isfinite(h0).all() or not np.isfinite(rho0):
+                raise ValueError("initial hyperparameters must be finite")
+            h0 = np.clip(h0, *hp_bounds)
+            r0 = float(np.clip(rho0, *rho_bounds))
+            # Sequential parent means supply initial scales only. Fitting below is joint.
+            initial_levels = {}
+            A0 = self._loadings(torch.full((len(self.edges),), r0, dtype=torch.float64))
+            scales = torch.zeros(self.num_nodes, dtype=torch.float64)
+            for j in order:
+                residual = self.Y[j].clone()
+                for q in order[: order.index(j)]:
+                    if A0[j, q] != 0:
+                        lvl = initial_levels[q]
+                        mu = self._discrepancy_mean(lvl, self.X[j])
+                        residual = residual - A0[j, q] * mu
+                th = torch.tensor(h0)
+                with torch.no_grad():
+                    _, s, b, L, g = _level_objective(
+                        correlation, regression, self.X[j], residual, th
+                    )
+                scales[j] = s.clamp_min(max(float(self.Y[j].square().mean()), 1.0) * 1e-10)
+                initial_levels[j] = _Level(self.X[j], th, r0, scales[j], b, L, g)
+
+            def objective(v: Tensor) -> Tensor:
+                th = v[:size].reshape(self.num_nodes, self.dim)
+                r = v[size : size + len(self.edges)]
+                s = scales * torch.pow(10.0, v[size + len(self.edges) :])
+                L, _, _, _, resid = self._factor(th, r, s)
+                return 0.5 * resid.square().sum() + torch.log(L.diagonal()).sum()
+
+            x0 = np.concatenate(
+                [
+                    np.tile(h0, self.num_nodes),
+                    np.full(len(self.edges), r0),
+                    np.zeros(self.num_nodes),
+                ]
+            )
+            lower = np.concatenate(
+                [
+                    np.full(size, hp_bounds[0]),
+                    np.full(len(self.edges), rho_bounds[0]),
+                    np.full(self.num_nodes, log_variance_bounds[0]),
+                ]
+            )
+            upper = np.concatenate(
+                [
+                    np.full(size, hp_bounds[1]),
+                    np.full(len(self.edges), rho_bounds[1]),
+                    np.full(self.num_nodes, log_variance_bounds[1]),
+                ]
+            )
+            sol = torch.tensor(_minimize(objective, x0, lower, upper, num_restarts, seed))
+            theta = sol[:size].reshape(self.num_nodes, self.dim)
+            rho = sol[size : size + len(self.edges)]
+            variances = scales * torch.pow(10.0, sol[size + len(self.edges) :])
+        if (
+            theta.shape != (self.num_nodes, self.dim)
+            or rho.shape != (len(self.edges),)
+            or variances.shape != (self.num_nodes,)
+        ):
+            raise ValueError("invalid theta, rho, or sigma2 shape")
+        if (
+            not all(torch.isfinite(t).all() for t in (theta, rho, variances))
+            or not (variances > 0).all()
+        ):
+            raise ValueError("hyperparameters must be finite and sigma2 strictly positive")
+        self.register_buffer("theta", theta.detach().clone())
+        self.register_buffer("rho", rho.detach().clone())
+        self.register_buffer("variances", variances.detach().clone())
+        with torch.no_grad():
+            L, Ft, R, beta, resid = self._factor(self.theta, self.rho, self.variances)
+            self.register_buffer("loadings", self._loadings(self.rho))
+            self.register_buffer("_L", L)
+            self.register_buffer("_Ft", Ft)
+            self.register_buffer("_R", R)
+            self.register_buffer("beta", beta.squeeze(-1))
+            self.register_buffer("_gamma", _solve_upper_t(L, resid).squeeze(-1))
+
+    @property
+    def X(self) -> list[Tensor]:
+        return [getattr(self, f"_X{i}") for i in range(self.num_nodes)]
+
+    @property
+    def Y(self) -> list[Tensor]:
+        return [getattr(self, f"_Y{i}") for i in range(self.num_nodes)]
+
+    def _node(self, node: int) -> int:
+        if (
+            not isinstance(node, Integral)
+            or isinstance(node, bool)
+            or not 0 <= node < self.num_nodes
+        ):
+            raise ValueError("fidelity must be a valid integer node index")
+        return int(node)
+
+    def _loadings(self, rho: Tensor) -> Tensor:
+        # A[j,q] sums the products of edge weights over every path q -> j.
+        rows = {}
+        eye = torch.eye(self.num_nodes, dtype=rho.dtype, device=rho.device)
+        for j in self.topological_order:
+            row = eye[j]
+            for e, (i, child) in enumerate(self.edges):
+                if child == j:
+                    row = row + rho[e] * rows[i]
+            rows[j] = row
+        return torch.stack([rows[j] for j in range(self.num_nodes)])
+
+    def _discrepancy_mean(self, level: _Level, x: Tensor) -> Tensor:
+        return (
+            correlation(self.correlation_name, level.theta, x, level.X) @ level.gamma
+            + regression_matrix(self.regression, x) @ level.beta
+        )
+
+    def _covariance(self, i, j, x, z, A, theta, variances):
+        return sum(
+            A[i, q] * A[j, q] * variances[q] * correlation(self.correlation_name, theta[q], x, z)
+            for q in range(self.num_nodes)
+        )
+
+    def _design(self, node: int, x: Tensor, A: Tensor) -> Tensor:
+        F = regression_matrix(self.regression, x)
+        return torch.cat([A[node, q] * F for q in range(self.num_nodes)], dim=-1)
+
+    def _factor(self, theta, rho, variances):
+        A = self._loadings(rho)
+        S = torch.cat(
+            [
+                torch.cat(
+                    [
+                        self._covariance(i, j, x, z, A, theta, variances)
+                        for j, z in enumerate(self.X)
+                    ],
+                    dim=-1,
+                )
+                for i, x in enumerate(self.X)
+            ],
+            dim=-2,
+        )
+        # Relative numerical jitter, not observation noise.
+        S = S + torch.diag(S.diagonal() * (S.shape[0] + 10) * _EPS)
+        F = torch.cat([self._design(i, x, A) for i, x in enumerate(self.X)])
+        L = torch.linalg.cholesky(S)
+        Yt = _solve_lower(L, torch.cat(self.Y).unsqueeze(-1))
+        Ft = _solve_lower(L, F)
+        if F.shape[-1]:
+            Q, R = torch.linalg.qr(Ft)
+            beta = torch.linalg.solve_triangular(R, Q.T @ Yt, upper=True)
+        else:
+            R, beta = F.new_zeros(0, 0), F.new_zeros(0, 1)
+        return L, Ft, R, beta, Yt - Ft @ beta
+
+    @property
+    def num_outputs(self) -> int:
+        return 1
+
+    @property
+    def hyperparameters(self) -> dict:
+        return {
+            "theta": self.theta.clone(),
+            "rho": self.rho.clone(),
+            "sigma2": self.variances.clone(),
+        }
+
+    @property
+    def coupling_matrix(self) -> Tensor:
+        """Direct weights B[parent, child]; absent edges are exactly zero."""
+        B = self.rho.new_zeros(self.num_nodes, self.num_nodes)
+        for weight, (i, j) in zip(self.rho, self.edges):
+            B[i, j] = weight
+        return B
+
+    def _moments(self, x: Tensor, node: int, full_cov: bool):
+        A = self.loadings
+        cross = torch.cat(
+            [
+                self._covariance(node, j, x, z, A, self.theta, self.variances)
+                for j, z in enumerate(self.X)
+            ],
+            dim=-1,
+        )
+        F = self._design(node, x, A)
+        mean = cross @ self._gamma + F @ self.beta
+        v = _solve_lower(self._L, cross.transpose(-1, -2))
+        prior_var = (A[node].square() * self.variances).sum()
+        if full_cov:
+            cov = self._covariance(node, node, x, x, A, self.theta, self.variances)
+            cov = cov - v.transpose(-1, -2) @ v
+        else:
+            cov = prior_var - v.square().sum(-2)
+        if F.shape[-1]:
+            u = self._Ft.T @ v - F.transpose(-1, -2)
+            t = torch.linalg.solve_triangular(self._R.T, u, upper=False)
+            cov = cov + (t.transpose(-1, -2) @ t if full_cov else t.square().sum(-2))
+        return mean, cov
+
+    def _inputs(self, x: Tensor) -> Tensor:
+        x = torch.as_tensor(x, dtype=self.theta.dtype, device=self.theta.device)
+        if x.ndim < 2 or x.shape[-1] != self.dim or not torch.isfinite(x).all():
+            raise ValueError("prediction inputs must be finite with shape (..., q, d)")
+        return x
+
+    def predict(self, x: Tensor, fidelity: int | None = None) -> tuple[Tensor, Tensor]:
+        """Mean and marginal variance at a node, conditioned on all training data."""
+        node = self.target if fidelity is None else self._node(fidelity)
+        mean, var = self._moments(self._inputs(x), node, full_cov=False)
+        return mean, var.clamp_min(0)
+
+    def posterior(
+        self,
+        X: Tensor,
+        output_indices: list[int] | None = None,
+        observation_noise: bool | Tensor = False,
+        posterior_transform=None,
+        fidelity: int | None = None,
+    ) -> GPyTorchPosterior:
+        """Differentiable joint posterior for one selected node; supports t-batches."""
+        if output_indices is not None and output_indices != [0]:
+            raise ValueError("the selected fidelity has one output, indexed by 0")
+        if not isinstance(observation_noise, bool) or observation_noise:
+            raise NotImplementedError("this noiseless model only supports observation_noise=False")
+        node = self.target if fidelity is None else self._node(fidelity)
+        mean, cov = self._moments(self._inputs(X), node, full_cov=True)
+        cov = 0.5 * (cov + cov.transpose(-1, -2))
+        scale = (self.loadings[node].square() * self.variances).sum()
+        cov = cov + 1e-10 * scale * torch.eye(cov.shape[-1], dtype=cov.dtype, device=cov.device)
+        post = GPyTorchPosterior(MultivariateNormal(mean, cov))
+        return posterior_transform(post) if posterior_transform is not None else post
+
+    def forward(self, X: Tensor) -> MultivariateNormal:
         return self.posterior(X).distribution
