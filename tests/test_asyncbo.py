@@ -213,3 +213,14 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
         (job / "acquisition_scheme.dat").read_text() in ("UCB", "EI", "PI") for job in hedge
     )
     assert x[0] < 0.8 and y > -0.3
+
+
+def test_config_json_round_trip(tmp_path):
+    from pathlib import Path
+
+    shipped = Path(__file__).parents[1] / "config" / "async_bo.json"
+    config = AsyncBOConfig.from_json(shipped, known_constraint=lambda _: 1.0)
+    assert config.model_name == "rosen" and config.x_lb.tolist() == [-1.0, -1.0]
+    assert config.x_scale.tolist() == [1.0, 1.0] and config.batch.total == 4
+    config.to_json(tmp_path / "copy.json")
+    assert AsyncBOConfig.from_json(tmp_path / "copy.json").x_ub.tolist() == config.x_ub.tolist()
