@@ -14,23 +14,13 @@ The objective of the CMA-ES inner search is (minimised)::
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
 
 import numpy as np
 import torch
 from scipy.stats import norm
 
+from gp_omni.bo_config import KnownConstraint, check_constraint
 from gp_omni.sparse.omni import OmniGP, OmniGPC
-
-KnownConstraint = Callable[[np.ndarray], float]
-
-
-def check_constraint(x: np.ndarray) -> float:
-    """``checkConstraint.m``: 1 if no known constraint is violated, 0 otherwise.
-
-    The MATLAB default accepts everything; pass your own callable to ``AsyncBO`` to override.
-    """
-    return 1.0
 
 
 def check_multiple_design_sites(x_next: np.ndarray, x_obs: np.ndarray, tol: float = 1e-4) -> bool:
