@@ -14,7 +14,7 @@ from gp_omni.build.linalg import _solve_lower
 from gp_omni.build.regression import regression_matrix
 
 if TYPE_CHECKING:
-    from gp_omni.build.cokriging import _Level
+    from gp_omni.build.cokriging import _level
 
 
 class ar1_prediction:
@@ -22,7 +22,7 @@ class ar1_prediction:
         if not self._fitted:
             raise RuntimeError("call fit() first")
 
-    def _level_mean(self, lvl: _Level, x: Tensor) -> Tensor:
+    def _level_mean(self, lvl: _level, x: Tensor) -> Tensor:
         psi = correlation(self.correlation_name, lvl.theta, x, lvl.X)
         F = regression_matrix(self.regression, x)
         mean = psi @ lvl.gamma
@@ -123,7 +123,7 @@ class dag_prediction:
         if not self._fitted:
             raise RuntimeError("call fit() first")
 
-    def _discrepancy_mean(self, level: _Level, x: Tensor) -> Tensor:
+    def _discrepancy_mean(self, level: _level, x: Tensor) -> Tensor:
         return (
             correlation(self.correlation_name, level.theta, x, level.X) @ level.gamma
             + regression_matrix(self.regression, x) @ level.beta

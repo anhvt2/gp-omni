@@ -115,7 +115,7 @@ def test_classification_works_with_sparse_and_additive():
     g = torch.Generator().manual_seed(4)
     rule = lambda z: torch.where(torch.sin(3 * z[:, 0]) + z[:, 1] ** 2 > 0.6, 1.0, -1.0)
     x, xt = torch.rand(300, 3, generator=g), torch.rand(400, 3, generator=g)
-    m = GPR(additive=2, nu=20, lik="likErf").fit(x, rule(x), max_iter=60)
+    m = GPR(additive=2, nu=20, lik="probit").fit(x, rule(x), max_iter=60)
     assert float((torch.sign(m.predict(xt)["ymu"]) == rule(xt)).double().mean()) > 0.9
 
 
@@ -123,7 +123,7 @@ def test_input_validation():
     x, y, o, f = problem([[20, 5]])
     with pytest.raises(ValueError):
         GPR(num_fidelities=2, lik="nonsense")
-    GPR(num_fidelities=2, lik="likErf")  # classification is allowed with every feature
+    GPR(num_fidelities=2, lik="probit")  # classification is allowed with every feature
     with pytest.raises(ValueError):
         GPR(num_fidelities=2).fit(x, y, o, f + 1)  # fidelity index out of range
     with pytest.raises(RuntimeError):

@@ -17,9 +17,9 @@ from gp_omni.asyncbo.acquisition import (
     negative_classifier_mse,
     negative_mse,
 )
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
 from gp_omni.settings import load_defaults
-from gp_omni.sparse.gpc import GPC
-from gp_omni.sparse.gpr import GPR
 
 DEFAULTS = load_defaults("bo")
 

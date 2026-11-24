@@ -60,7 +60,7 @@ probability = constraint.predict_proba(x_new)
 decision = constraint.predict_feasible(x_new)  # probability >= 0.5
 ```
 
-Classification uses a probit likelihood by default, or `lik="likLogistic"`, with a Laplace
+Classification uses a probit likelihood by default, or `lik="logistic"`, with a Laplace
 approximation. With multiple constraints, predictions are marginal probabilities per output.
 See the [combined objective and constraint example](../examples/gpr_gpc_constraints.py).
 
@@ -93,12 +93,12 @@ Settings and runnable examples: [async BO](../examples/async_bo.py),
 
 | Need | Use |
 |---|---|
-| Small, noiseless, two-fidelity designs | [`AR1CoKriging`](../examples/cokriging.py) |
-| Noiseless fidelities linked by a DAG, including multiple parents | [`DAGCoKriging`](dag-cokriging.md) |
-| Direct GPyTorch models: exact, SGPR, SVGP, KISS-GP, or ICM/LMC | [`gp_omni.builders`](../src/builders.py) |
-| GPML-style sparse inference and inducing-input swaps | [`SparseGP`](../examples/sparse_gpml.py) |
+| Small, noiseless, two-fidelity designs | [`ar1_cokriging`](../examples/cokriging.py) |
+| Noiseless fidelities linked by a DAG, including multiple parents | [`dag_cokriging`](dag-cokriging.md) |
+| Direct GPyTorch models: exact, SGPR, svgp, KISS-GP, or ICM/LMC | [`gp_omni.build.gpytorch`](../src/build/gpytorch.py) |
+| GPML-style sparse inference and inducing-input swaps | [`sparse_gp`](../examples/sparse_gpml.py) |
 
-The exact GP builders, `AR1CoKriging`, and `DAGCoKriging` expose BoTorch-compatible posteriors.
+The exact GP builders, `ar1_cokriging`, and `dag_cokriging` expose BoTorch-compatible posteriors.
 `GPR` and `GPC` use the prediction interface above.
 
 ## Related Notes

@@ -25,7 +25,7 @@ from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("models")
 
-_KINDS = ("SEard", "SEiso", "Maternard", "Materniso", "ADD")
+_KINDS = ("se_ard", "se_iso", "matern_ard", "matern_iso", "additive")
 
 
 def _safe_sqrt(s: Tensor) -> Tensor:
@@ -35,7 +35,7 @@ def _safe_sqrt(s: Tensor) -> Tensor:
     )
 
 
-class Cov:
+class covariance:
     """A gpml covariance function."""
 
     def __init__(
@@ -47,16 +47,16 @@ class Cov:
         """``degree`` is the Matern degree; ``orders`` (``additive`` only) is the maximum
         interaction order ``R`` (meaning ``1..R``) or an explicit list such as ``[1, 3]``."""
         self.orders = list(range(1, orders + 1)) if isinstance(orders, int) else list(orders)
-        if kind == "ADD" and (not self.orders or min(self.orders) < 1):
+        if kind == "additive" and (not self.orders or min(self.orders) < 1):
             raise ValueError("additive needs interaction orders >= 1")
         if kind not in _KINDS:
             raise ValueError(f"unknown covariance {kind!r}; choose from {_KINDS}")
-        if kind.startswith("Matern") and degree not in (1, 3, 5):
+        if kind.startswith("matern") and degree not in (1, 3, 5):
             raise ValueError("Matern degree must be 1, 3 or 5")
         self.kind, self.degree = kind, degree
 
     def num_hyp(self, dim: int) -> int:
-        if self.kind == "ADD":
+        if self.kind == "additive":
             return dim + len(self.orders)
         return dim + 1 if self.kind.endswith("ard") else 2
 
@@ -85,7 +85,7 @@ class Cov:
         return torch.stack([sf2[i] * e[r] for i, r in enumerate(self.orders)]).sum(0)
 
     def __call__(self, hyp: Tensor, x: Tensor, z: Tensor | str | None = None) -> Tensor:
-        if self.kind == "ADD":
+        if self.kind == "additive":
             return self._additive(hyp, x, z)
         sf2 = torch.exp(2 * hyp[-1])
         if isinstance(z, str):
@@ -96,7 +96,7 @@ class Cov:
         a = x / ell
         b = a if z is None else z / ell
         d2 = (a.unsqueeze(-2) - b.unsqueeze(-3)).pow(2).sum(-1)
-        if self.kind.startswith("SE"):
+        if self.kind.startswith("se_"):
             return sf2 * torch.exp(-0.5 * d2)
         d = self.degree
         t = (d**0.5) * _safe_sqrt(d2)

@@ -12,7 +12,7 @@ DEFAULTS = load_defaults("models")
 _KINDS = ("zero", "const", "linear", "linear+const")
 
 
-class Mean:
+class mean_function:
     """``zero`` (no hyp), ``const`` (``[c]``), ``linear`` (``[a_1..a_D]``) or
     ``linear+const`` (``[a_1..a_D, c]``, gpml ``{@meanSum,{@meanLinear,@meanConst}}``)."""
 

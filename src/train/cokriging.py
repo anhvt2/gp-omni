@@ -9,7 +9,7 @@ import torch
 from scipy.optimize import minimize
 from torch import Tensor
 
-from gp_omni.build.cokriging import _Level
+from gp_omni.build.cokriging import _level
 from gp_omni.build.correlation import correlation
 from gp_omni.build.linalg import _solve_lower, _solve_upper_t
 from gp_omni.build.regression import regression_matrix
@@ -106,7 +106,7 @@ def fit_ar1(model, hp0, hp_bounds, rho0, rho_bounds, num_restarts, seed, hyperpa
         )
     with torch.no_grad():
         _, s1, b1, L1, g1 = _level_objective(correlation, regression, x_lo, model.Y[0], th1)
-    model.level1 = _Level(x_lo, th1, 0.0, s1, b1, L1, g1)
+    model.level1 = _level(x_lo, th1, 0.0, s1, b1, L1, g1)
 
     # ---- level 2 (rho, theta2) ----
     x_hi = model.X[1]
@@ -129,7 +129,7 @@ def fit_ar1(model, hp0, hp_bounds, rho0, rho_bounds, num_restarts, seed, hyperpa
         _, s2, b2, L2, g2 = _level_objective(
             correlation, regression, x_hi, model.Y[1] - rho * yc, th2
         )
-    model.level2 = _Level(x_hi, th2, rho, s2, b2, L2, g2)
+    model.level2 = _level(x_hi, th2, rho, s2, b2, L2, g2)
     model.rho = rho
     assemble_ar1(model)
 
@@ -228,7 +228,7 @@ def fit_dag(
             with torch.no_grad():
                 _, s, b, L, g = _level_objective(correlation, regression, model.X[j], residual, th)
             scales[j] = s.clamp_min(max(float(model.Y[j].square().mean()), 1.0) * 1e-10)
-            initial_levels[j] = _Level(model.X[j], th, r0, scales[j], b, L, g)
+            initial_levels[j] = _level(model.X[j], th, r0, scales[j], b, L, g)
 
         def objective(v: Tensor) -> Tensor:
             th = v[:size].reshape(model.num_nodes, model.dim)

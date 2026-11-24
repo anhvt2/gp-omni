@@ -43,7 +43,7 @@ class GPC(GPR):
         init: str = DEFAULTS["gpc"]["init"],
         seed: int = DEFAULTS["gpc"]["seed"],
     ):
-        if lik == "likGauss":
+        if lik == "gaussian":
             raise ValueError("GPC needs a classification likelihood: probit or logistic")
         super().__init__(
             num_outputs, num_fidelities, additive, nu, s, cov, degree, rank, lik, init, seed

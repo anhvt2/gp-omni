@@ -5,10 +5,10 @@
     "additive": null,
     "nu": null,
     "s": 0.0,
-    "cov": "SEard",
+    "cov": "se_ard",
     "degree": 3,
     "rank": 1,
-    "lik": "likGauss",
+    "lik": "gaussian",
     "init": "kmeans",
     "seed": 0
   },
@@ -22,10 +22,10 @@
     "additive": null,
     "nu": null,
     "s": 0.0,
-    "cov": "SEard",
+    "cov": "se_ard",
     "degree": 3,
     "rank": 1,
-    "lik": "likErf",
+    "lik": "probit",
     "init": "kmeans",
     "seed": 0
   },
@@ -37,10 +37,10 @@
     "threshold": 0.5
   },
   "sparse": {
-    "cov": "SEard",
+    "cov": "se_ard",
     "degree": 3,
     "mean": "const",
-    "lik": "likGauss",
+    "lik": "gaussian",
     "s": 0.0,
     "init": "kmeans",
     "learn_snu": false,
@@ -91,7 +91,7 @@
     "hyperparameters": null
   },
   "covariance": {
-    "kind": "SEard",
+    "kind": "se_ard",
     "degree": 3,
     "orders": 2
   },

@@ -3,7 +3,7 @@
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import AR1CoKriging
+from gp_omni import ar1_cokriging
 
 
 def main() -> dict:
@@ -11,9 +11,9 @@ def main() -> dict:
     lo = lambda x: 0.5 * hi(x) + 10 * (x - 0.5) - 5
     xl, xh = torch.linspace(0, 1, 20).reshape(-1, 1), torch.linspace(0, 1, 4).reshape(-1, 1)
     X, Y = [xl, xh], [lo(xl), hi(xh)]
-    model = AR1CoKriging(X, Y, correlation="matern32")
+    model = ar1_cokriging(X, Y, correlation="matern32")
     # rho = 0 switches the low-fidelity data off: kriging on the 4 high-fidelity points only
-    hi_only = AR1CoKriging(
+    hi_only = ar1_cokriging(
         X, Y, correlation="matern32", hyperparameters={**model.hyperparameters, "rho": 0.0}
     )
     xt = torch.linspace(0, 1, 200).reshape(-1, 1)

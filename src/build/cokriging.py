@@ -45,7 +45,7 @@ DEFAULTS = load_defaults("models")
 
 
 @dataclass
-class _Level:
+class _level:
     """One fitted universal-kriging level (MATLAB ``BasicGaussianProcess`` without noise)."""
 
     X: Tensor
@@ -57,7 +57,7 @@ class _Level:
     gamma: Tensor  # Psi^-1 (y - F beta)
 
 
-class AR1CoKriging(ar1_prediction, Model):
+class ar1_cokriging(ar1_prediction, Model):
     """Two-fidelity co-kriging with a BoTorch-compatible posterior for the high fidelity.
 
     Parameters
@@ -144,7 +144,7 @@ class AR1CoKriging(ar1_prediction, Model):
         }
 
 
-class DAGCoKriging(dag_prediction, Model):
+class dag_cokriging(dag_prediction, Model):
     r"""Exact, noiseless co-kriging on a supplied directed acyclic graph.
 
     Node ``j`` is ``sum(rho[i,j] * f_i for i in parents(j)) + delta_j``,

@@ -14,18 +14,18 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import Lik, LikGauss
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov
-from gp_omni.infer.covariance import Approx, apx
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import gaussian, likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import sparse_covariance
+from gp_omni.infer.covariance import apx, covariance_operator
 from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("inference")
 
 
 @dataclass
-class Posterior:
+class posterior_state:
     """gpml's ``post`` struct. ``L`` is an upper Cholesky factor (``L_kind='chol'``), a
     matrix (``'matrix'``) or a callable acting on cross-covariances (``'callable'``)."""
 
@@ -37,15 +37,15 @@ class Posterior:
 
 def gaussian_posterior(
     hyp: dict,
-    mean: Mean,
-    cov: Cov | SparseCov,
-    lik: Lik,
+    mean: mean_function,
+    cov: covariance | sparse_covariance,
+    lik: likelihood,
     x: Tensor,
     y: Tensor,
     opt: dict | None = None,
-) -> tuple[Posterior, Tensor]:
+) -> tuple[posterior_state, Tensor]:
     """Exact inference for Gaussian likelihoods; sparse if ``cov`` is a ``sparse_covariance``."""
-    if not isinstance(lik, LikGauss):
+    if not isinstance(lik, gaussian):
         raise TypeError("Exact inference only possible with Gaussian likelihood")
     m = mean(hyp["mean"], x)
     sn2 = lik.noise_var(hyp["lik"], x)  # per-sample (a constant for gaussian)
@@ -53,7 +53,7 @@ def gaussian_posterior(
     K = apx(hyp, cov, x, opt)
     wf = K.fun(W)
     alpha = wf.solveKiW(y - m)
-    post = Posterior(K.P(alpha), torch.sqrt(W), wf.L, "matrix" if K.sparse else "chol")
+    post = posterior_state(K.P(alpha), torch.sqrt(W), wf.L, "matrix" if K.sparse else "chol")
     nlZ = (y - m) @ alpha / 2 + wf.ldB2 + torch.log(2 * math.pi * sn2).sum() / 2
     return post, nlZ
 
@@ -64,7 +64,7 @@ def _psi(alpha: Tensor, m: Tensor, mvm, likfun):
     return (alpha @ (f - m)) / 2 - lp.sum(), f, dlp, -d2lp
 
 
-def _irls(alpha: Tensor, m: Tensor, K: Approx, likfun, opt: dict) -> Tensor:
+def _irls(alpha: Tensor, m: Tensor, K: covariance_operator, likfun, opt: dict) -> Tensor:
     """Newton iterations with step-size search, as gpml's ``irls`` (run without autograd)."""
     maxit = int(opt.get("irls_maxit", DEFAULTS["laplace"]["irls_maxit"]))
     wmin = float(opt.get("irls_Wmin", DEFAULTS["laplace"]["irls_Wmin"]))
@@ -90,13 +90,13 @@ def _irls(alpha: Tensor, m: Tensor, K: Approx, likfun, opt: dict) -> Tensor:
 
 def laplace_posterior(
     hyp: dict,
-    mean: Mean,
-    cov: Cov | SparseCov,
-    lik: Lik,
+    mean: mean_function,
+    cov: covariance | sparse_covariance,
+    lik: likelihood,
     x: Tensor,
     y: Tensor,
     opt: dict | None = None,
-) -> tuple[Posterior, Tensor]:
+) -> tuple[posterior_state, Tensor]:
     """Laplace approximation; sparse if ``cov`` is a ``sparse_covariance``.
 
     The posterior mode is found without autograd (gpml's ``irls``). The returned ``nlZ`` is
@@ -126,5 +126,5 @@ def laplace_posterior(
     wf = K.fun(W)
     nlZ = alpha @ (f - m) / 2 - lp.sum() + wf.ldB2
     sW = torch.sqrt(torch.abs(W)) * torch.sign(W)
-    post = Posterior(K.P(alpha), sW, lambda r: -K.P(wf.solveKiW(K.Pt(r))), "callable")
+    post = posterior_state(K.P(alpha), sW, lambda r: -K.P(wf.solveKiW(K.Pt(r))), "callable")
     return post, nlZ

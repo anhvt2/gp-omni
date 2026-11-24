@@ -24,13 +24,13 @@ from gpytorch.models import ApproximateGP, ExactGP
 from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
 from torch import Tensor
 
-from gp_omni.build.kernels import AdditiveKernel
+from gp_omni.build.kernels import additive_kernel
 from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("builders")
 
 
-class ExactGPModel(ExactGP, GPyTorchModel):
+class _exact_gpr(ExactGP, GPyTorchModel):
     """Exact GP with a constant mean and any kernel (also used for SGPR and KISS-GP).
 
     A BoTorch model, so it works with BoTorch acquisition functions.
@@ -47,47 +47,47 @@ class ExactGPModel(ExactGP, GPyTorchModel):
         return MultivariateNormal(self.mean_module(x), self.covar_module(x))
 
 
-def exact_gp(train_x: Tensor, train_y: Tensor, kernel: Kernel | None = None) -> ExactGPModel:
+def exact_gpr(train_x: Tensor, train_y: Tensor, kernel: Kernel | None = None) -> _exact_gpr:
     """Exact GP; default kernel is ARD Matern-5/2 (degree 5)."""
     kernel = kernel or ScaleKernel(
         MaternKernel(nu=DEFAULTS["exact"]["matern_nu"], ard_num_dims=train_x.shape[-1])
     )
-    return ExactGPModel(train_x, train_y, GaussianLikelihood(), kernel)
+    return _exact_gpr(train_x, train_y, GaussianLikelihood(), kernel)
 
 
-def additive_gp(
+def additive_gpr(
     train_x: Tensor, train_y: Tensor, max_degree: int = DEFAULTS["additive"]["max_degree"]
-) -> ExactGPModel:
+) -> _exact_gpr:
     """Additive GP of interaction orders 1..``max_degree`` (gpml ``covADD`` with ``1:R``).
 
     Uses :class:`gp_omni.build.kernels.additive_kernel` (one learned output scale per order).
     """
-    kern = AdditiveKernel(train_x.shape[-1], max_degree)
-    return ExactGPModel(train_x, train_y, GaussianLikelihood(), kern)
+    kern = additive_kernel(train_x.shape[-1], max_degree)
+    return _exact_gpr(train_x, train_y, GaussianLikelihood(), kern)
 
 
 def sgpr(
     train_x: Tensor, train_y: Tensor, num_inducing: int, seed: int = DEFAULTS["sparse"]["seed"]
-) -> ExactGPModel:
+) -> _exact_gpr:
     """Sparse GP regression, collapsed (Titsias VFE-style) via ``InducingPointKernel``."""
     gen = torch.Generator().manual_seed(seed)
     idx = torch.randperm(train_x.shape[0], generator=gen)[:num_inducing]
     lik = GaussianLikelihood()
     base = ScaleKernel(RBFKernel(ard_num_dims=train_x.shape[-1]))
     kern = InducingPointKernel(base, inducing_points=train_x[idx].clone(), likelihood=lik)
-    return ExactGPModel(train_x, train_y, lik, kern)
+    return _exact_gpr(train_x, train_y, lik, kern)
 
 
-def kiss_gp(
+def kiss_gpr(
     train_x: Tensor, train_y: Tensor, grid_size: int = DEFAULTS["grid"]["grid_size"]
-) -> ExactGPModel:
+) -> _exact_gpr:
     """Structured kernel interpolation (grid) GP; intended for low input dimension (<= ~3)."""
     d = train_x.shape[-1]
     kern = GridInterpolationKernel(ScaleKernel(RBFKernel()), grid_size=grid_size, num_dims=d)
-    return ExactGPModel(train_x, train_y, GaussianLikelihood(), kern)
+    return _exact_gpr(train_x, train_y, GaussianLikelihood(), kern)
 
 
-class MultitaskExactGP(ExactGP):
+class multitask_gpr(ExactGP):
     """Correlated multi-output exact GP: ``"icm"`` (intrinsic) or ``"lmc"`` (linear mixture)."""
 
     def __init__(
@@ -116,7 +116,7 @@ class MultitaskExactGP(ExactGP):
         return MultitaskMultivariateNormal(self.mean_module(x), self.covar_module(x))
 
 
-class SVGP(ApproximateGP):
+class svgp(ApproximateGP):
     """Sparse variational GP; with a Bernoulli likelihood it is the classification model."""
 
     def __init__(self, inducing_points: Tensor, kernel: Kernel | None = None):

@@ -26,17 +26,17 @@ def _derivs(lp_fn, f: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     return lp, dlp, d2lp
 
 
-class Lik:
+class likelihood:
     kind = ""
 
     def num_hyp(self) -> int:
         return 0
 
 
-class LikGauss(Lik):
+class gaussian(likelihood):
     """Gaussian noise, ``hyp = [log sn]``."""
 
-    kind = "likGauss"
+    kind = "gaussian"
 
     def num_hyp(self) -> int:
         return 1
@@ -61,7 +61,7 @@ class LikGauss(Lik):
         return lp, mu, ys2
 
 
-class _Binary(Lik):
+class _binary(likelihood):
     """Shared pieces of the +/-1 label likelihoods."""
 
     def _logp(self, yf: Tensor) -> Tensor:  # log p(y|f) as a function of y*f
@@ -92,10 +92,10 @@ def _labels(y: Tensor, like: Tensor) -> Tensor:
     return torch.where(y == 0, torch.ones_like(y), torch.sign(y))
 
 
-class LikErf(_Binary):
+class probit(_binary):
     """Probit likelihood ``Phi(y f)``; the predictive moment is closed-form (as gpml)."""
 
-    kind = "likErf"
+    kind = "probit"
 
     def _logp(self, yf: Tensor) -> Tensor:
         return torch.special.log_ndtr(yf)
@@ -116,14 +116,14 @@ _C = torch.tensor(
 )
 
 
-class LikLogistic(_Binary):
+class logistic(_binary):
     """Logistic likelihood ``1 / (1 + exp(-y f))``.
 
     The predictive moment follows gpml ``logistic`` (``'infEP'`` branch): a five-component
     scale mixture of probit terms, blended with a tail approximation (Nickisch).
     """
 
-    kind = "likLogistic"
+    kind = "logistic"
 
     def _logp(self, yf: Tensor) -> Tensor:
         return -torch.nn.functional.softplus(-yf)
@@ -146,8 +146,8 @@ class LikLogistic(_Binary):
         return (1 - w) * lz + w * lz_tail
 
 
-def make_likelihood(name: str) -> Lik:
-    table = {"likGauss": LikGauss, "likErf": LikErf, "likLogistic": LikLogistic}
+def make_likelihood(name: str) -> likelihood:
+    table = {"gaussian": gaussian, "probit": probit, "logistic": logistic}
     if name not in table:
         raise ValueError(f"unknown likelihood {name!r}; choose from {tuple(table)}")
     return table[name]()

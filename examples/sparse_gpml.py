@@ -7,7 +7,7 @@ classifier on the same sparse approximation. The true noise standard deviation i
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni.sparse import SparseGP
+from gp_omni.build.sparse import sparse_gp
 
 
 def main() -> dict:
@@ -17,12 +17,12 @@ def main() -> dict:
     y = f(x) + 0.1 * torch.randn(3000, generator=g)
     out = {}
     for name, s in (("vfe", 0.0), ("fitc", 1.0)):
-        model = SparseGP(30, s=s).fit(x, y, swap=0)
+        model = sparse_gp(30, s=s).fit(x, y, swap=0)
         pred = model.predict(xt)
         out[f"{name}_rmse"] = ((pred["fmu"] - f(xt)) ** 2).mean().sqrt().item()
         out[f"{name}_noise_sd"] = model.hyp["lik"].exp().item()
     rule = lambda z: torch.where(z[:, 0] + z[:, 1] > 1, 1.0, -1.0)
-    clf = SparseGP(20, lik="likErf").fit(x[:500], rule(x[:500]), max_iter=80)
+    clf = sparse_gp(20, lik="probit").fit(x[:500], rule(x[:500]), max_iter=80)
     out["probit_accuracy"] = (torch.sign(clf.predict(xt)["ymu"]) == rule(xt)).double().mean().item()
     return out
 

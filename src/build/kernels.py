@@ -12,7 +12,7 @@ from gp_omni.settings import load_defaults
 DEFAULTS = load_defaults("builders")
 
 
-class AdditiveKernel(Kernel):
+class additive_kernel(Kernel):
     r"""gpml ``covADD``: ``k(x, x') = sum_{r in orders} s_r^2 e_r(k_1, ..., k_D)``.
 
     ``k_i`` is a squared-exponential kernel on input dimension ``i`` and ``e_r`` is the

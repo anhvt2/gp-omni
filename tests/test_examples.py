@@ -20,7 +20,7 @@ def run(name: str) -> dict:
 
 
 LIMITS = {
-    "exact_gp": {"rmse": 0.05},
+    "exact_gpr": {"rmse": 0.05},
     "multioutput": {"icm_rmse": 0.05, "lmc_rmse": 0.05},
     "sparse": {"sgpr_rmse": 0.05, "kiss_rmse": 0.05, "svgp_rmse": 0.1},
 }

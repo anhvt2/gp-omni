@@ -186,20 +186,23 @@ Model, training, inference, and BO defaults live in [`config/`](config/README.md
 Explicit arguments override them; use `GPR.from_json(...)` or `GPC.from_json(...)` for
 per-run constructor settings. Defaults are read at module import time.
 
-The surrogate API is now `GPR` / `GPC` (previously `OmniGP` / `OmniGPC`), available from
-`gp_omni` and `gp_omni.sparse`. Direct module imports use `sparse.gpr` and `sparse.gpc`;
-update existing imports and references to the renamed `gpr_*` examples.
+Models are constructed through `gp_omni.build`, fitted through `gp_omni.train`, and
+queried through `gp_omni.infer`. Project-owned helper types use snake_case; likelihood
+names are `gaussian`, `probit`, and `logistic`. Covariance names include `se_ard`,
+`se_iso`, `matern_ard`, and `matern_iso`. Update older configuration files accordingly.
+The old `sparse`, `models`, `builders`, and `fit` import paths have been replaced by the
+phase packages.
 
 ## Work with GPyTorch, BoTorch, and GPML conventions
 
-For direct GPyTorch / BoTorch workflows, [`gp_omni.builders`](src/builders.py) provides
+For direct GPyTorch / BoTorch workflows, [`gp_omni.build.gpytorch`](src/build/gpytorch.py) provides
 exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
-[`gp_omni.fit`](src/fit.py) for fitting helpers. The exact GP builders, `AR1CoKriging`, and `DAGCoKriging`
+[`gp_omni.train.gpytorch`](src/train/gpytorch.py) for fitting helpers. The exact GP builders, `ar1_cokriging`, and `dag_cokriging`
 expose BoTorch-compatible posteriors; `GPR` / `GPC` expose their own prediction
 interface.
 
-- [Exact GP](examples/exact_gp.py) · [Correlated outputs](examples/multioutput.py)
-- [SGPR, SVGP, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
+- [Exact GP](examples/exact_gpr.py) · [Correlated outputs](examples/multioutput.py)
+- [SGPR, svgp, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
 - [AR1 co-kriging](examples/cokriging.py) · [BoTorch multi-fidelity](examples/multifidelity_botorch.py)
 - [Hierarchical DAG co-kriging](examples/dag_cokriging.py) · [DAG model guide](docs/dag-cokriging.md)
 - [GPML-style sparse inference](examples/sparse_gpml.py)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from gp_omni.build.likelihood import LikGauss
+from gp_omni.build.likelihood import gaussian
 from gp_omni.build.multitask import (
     augment,
 )
@@ -18,9 +18,9 @@ def predict_one(model, xs: Tensor, o: int, f: int) -> dict[str, Tensor]:
     out = predict_gp(
         model.hyp, model.post, model.mean, model._sparse_cov(model._xu0), model.lik, model._xa, xa
     )
-    if not isinstance(model.lik, LikGauss):  # classification: p(y = +1 | data)
+    if not isinstance(model.lik, gaussian):  # classification: p(y = +1 | data)
         out["prob"] = torch.clamp((out["ymu"] + 1) / 2, 0.0, 1.0)
-    if isinstance(model.lik, LikGauss):  # undo the per-task standardisation
+    if isinstance(model.lik, gaussian):  # undo the per-task standardisation
         k = o * model.L + f
         sd, mu = model._sd[k], model._mu[k]
         out = {

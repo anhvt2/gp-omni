@@ -27,9 +27,9 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import LikGauss
-from gp_omni.build.mean import Mean
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import gaussian
+from gp_omni.build.mean import mean_function
 from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("models")
@@ -53,12 +53,12 @@ def task_index(x: Tensor, dim: int, num_fidelities: int) -> Tensor:
     return o * num_fidelities + f
 
 
-class TaskCov:
+class task_covariance:
     """Structured multi-output / multi-fidelity covariance (see module docstring)."""
 
     def __init__(
         self,
-        base: Cov,
+        base: covariance,
         dim: int,
         num_outputs: int = DEFAULTS["task_covariance"]["num_outputs"],
         num_fidelities: int = DEFAULTS["task_covariance"]["num_fidelities"],
@@ -150,7 +150,7 @@ class TaskCov:
         return torch.stack(terms).sum(0)
 
 
-class TaskMean(Mean):
+class task_mean(mean_function):
     """One constant mean per task (``hyp`` has ``O*L`` entries)."""
 
     def __init__(self, dim: int, num_outputs: int, num_fidelities: int):
@@ -164,10 +164,10 @@ class TaskMean(Mean):
         return hyp[task_index(x, self.dim, self.L)]
 
 
-class LikGaussTask(LikGauss):
+class task_gaussian(gaussian):
     """Gaussian noise with one standard deviation per task (``hyp = [log sn_t]``)."""
 
-    kind = "likGaussTask"
+    kind = "task_gaussian"
 
     def __init__(self, dim: int, num_outputs: int, num_fidelities: int):
         self.dim, self.L, self.T = dim, num_fidelities, num_outputs * num_fidelities
