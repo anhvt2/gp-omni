@@ -25,7 +25,7 @@ build-backend = "setuptools.build_meta"
 # The package lives directly in src/ and is installed/imported as `gp_omni`.
 [tool.setuptools]
 package-dir = { "gp_omni" = "src" }
-packages = ["gp_omni", "gp_omni.models", "gp_omni.sparse", "gp_omni.asyncbo"]
+packages = ["gp_omni", "gp_omni.models", "gp_omni.sparse", "gp_omni.asyncbo", "gp_omni.batchbo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
