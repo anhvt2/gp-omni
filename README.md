@@ -186,13 +186,14 @@ uv run python examples/omni_constraints.py all
 
 For direct GPyTorch / BoTorch workflows, [`gp_omni.builders`](src/builders.py) provides
 exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
-[`gp_omni.fit`](src/fit.py) for fitting helpers. The exact GP builders and `AR1CoKriging`
+[`gp_omni.fit`](src/fit.py) for fitting helpers. The exact GP builders, `AR1CoKriging`, and `DAGCoKriging`
 expose BoTorch-compatible posteriors; `OmniGP` / `OmniGPC` expose their own prediction
 interface.
 
 - [Exact GP](examples/exact_gp.py) · [Correlated outputs](examples/multioutput.py)
 - [SGPR, SVGP, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
 - [AR1 co-kriging](examples/cokriging.py) · [BoTorch multi-fidelity](examples/multifidelity_botorch.py)
+- [Hierarchical DAG co-kriging](examples/dag_cokriging.py) · [DAG model guide](docs/dag-cokriging.md)
 - [GPML-style sparse inference](examples/sparse_gpml.py)
 
 ## Contribute

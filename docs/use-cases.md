@@ -94,10 +94,11 @@ Settings and runnable examples: [async BO](../examples/async_bo.py),
 | Need | Use |
 |---|---|
 | Small, noiseless, two-fidelity designs | [`AR1CoKriging`](../examples/cokriging.py) |
+| Noiseless fidelities linked by a DAG, including multiple parents | [`DAGCoKriging`](dag-cokriging.md) |
 | Direct GPyTorch models: exact, SGPR, SVGP, KISS-GP, or ICM/LMC | [`gp_omni.builders`](../src/builders.py) |
 | GPML-style sparse inference and inducing-input swaps | [`SparseGP`](../examples/sparse_gpml.py) |
 
-The exact GP builders and `AR1CoKriging` expose BoTorch-compatible posteriors.
+The exact GP builders, `AR1CoKriging`, and `DAGCoKriging` expose BoTorch-compatible posteriors.
 `OmniGP` and `OmniGPC` use the prediction interface above.
 
 ## Related Notes

@@ -1,3 +1,3 @@
-from gp_omni.models.cokriging import AR1CoKriging
+from gp_omni.models.cokriging import AR1CoKriging, DAGCoKriging
 
-__all__ = ["AR1CoKriging"]
+__all__ = ["AR1CoKriging", "DAGCoKriging"]
