@@ -9,11 +9,13 @@ Gaussian likelihoods use ``infGaussLik``; ``likErf`` / ``likLogistic`` (labels +
 from __future__ import annotations
 
 import math
+from pathlib import Path
+from typing import Self
 
 import torch
 from torch import Tensor
 
-from gp_omni.settings import load_defaults
+from gp_omni.settings import load_defaults, load_model_config
 from gp_omni.sparse.apx import SparseCov
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.gp import gp_nlz, gp_predict, make_hyp
@@ -60,6 +62,11 @@ class SparseGP:
         self.hyp: dict[str, Tensor] | None = None
         self.post: Posterior | None = None
         self.nlZ: float | None = None
+
+    @classmethod
+    def from_json(cls, path: str | Path, **overrides) -> Self:
+        """Construct from a flat JSON settings file, with optional keyword overrides."""
+        return cls(**load_model_config(path, **overrides))
 
     # ----------------------------------------------------------------------- helpers
     def _initial_hyp(self, x: Tensor, y: Tensor, learn_xu: bool) -> dict[str, Tensor]:
