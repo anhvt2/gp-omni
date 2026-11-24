@@ -1,4 +1,4 @@
-"""Properties of the sparse GP that do not depend on gpml fixtures."""
+"""Properties of the sparse GP that do not depend on reference fixtures."""
 
 import time
 

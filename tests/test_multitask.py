@@ -62,7 +62,7 @@ def test_two_fidelity_equals_ar1_cokriging_at_fixed_hyperparameters():
         regression="none",
         hyperparameters={"theta1": theta1, "theta2": theta2, "rho": rho},
     ).fit()
-    # MATLAB precision 10**hp <-> gpml length scale ell = 10**(-hp/2); sf^2 = process variance
+    # precision 10**hp <-> length scale ell = 10**(-hp/2); sf^2 = process variance
     log_ell = lambda th: -th * math.log(10) / 2
     sf = lambda s2: 0.5 * math.log(float(s2))
     tc = task_covariance(covariance("matern_ard", 3), 2, num_fidelities=2)

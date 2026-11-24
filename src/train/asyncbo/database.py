@@ -1,6 +1,6 @@
-"""File-based asynchronous job pool: port of the ``bayesOptSrc-gpml/*.py`` helper scripts.
+"""File-based asynchronous job pool.
 
-Layout (unchanged from the MATLAB/Python original so existing ``query*.sh`` scripts and
+Layout (kept stable so existing ``query*.sh`` scripts and
 ``<model>_template/`` folders keep working)::
 
     root/

@@ -12,9 +12,9 @@ from gp_omni.build.covariance import covariance
 
 @dataclass
 class sparse_covariance:
-    """gpml's ``{@apxSparse, cov, xu}``: a covariance plus (default) inducing inputs.
+    """A covariance plus (default) inducing inputs.
 
-    As in gpml, a ``hyp['xu']`` passed to inference takes priority over ``xu``.
+    A ``hyp['xu']`` passed to inference takes priority over ``xu``.
     """
 
     cov: covariance
@@ -25,7 +25,7 @@ class sparse_covariance:
 
 
 def get_xu(hyp: dict, sc: sparse_covariance) -> Tensor:
-    """The inducing inputs used by the covariance: ``hyp['xu']`` has priority (gpml)."""
+    """The inducing inputs used by the covariance: ``hyp['xu']`` has priority."""
     xu = hyp.get("xu", sc.xu)
     if xu is None:
         raise ValueError("no inducing inputs: set sparse_covariance.xu or hyp['xu']")

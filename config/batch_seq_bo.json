@@ -15,6 +15,5 @@
   "cma_max_evals": 60,
   "seed": 0,
   "query_script": null,
-  "acquisition": "EI",
-  "relax_alpha": 0.9
+  "acquisition": "EI"
 }

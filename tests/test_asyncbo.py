@@ -232,7 +232,7 @@ def test_config_json_round_trip(tmp_path):
     assert async_bo_config.from_json(tmp_path / "copy.json").x_ub.tolist() == config.x_ub.tolist()
 
 
-def test_relaxed_feasibility_probability():
+def test_feasibility_probability_is_used_unsquashed():
     class Fixed:
         def __init__(self, p):
             self.p = p
@@ -241,13 +241,12 @@ def test_relaxed_feasibility_probability():
             return torch.tensor([self.p])
 
     x = np.zeros(2)
-    assert predict_feasibility(Fixed(0.95), x, relax_alpha=0.9) == 1.0
-    assert predict_feasibility(Fixed(0.05), x, relax_alpha=0.9) == 0.0
-    assert predict_feasibility(Fixed(0.5), x, relax_alpha=0.9) == 0.5
-    assert predict_feasibility(Fixed(0.95), x) == 0.95  # off by default
+    for p in (0.95, 0.05, 0.5):
+        assert predict_feasibility(Fixed(p), x) == p
+    assert predict_feasibility(None, x) == 1.0
 
 
-def test_relax_alpha_reaches_the_penalty(models):
+def test_feasibility_reaches_the_penalty(models):
     x_obs, y_obs, objective, _ = models
 
     class Confident:  # classifier that is 95% sure the point is feasible
@@ -257,6 +256,4 @@ def test_relax_alpha_reaches_the_penalty(models):
     x = np.array([0.4, 0.6])
     plain = negative_acquisition(x, objective, None, "EI", x_obs, y_obs)
     soft = negative_acquisition(x, objective, Confident(), "EI", x_obs, y_obs)
-    rounded = negative_acquisition(x, objective, Confident(), "EI", x_obs, y_obs, relax_alpha=0.9)
     assert soft == pytest.approx(0.95 * plain)
-    assert rounded == pytest.approx(plain)  # 0.95 > 0.9 is rounded up to 1

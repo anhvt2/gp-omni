@@ -8,7 +8,6 @@ Supported kinds and layouts:
 
 Matern degree is 1, 3, or 5. Additive covariance sums weighted elementary
 symmetric polynomials of one-dimensional squared-exponential kernels.
-Hyperparameter vectors retain GPML's layout for numerical parity.
 
 ``cov(hyp, x)`` returns K(x, x), ``cov(hyp, x, z)`` returns K(x, z), and
 ``cov(hyp, x, "diag")`` returns diag K(x, x).
@@ -36,7 +35,7 @@ def _safe_sqrt(s: Tensor) -> Tensor:
 
 
 class covariance:
-    """A gpml covariance function."""
+    """A covariance function."""
 
     def __init__(
         self,
@@ -75,7 +74,7 @@ class covariance:
         kd = torch.exp(-0.5 * (a.unsqueeze(-2) - b.unsqueeze(-3)).pow(2))  # (n, m, D)
         power = [(kd**k).sum(-1) for k in range(1, R + 1)]  # power sums p_k
         e = [torch.ones_like(power[0])]
-        for r in range(1, R + 1):  # Newton-Girard (gpml elsympol)
+        for r in range(1, R + 1):  # Newton-Girard
             e.append(
                 torch.stack(
                     [(-1) ** (k - 1) * e[r - k] * power[k - 1] for k in range(1, r + 1)]

@@ -1,4 +1,4 @@
-"""AR1 co-kriging (port of the owner's MATLAB @CoKriging) on the Forrester 1-D benchmark."""
+"""AR1 co-kriging on the Forrester 1-D benchmark."""
 
 import torch
 
