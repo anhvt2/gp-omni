@@ -225,3 +225,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# GP construction source is not a generated build directory.
+!src/build/
+!src/build/**
+src/build/**/__pycache__/
+src/build/**/*.py[codz]
