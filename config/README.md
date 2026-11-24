@@ -13,3 +13,7 @@ iterations, tolerance and line search, and sparse inducing noise. Low-level spar
 inference defaults to FITC (`s=1`); high-level models explicitly pass VFE (`s=0`).
 
 [builders.json](builders.json) supplies GPyTorch builder and additive-kernel defaults.
+
+[bo.json](bo.json) supplies shared BO loop and batch defaults, acquisition and CMA-ES
+search budgets, duplicate tolerance and UCB confidence. Load per-run BO settings with
+`AsyncBOConfig.from_json(...)` or `BatchSeqBOConfig.from_json(...)`.

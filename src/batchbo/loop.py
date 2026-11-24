@@ -39,8 +39,11 @@ from gp_omni.asyncbo.sampling import (
     get_next_sampling_point_reduce_mse,
 )
 from gp_omni.bo_config import BOConfig
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.gpc import GPC
 from gp_omni.sparse.gpr import GPR
+
+DEFAULTS = load_defaults("bo")
 
 log = logging.getLogger(__name__)
 
@@ -54,8 +57,12 @@ class BatchSeqBOConfig(BOConfig):
     ``check_time`` is the polling interval (minutes) while waiting for a batch to finish.
     """
 
-    acquisition: str = "EI"  # PI, EI or UCB for the exploitation part of the batch
-    relax_alpha: float | None = 0.9  # classifier probabilities rounded outside [1-a, a]; None=off
+    acquisition: str = DEFAULTS["batch"][
+        "acquisition"
+    ]  # PI, EI or UCB for the exploitation part of the batch
+    relax_alpha: float | None = DEFAULTS["batch"][
+        "relax_alpha"
+    ]  # classifier probabilities rounded outside [1-a, a]; None=off
 
 
 class BatchSeqBO(AsyncBO):

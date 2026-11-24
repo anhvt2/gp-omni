@@ -1,0 +1,41 @@
+{
+  "cmaes": {
+    "max_evals": 250,
+    "restarts": 3
+  },
+  "acquisition_search": {
+    "max_evals": 250,
+    "max_retries": 100
+  },
+  "objective_exploration": {
+    "max_evals": 100
+  },
+  "constraint_exploration": {
+    "max_evals": 100
+  },
+  "duplicate_detection": {
+    "tol": 0.0001
+  },
+  "loop": {
+    "exploit_size": 3,
+    "explore_size": 2,
+    "explore_classifier_size": 1,
+    "max_iter": 400,
+    "num_init_point": 2,
+    "x_scale": 1.0,
+    "y_scale": 1.0,
+    "check_time": 0.1,
+    "wait_time": 1.0,
+    "gp_max_iter": 200,
+    "cma_max_evals": 250,
+    "seed": null,
+    "query_script": null
+  },
+  "batch": {
+    "acquisition": "EI",
+    "relax_alpha": 0.9
+  },
+  "acquisition": {
+    "delta": 0.95
+  }
+}
