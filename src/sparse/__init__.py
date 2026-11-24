@@ -3,6 +3,8 @@
 from gp_omni.sparse.apx import SparseCov, apx
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.gp import gp_nlz, gp_predict, make_hyp
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 from gp_omni.sparse.inf import inf_gauss_lik, inf_laplace
 from gp_omni.sparse.init import init_inducing, kmeans_landmarks, random_subset
 from gp_omni.sparse.lik import LikErf, LikGauss, LikLogistic, make_lik
@@ -13,6 +15,8 @@ from gp_omni.sparse.train import train
 from gp_omni.sparse.xu_opt import vfe_xu_opt
 
 __all__ = [
+    "GPC",
+    "GPR",
     "Cov",
     "LikErf",
     "LikGauss",
