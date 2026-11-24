@@ -12,6 +12,7 @@ from gp_omni import dag_cokriging
 # Diamond: 0 feeds 1 and 2, which both feed 3.
 edges = [(0, 1), (0, 2), (1, 3), (2, 3)]
 model = dag_cokriging(X, Y, edges, regression="regpoly0", num_restarts=4)
+model.fit()
 mean, variance = model.predict(x_new)  # unique sink: node 3
 parent_mean, parent_variance = model.predict(x_new, fidelity=1)
 posterior = model.posterior(x_new)  # BoTorch-compatible, with input gradients
@@ -70,7 +71,7 @@ Supply all hyperparameters to skip fitting:
 
 ```python
 fixed = model.hyperparameters
-restored = dag_cokriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed)
+restored = dag_cokriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed).fit()
 ```
 
 The dictionary contains `theta` with shape `(L, d)` (also accepts `(L, 1)` for

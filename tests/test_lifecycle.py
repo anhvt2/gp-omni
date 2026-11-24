@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from gp_omni import build, infer, train
-from gp_omni.build import GPC, GPR, sparse_gp
+from gp_omni.build import GPC, GPR, ar1_cokriging, dag_cokriging, sparse_gp
 from gp_omni.build.likelihood import gaussian, logistic, make_likelihood, probit
 
 
@@ -29,6 +29,30 @@ def test_build_train_infer_lifecycle(model_type):
     importlib.import_module("gp_omni.infer.moments")
     assert callable(infer.predict)
     assert build.GPR is GPR
+
+
+@pytest.mark.parametrize("model_type", [ar1_cokriging, dag_cokriging])
+def test_cokriging_construction_does_not_optimize(model_type, monkeypatch):
+    trainer = importlib.import_module("gp_omni.train.cokriging")
+    calls = []
+
+    def optimizer(*args, **kwargs):
+        calls.append(True)
+        raise RuntimeError("optimizer reached")
+
+    monkeypatch.setattr(trainer, "_minimize", optimizer)
+    x = [torch.linspace(0, 1, 8).unsqueeze(-1), torch.linspace(0, 1, 4).unsqueeze(-1)]
+    y = [torch.sin(5 * level[:, 0]) for level in x]
+    args = (x, y, [(0, 1)]) if model_type is dag_cokriging else (x, y)
+    model = model_type(*args, num_restarts=0)
+    assert not calls
+    for operation in (infer.predict, lambda model, x: model.posterior(x)):
+        with pytest.raises(RuntimeError, match="fit"):
+            operation(model, x[1])
+    with pytest.raises(RuntimeError, match="optimizer reached"):
+        train.fit(model)
+    assert calls == [True]
+    assert not model._fitted
 
 
 @pytest.mark.parametrize(

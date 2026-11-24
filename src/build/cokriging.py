@@ -119,10 +119,9 @@ class ar1_cokriging(ar1_prediction, Model):
             "seed": seed,
             "hyperparameters": hyperparameters,
         }
-        self.fit()
 
     def fit(self, **overrides):
-        """Fit through the extracted training implementation."""
+        """Fit the prepared problem; construction never optimizes hyperparameters."""
         from gp_omni.train.cokriging import fit_ar1
 
         return fit_ar1(self, **{**self._fit_options, **overrides})
@@ -157,7 +156,7 @@ class dag_cokriging(dag_prediction, Model):
     All nodes share the correlation family and regression degree, with independent
     per-node precisions and variances. Joint maximum likelihood profiles out trends.
 
-    ``hyperparameters`` skips optimization and requires ``theta`` of shape ``(L, d)``
+    Call ``fit()`` after construction. ``hyperparameters`` skips optimization and requires ``theta`` of shape ``(L, d)``
     (or ``(L, 1)`` for isotropic kernels), ``rho`` of shape ``(E,)`` in supplied
     edge order, and positive ``sigma2`` of shape ``(L,)``. Unlike the legacy model,
     fixed variances are honored. Inputs should be scaled, e.g. to the unit cube.
@@ -253,10 +252,9 @@ class dag_cokriging(dag_prediction, Model):
             "seed": seed,
             "hyperparameters": hyperparameters,
         }
-        self.fit()
 
     def fit(self, **overrides):
-        """Fit through the extracted training implementation."""
+        """Fit the prepared problem; construction never optimizes hyperparameters."""
         from gp_omni.train.cokriging import fit_dag
 
         return fit_dag(self, **{**self._fit_options, **overrides})
@@ -321,9 +319,3 @@ class dag_cokriging(dag_prediction, Model):
         for weight, (i, j) in zip(self.rho, self.edges):
             B[i, j] = weight
         return B
-
-    def _factor(self, theta, rho, variances):
-        """Compatibility for callers of the former factorization method."""
-        from gp_omni.train.cokriging import factor_dag
-
-        return factor_dag(self, theta, rho, variances)

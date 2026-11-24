@@ -11,11 +11,11 @@ def main() -> dict:
     lo = lambda x: 0.5 * hi(x) + 10 * (x - 0.5) - 5
     xl, xh = torch.linspace(0, 1, 20).reshape(-1, 1), torch.linspace(0, 1, 4).reshape(-1, 1)
     X, Y = [xl, xh], [lo(xl), hi(xh)]
-    model = ar1_cokriging(X, Y, correlation="matern32")
+    model = ar1_cokriging(X, Y, correlation="matern32").fit()
     # rho = 0 switches the low-fidelity data off: kriging on the 4 high-fidelity points only
     hi_only = ar1_cokriging(
         X, Y, correlation="matern32", hyperparameters={**model.hyperparameters, "rho": 0.0}
-    )
+    ).fit()
     xt = torch.linspace(0, 1, 200).reshape(-1, 1)
     rmse = lambda m: ((m.predict(xt)[0] - hi(xt[:, 0])) ** 2).mean().sqrt().item()
     return {"rmse": rmse(model), "hi_only_rmse": rmse(hi_only), "rho": model.rho}
