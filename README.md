@@ -191,7 +191,7 @@ queried through `gp_omni.infer`. Project-owned helper types use snake_case; like
 names are `gaussian`, `probit`, and `logistic`. Covariance names include `se_ard`,
 `se_iso`, `matern_ard`, and `matern_iso`. Update older configuration files accordingly.
 The old `sparse`, `models`, `builders`, and `fit` import paths have been replaced by the
-phase packages.
+phase packages. Co-kriging now requires an explicit `fit()` call before prediction.
 
 ## Work with GPyTorch, BoTorch, and GPML conventions
 
