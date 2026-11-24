@@ -1,9 +1,8 @@
 """gpml-style names -> GPyTorch objects.
 
 For MATLAB users: ``gpml_kernel("covSEard", dim)`` returns what ``{@covSEard}`` means in gpml
-(``sf^2 * exp(-r^2/2)`` with per-dimension length scales). The full mapping is in
-``docs/gpml-mapping.md``. Hyperparameters are *not* log-transformed the way gpml's ``hyp``
-vectors are; GPyTorch owns the parameterisation.
+(``sf^2 * exp(-r^2/2)`` with per-dimension length scales). Hyperparameters are *not*
+log-transformed the way gpml's ``hyp`` vectors are; GPyTorch owns the parameterisation.
 """
 
 from __future__ import annotations
