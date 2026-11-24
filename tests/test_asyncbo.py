@@ -243,3 +243,18 @@ def test_relaxed_feasibility_probability():
     assert predict_feasibility(Fixed(0.05), x, relax_alpha=0.9) == 0.0
     assert predict_feasibility(Fixed(0.5), x, relax_alpha=0.9) == 0.5
     assert predict_feasibility(Fixed(0.95), x) == 0.95  # off by default
+
+
+def test_relax_alpha_reaches_the_penalty(models):
+    x_obs, y_obs, objective, _ = models
+
+    class Confident:  # classifier that is 95% sure the point is feasible
+        def predict_proba(self, xs):
+            return torch.tensor([0.95])
+
+    x = np.array([0.4, 0.6])
+    plain = negative_acquisition(x, objective, None, "EI", x_obs, y_obs)
+    soft = negative_acquisition(x, objective, Confident(), "EI", x_obs, y_obs)
+    rounded = negative_acquisition(x, objective, Confident(), "EI", x_obs, y_obs, relax_alpha=0.9)
+    assert soft == pytest.approx(0.95 * plain)
+    assert rounded == pytest.approx(plain)  # 0.95 > 0.9 is rounded up to 1
