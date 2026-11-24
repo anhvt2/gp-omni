@@ -9,17 +9,17 @@ import cma
 import numpy as np
 from scipy.optimize import differential_evolution
 
-from gp_omni.asyncbo.acquisition import (
-    KnownConstraint,
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
+from gp_omni.settings import load_defaults
+from gp_omni.train.asyncbo.acquisition import (
     check_constraint,
     check_multiple_design_sites,
+    known_constraint_fn,
     negative_acquisition,
     negative_classifier_mse,
     negative_mse,
 )
-from gp_omni.build.gpc import GPC
-from gp_omni.build.gpr import GPR
-from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("bo")
 
@@ -81,7 +81,7 @@ def get_next_sampling_point(
     x_obs: np.ndarray,
     y_obs: np.ndarray,
     rng: np.random.Generator,
-    known_constraint: KnownConstraint = check_constraint,
+    known_constraint: known_constraint_fn = check_constraint,
     max_evals: int = DEFAULTS["acquisition_search"]["max_evals"],
     max_retries: int = DEFAULTS["acquisition_search"]["max_retries"],
     relax_alpha: float | None = None,

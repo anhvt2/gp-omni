@@ -19,10 +19,10 @@ import numpy as np
 import torch
 from scipy.stats import norm
 
-from gp_omni.bo_config import KnownConstraint, check_constraint
 from gp_omni.build.gpc import GPC
 from gp_omni.build.gpr import GPR
 from gp_omni.settings import load_defaults
+from gp_omni.train.bo_config import check_constraint, known_constraint_fn
 
 DEFAULTS = load_defaults("bo")
 
@@ -101,7 +101,7 @@ def negative_acquisition(
     acquisition: str,
     x_obs: np.ndarray,
     y_obs: np.ndarray,
-    known_constraint: KnownConstraint = check_constraint,
+    known_constraint: known_constraint_fn = check_constraint,
     relax_alpha: float | None = None,
 ) -> float:
     """``calculateNegativeAcquisitionFunction.m``: ``-acquisition * known * unknown``."""

@@ -25,8 +25,8 @@ BoTorch-compatible models. Released under the [Apache 2.0 license](LICENSE).
 | Too many observations for a dense GP | `GPR(nu=M)` for inducing-point inference: VFE, FITC, or sparse power EP | [Sparse inference](examples/gpr_sparse.py) |
 | Many inputs with low-order interactions | `GPR(additive=R)` for interaction orders `1..R` | [Additive modeling](examples/gpr_additive.py) |
 | Unknown feasibility or simulation failures | `GPC` for learned feasibility probabilities, with the same four switches | [Objective + constraint models](examples/gpr_gpc_constraints.py) |
-| Evaluations run in parallel and finish together | `BatchSeqBO` for batch-sequential constrained BO | [Batch BO](examples/batch_seq_bo.py) |
-| Evaluations finish at different times | `AsyncBO` for asynchronous constrained BO with GP-Hedge | [Async BO](examples/async_bo.py) |
+| Evaluations run in parallel and finish together | `batch_bo` for batch-sequential constrained BO | [Batch BO](examples/batch_seq_bo.py) |
+| Evaluations finish at different times | `async_bo` for asynchronous constrained BO with GP-Hedge | [Async BO](examples/async_bo.py) |
 
 The four surrogate switches are independent: use any subset, including all four together.
 The built-in BO loops currently optimize one scalar objective at one fidelity using default
@@ -74,7 +74,7 @@ import tempfile
 
 import numpy as np
 
-from gp_omni.asyncbo import AsyncBO, AsyncBOConfig
+from gp_omni.train.asyncbo import async_bo, async_bo_config
 
 
 def evaluate(x: np.ndarray) -> tuple[float, bool]:
@@ -84,7 +84,7 @@ def evaluate(x: np.ndarray) -> tuple[float, bool]:
     return value, feasible
 
 
-config = AsyncBOConfig(
+config = async_bo_config(
     model_name="my_experiment",
     x_lb=[0.0, 0.0],
     x_ub=[1.0, 1.0],
@@ -100,7 +100,7 @@ config = AsyncBOConfig(
 )
 
 with tempfile.TemporaryDirectory() as run_dir:
-    best_x, best_y = AsyncBO(run_dir, config, evaluate=evaluate).run()
+    best_x, best_y = async_bo(run_dir, config, evaluate=evaluate).run()
 
 print("Best feasible observation:", best_x, best_y)
 ```
@@ -112,12 +112,12 @@ Choose the execution pattern that matches your evaluations:
 
 | Mode | Configuration | Behavior |
 |---|---|---|
-| Sequential | `AsyncBO` with `exploit_size=1`, both exploration sizes `0` | One evaluation at a time |
-| Batch-sequential | `BatchSeqBO` + `BatchSeqBOConfig` | Launch a batch, wait for all results, then propose the next batch |
-| Asynchronous | `AsyncBO` + `AsyncBOConfig` | Refill available slots while other evaluations continue |
+| Sequential | `async_bo` with `exploit_size=1`, both exploration sizes `0` | One evaluation at a time |
+| Batch-sequential | `batch_bo` + `batch_bo_config` | Launch a batch, wait for all results, then propose the next batch |
+| Asynchronous | `async_bo` + `async_bo_config` | Refill available slots while other evaluations continue |
 
-`AsyncBOConfig.max_iter` counts total evaluations, including initial points.
-`BatchSeqBOConfig.max_iter` counts iterations: after `num_init_point` initial evaluations,
+`async_bo_config.max_iter` counts total evaluations, including initial points.
+`batch_bo_config.max_iter` counts iterations: after `num_init_point` initial evaluations,
 each remaining iteration launches a whole batch. Batch size is the sum of `exploit_size`,
 `explore_size`, and `explore_classifier_size`.
 
@@ -127,11 +127,11 @@ proposals. Async BO uses GP-Hedge to select acquisitions; batch BO uses a config
 acquisition (EI by default). Known constraint callbacks and learned feasibility probabilities
 weight exploitation proposals; initial and exploration points can still be infeasible.
 
-Load reusable settings with `AsyncBOConfig.from_json(...)` or
-`BatchSeqBOConfig.from_json(...)`; see [async settings](config/async_bo.json) and
+Load reusable settings with `async_bo_config.from_json(...)` or
+`batch_bo_config.from_json(...)`; see [async settings](config/async_bo.json) and
 [batch settings](config/batch_seq_bo.json). For external executables, supply a
 `query_script` instead of `evaluate`; the job-folder protocol is described in
-[`AsyncBO`](src/asyncbo/loop.py).
+[`async_bo`](src/train/asyncbo/loop.py).
 
 ## Compose your surrogate
 

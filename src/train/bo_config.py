@@ -15,7 +15,7 @@ from gp_omni.settings import load_defaults
 DEFAULTS = load_defaults("bo")
 
 
-KnownConstraint = Callable[[np.ndarray], float]
+known_constraint_fn = Callable[[np.ndarray], float]
 
 
 def check_constraint(x: np.ndarray) -> float:
@@ -24,7 +24,7 @@ def check_constraint(x: np.ndarray) -> float:
 
 
 @dataclass(frozen=True)
-class BatchSettings:
+class batch_settings:
     """``batch_settings.dat``: how many jobs of each kind may be in flight."""
 
     exploit: int
@@ -37,7 +37,7 @@ class BatchSettings:
 
 
 @dataclass
-class BOConfig:
+class bo_config:
     """Shared Bayesian optimisation settings.
 
     ``max_iter`` counts evaluations for async BO and iterations for batch-sequential BO.
@@ -77,7 +77,7 @@ class BOConfig:
     query_script: str | None = DEFAULTS["loop"][
         "query_script"
     ]  # bash script run inside the job folder (async by itself)
-    known_constraint: KnownConstraint = field(default=check_constraint)
+    known_constraint: known_constraint_fn = field(default=check_constraint)
 
     def __post_init__(self):
         self.x_lb, self.x_ub = np.asarray(self.x_lb, float), np.asarray(self.x_ub, float)
@@ -100,5 +100,5 @@ class BOConfig:
         Path(path).write_text(json.dumps(values, indent=2) + "\n")
 
     @property
-    def batch(self) -> BatchSettings:
-        return BatchSettings(self.exploit_size, self.explore_size, self.explore_classifier_size)
+    def batch(self) -> batch_settings:
+        return batch_settings(self.exploit_size, self.explore_size, self.explore_classifier_size)

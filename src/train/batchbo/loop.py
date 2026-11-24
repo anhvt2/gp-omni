@@ -2,7 +2,7 @@
 
 Port of the master loop ``mainprog_benchR.m``. Every iteration proposes a whole batch of
 points, runs the batch in parallel, and moves on only when the *entire* batch has finished
-(the asynchronous variant in :mod:`gp_omni.asyncbo` instead refills slots one by one).
+(the asynchronous variant in :mod:`gp_omni.train.asyncbo` instead refills slots one by one).
 
 Inside an iteration the points are chosen one after another with hallucination: after each
 proposal the point and the objective model's own prediction there are added to the data
@@ -30,18 +30,18 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
-from gp_omni.asyncbo import database as db
-from gp_omni.asyncbo.acquisition import predict_objective
-from gp_omni.asyncbo.loop import AsyncBO
-from gp_omni.asyncbo.sampling import (
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
+from gp_omni.settings import load_defaults
+from gp_omni.train.asyncbo import database as db
+from gp_omni.train.asyncbo.acquisition import predict_objective
+from gp_omni.train.asyncbo.loop import async_bo
+from gp_omni.train.asyncbo.sampling import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
-from gp_omni.bo_config import BOConfig
-from gp_omni.build.gpc import GPC
-from gp_omni.build.gpr import GPR
-from gp_omni.settings import load_defaults
+from gp_omni.train.bo_config import bo_config
 
 DEFAULTS = load_defaults("bo")
 
@@ -51,7 +51,7 @@ KINDS = (("exploit", 1), ("explore", 2), ("explore_classifier", 3))  # (folder n
 
 
 @dataclass
-class BatchSeqBOConfig(BOConfig):
+class batch_bo_config(bo_config):
     """Batch-sequential settings; ``max_iter`` counts iterations.
 
     ``check_time`` is the polling interval (minutes) while waiting for a batch to finish.
@@ -65,11 +65,11 @@ class BatchSeqBOConfig(BOConfig):
     ]  # classifier probabilities rounded outside [1-a, a]; None=off
 
 
-class BatchSeqBO(AsyncBO):
+class batch_bo(async_bo):
     """Batch-sequential parallel BO; shares job launching and the folder protocol with
-    :class:`~gp_omni.asyncbo.AsyncBO` (``<model>_iter<i>_<kind>_batch<j>`` per job)."""
+    :class:`~gp_omni.train.asyncbo.async_bo` (``<model>_iter<i>_<kind>_batch<j>`` per job)."""
 
-    config: BatchSeqBOConfig
+    config: batch_bo_config
 
     def _batch_folder(self, i: int, kind: str, j: int):
         return self.root / f"{self.config.model_name}_iter{i}_{kind}_batch{j}"

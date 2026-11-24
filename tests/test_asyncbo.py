@@ -9,9 +9,9 @@ import torch
 
 import gp_omni  # noqa: F401
 from gp_omni import GPC, GPR
-from gp_omni.asyncbo import AsyncBO, AsyncBOConfig, negative_acquisition
-from gp_omni.asyncbo import database as db
-from gp_omni.asyncbo.acquisition import (
+from gp_omni.train.asyncbo import async_bo, async_bo_config, negative_acquisition
+from gp_omni.train.asyncbo import database as db
+from gp_omni.train.asyncbo.acquisition import (
     acquisition_value,
     check_multiple_design_sites,
     predict_feasibility,
@@ -81,7 +81,7 @@ def make_job(root, i, x, y=None, feasible=1, complete=1, batch=1, scheme=None):
 
 
 def test_slots_only_count_in_flight_jobs(tmp_path):
-    db.write_settings(tmp_path, "m", db.BatchSettings(1, 1, 0), wait_time=1.0)
+    db.write_settings(tmp_path, "m", db.batch_settings(1, 1, 0), wait_time=1.0)
     assert db.get_batch(tmp_path) == 1
     make_job(tmp_path, 1, [0, 0], complete=0, batch=1)  # running acquisition job
     assert db.get_batch(tmp_path) == 2
@@ -92,7 +92,7 @@ def test_slots_only_count_in_flight_jobs(tmp_path):
 
 
 def test_update_db_and_pending_are_zero(tmp_path):
-    db.write_settings(tmp_path, "m", db.BatchSettings(1, 0, 0), wait_time=1.0)
+    db.write_settings(tmp_path, "m", db.batch_settings(1, 0, 0), wait_time=1.0)
     make_job(tmp_path, 10, [3, 3], y=2.0)
     make_job(tmp_path, 2, [1, 2], y=1.0)  # natural sort: Iter2 before Iter10
     make_job(tmp_path, 3, [5, 5], complete=0)  # pending: no output yet
@@ -106,7 +106,7 @@ def test_update_db_and_pending_are_zero(tmp_path):
 
 
 def test_timeout_flips_pending_job(tmp_path):
-    db.write_settings(tmp_path, "m", db.BatchSettings(1, 0, 0), wait_time=1e-6)
+    db.write_settings(tmp_path, "m", db.batch_settings(1, 0, 0), wait_time=1e-6)
     make_job(tmp_path, 1, [0, 0], complete=0)
     (tmp_path / "m_iter1" / "log.timeout").write_text("")
     time.sleep(0.01)
@@ -115,7 +115,7 @@ def test_timeout_flips_pending_job(tmp_path):
 
 
 def test_rewards_credit_new_bests_only(tmp_path):
-    db.write_settings(tmp_path, "m", db.BatchSettings(1, 0, 0), wait_time=1.0)
+    db.write_settings(tmp_path, "m", db.batch_settings(1, 0, 0), wait_time=1.0)
     make_job(tmp_path, 1, [0, 0], y=1.0, batch=0)
     make_job(tmp_path, 2, [0, 1], y=2.0, scheme="EI")  # new best -> EI
     make_job(tmp_path, 3, [0, 2], y=1.5, scheme="UCB")  # not a new best
@@ -126,7 +126,7 @@ def test_rewards_credit_new_bests_only(tmp_path):
 
 
 def test_hedge_scheme_follows_rewards(tmp_path):
-    db.write_settings(tmp_path, "m", db.BatchSettings(1, 0, 0), wait_time=1.0)
+    db.write_settings(tmp_path, "m", db.batch_settings(1, 0, 0), wait_time=1.0)
     for i in range(1, 400):
         (tmp_path / f"m_iter{i}").mkdir()
     rng = np.random.default_rng(0)
@@ -149,7 +149,7 @@ def test_asynchronous_overlap_and_penalised_search(tmp_path):
             calls.append(x.copy())
         return -np.sum((x - 0.3) ** 2), bool(x[0] < 0.8)  # unknown constraint x0 < 0.8
 
-    config = AsyncBOConfig(
+    config = async_bo_config(
         model_name="m",
         x_lb=[0, 0],
         x_ub=[1, 1],
@@ -164,7 +164,7 @@ def test_asynchronous_overlap_and_penalised_search(tmp_path):
         seed=1,
         known_constraint=lambda x: float(x[0] + x[1] <= 1.5),
     )
-    x, y = AsyncBO(tmp_path, config, evaluate=simulation).run()
+    x, y = async_bo(tmp_path, config, evaluate=simulation).run()
     assert len(calls) == 14
     assert peak[0] > 1  # proposals were made while other jobs were still running
     assert peak[0] <= config.batch.total + config.num_init_point
@@ -172,9 +172,9 @@ def test_asynchronous_overlap_and_penalised_search(tmp_path):
 
 
 def test_requires_exactly_one_launcher(tmp_path):
-    config = AsyncBOConfig(model_name="m", x_lb=[0, 0], x_ub=[1, 1])
+    config = async_bo_config(model_name="m", x_lb=[0, 0], x_ub=[1, 1])
     with pytest.raises(ValueError):
-        AsyncBO(tmp_path, config)
+        async_bo(tmp_path, config)
 
 
 def test_end_to_end_with_shell_script_jobs(tmp_path):
@@ -197,12 +197,12 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
     query.write_text(f"#!/bin/bash\nnohup {sys.executable} simulate.py > log.simulate 2>&1 &\n")
     query.chmod(query.stat().st_mode | stat.S_IXUSR)
 
-    config = AsyncBOConfig(
+    config = async_bo_config(
         model_name="toy", x_lb=[0, 0], x_ub=[1, 1], exploit_size=2, explore_size=1,
         explore_classifier_size=1, max_iter=12, num_init_point=3, check_time=0.005,
         gp_max_iter=40, cma_max_evals=40, seed=2, query_script="query.sh",
     )  # fmt: skip
-    x, y = AsyncBO(tmp_path, config).run()
+    x, y = async_bo(tmp_path, config).run()
 
     jobs = db.iter_folders(tmp_path, "toy")
     assert len(jobs) == 12
@@ -225,11 +225,11 @@ def test_config_json_round_trip(tmp_path):
     from pathlib import Path
 
     shipped = Path(__file__).parents[1] / "config" / "async_bo.json"
-    config = AsyncBOConfig.from_json(shipped, known_constraint=lambda _: 1.0)
+    config = async_bo_config.from_json(shipped, known_constraint=lambda _: 1.0)
     assert config.model_name == "rosen" and config.x_lb.tolist() == [-1.0, -1.0]
     assert config.x_scale.tolist() == [1.0, 1.0] and config.batch.total == 4
     config.to_json(tmp_path / "copy.json")
-    assert AsyncBOConfig.from_json(tmp_path / "copy.json").x_ub.tolist() == config.x_ub.tolist()
+    assert async_bo_config.from_json(tmp_path / "copy.json").x_ub.tolist() == config.x_ub.tolist()
 
 
 def test_relaxed_feasibility_probability():

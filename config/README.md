@@ -38,7 +38,7 @@ Omitted keys use the corresponding packaged defaults. `sparse_gp.from_json(...)`
 the same constructor loading pattern and requires `nu` in the file or as an override.
 Unknown constructor keys raise `TypeError`.
 
-Load a BO run with `AsyncBOConfig.from_json(...)` or `BatchSeqBOConfig.from_json(...)`.
+Load a BO run with `async_bo_config.from_json(...)` or `batch_bo_config.from_json(...)`.
 Their files use flat dataclass field names. Python overrides take precedence, including
 `known_constraint`, which is a callable and cannot be represented in JSON.
 
