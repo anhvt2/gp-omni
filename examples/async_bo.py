@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import gp_omni  # noqa: F401
-from gp_omni.asyncbo import AsyncBO, AsyncBOConfig
+from gp_omni.train.asyncbo import async_bo, async_bo_config
 
 CONFIG = Path(__file__).parents[1] / "config" / "async_bo.json"
 
@@ -32,9 +32,9 @@ def known_constraint(x):
 def main(max_iter: int | None = None, seed: int | None = None) -> dict:
     """Settings come from ``config/async_bo.json``; arguments override the file."""
     overrides = {k: v for k, v in {"max_iter": max_iter, "seed": seed}.items() if v is not None}
-    config = AsyncBOConfig.from_json(CONFIG, known_constraint=known_constraint, **overrides)
+    config = async_bo_config.from_json(CONFIG, known_constraint=known_constraint, **overrides)
     with tempfile.TemporaryDirectory() as root:
-        x, y = AsyncBO(root, config, evaluate=simulation).run()
+        x, y = async_bo(root, config, evaluate=simulation).run()
     print(f"best feasible x = {np.round(x, 3)}, y = {y:.4f}")
     return {"x": x, "y": y}
 

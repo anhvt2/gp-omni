@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 from natsort import natsorted
 
-from gp_omni.bo_config import BatchSettings
+from gp_omni.train.bo_config import batch_settings
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def iter_folders(root: Path, model_name: str) -> list[Path]:
     ]
 
 
-def write_settings(root: Path, model_name: str, batch: BatchSettings, wait_time: float) -> None:
+def write_settings(root: Path, model_name: str, batch: batch_settings, wait_time: float) -> None:
     (root / "batch_settings.dat").write_text(
         f"{batch.exploit}\n{batch.explore}\n{batch.explore_classifier}\n"
     )
@@ -54,14 +54,14 @@ def write_settings(root: Path, model_name: str, batch: BatchSettings, wait_time:
     (root / "model_name.dat").write_text(f"{model_name}\n")
 
 
-def read_settings(root: Path) -> tuple[str, BatchSettings, float]:
+def read_settings(root: Path) -> tuple[str, batch_settings, float]:
     model_name = (root / "model_name.dat").read_text().strip()
     exploit, explore, explore_classifier = (
         int(v) for v in np.loadtxt(root / "batch_settings.dat", dtype=int)
     )
     return (
         model_name,
-        BatchSettings(exploit, explore, explore_classifier),
+        batch_settings(exploit, explore, explore_classifier),
         float(np.loadtxt(root / "wait_time.dat")),
     )
 

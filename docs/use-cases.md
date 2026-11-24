@@ -72,9 +72,9 @@ contains a complete runnable pipeline.
 
 | Execution mode | Use | Budget |
 |---|---|---|
-| Sequential | `AsyncBO`, one exploitation slot and zero exploration slots | `max_iter` total evaluations |
-| Batch-sequential | `BatchSeqBO` | Initial evaluations, then one batch per remaining iteration |
-| Asynchronous | `AsyncBO`, multiple slots | `max_iter` total evaluations |
+| Sequential | `async_bo`, one exploitation slot and zero exploration slots | `max_iter` total evaluations |
+| Batch-sequential | `batch_bo` | Initial evaluations, then one batch per remaining iteration |
+| Asynchronous | `async_bo`, multiple slots | `max_iter` total evaluations |
 
 Batch size is `exploit_size + explore_size + explore_classifier_size`. For batch BO,
 total evaluations are `num_init_point + (max_iter - num_init_point) * batch_size`.

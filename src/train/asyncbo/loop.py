@@ -8,7 +8,7 @@ output 0 / feasible 0, so they are hallucinated with the objective model's own p
 (kriging believer) and the next proposal is pushed away from them.
 
 Each proposal maximises ``acquisition * known_constraint * P(feasible)`` (see
-:mod:`gp_omni.asyncbo.acquisition`).
+:mod:`gp_omni.train.asyncbo.acquisition`).
 
 The maximisation convention is kept: to minimise, negate the objective.
 """
@@ -27,28 +27,28 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from gp_omni.asyncbo import database as db
-from gp_omni.asyncbo.acquisition import predict_objective
-from gp_omni.asyncbo.sampling import (
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
+from gp_omni.train.asyncbo import database as db
+from gp_omni.train.asyncbo.acquisition import predict_objective
+from gp_omni.train.asyncbo.sampling import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
-from gp_omni.bo_config import BOConfig
-from gp_omni.build.gpc import GPC
-from gp_omni.build.gpr import GPR
+from gp_omni.train.bo_config import bo_config
 
 log = logging.getLogger(__name__)
 
-Evaluator = Callable[[np.ndarray], tuple[float, bool]]  # x (unscaled) -> (objective, feasible)
+evaluator_fn = Callable[[np.ndarray], tuple[float, bool]]  # x (unscaled) -> (objective, feasible)
 
 
 @dataclass
-class AsyncBOConfig(BOConfig):
+class async_bo_config(bo_config):
     """Asynchronous GP-Hedge settings; ``max_iter`` counts evaluations launched."""
 
 
-class AsyncBO:
+class async_bo:
     """Asynchronous parallel BO driven by the shared folder database.
 
     Provide either ``evaluate`` (a Python callable run in a thread pool) or
@@ -57,7 +57,7 @@ class AsyncBO:
     long-running work, exactly like the original ``query*.sh``).
     """
 
-    def __init__(self, root: str | Path, config: BOConfig, evaluate: Evaluator | None = None):
+    def __init__(self, root: str | Path, config: bo_config, evaluate: evaluator_fn | None = None):
         if (evaluate is None) == (config.query_script is None):
             raise ValueError("give exactly one of `evaluate` and `config.query_script`")
         self.root, self.config, self.evaluate = Path(root).resolve(), config, evaluate

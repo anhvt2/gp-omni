@@ -1,6 +1,6 @@
 """Batch-sequential parallel constrained Bayesian optimisation (python port of
 ``daceBatchSeqPar``: ``mainprog_benchR.m`` + ``bayesSrc/``)."""
 
-from gp_omni.batchbo.loop import BatchSeqBO, BatchSeqBOConfig
+from gp_omni.train.batchbo.loop import batch_bo, batch_bo_config
 
-__all__ = ["BatchSeqBO", "BatchSeqBOConfig"]
+__all__ = ["batch_bo", "batch_bo_config"]
