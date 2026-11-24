@@ -1,0 +1,119 @@
+{
+  "gpr": {
+    "num_outputs": 1,
+    "num_fidelities": 1,
+    "additive": null,
+    "nu": null,
+    "s": 0.0,
+    "cov": "SEard",
+    "degree": 3,
+    "rank": 1,
+    "lik": "likGauss",
+    "init": "kmeans",
+    "seed": 0
+  },
+  "gpr_fit": {
+    "max_iter": 200,
+    "learn_xu": true
+  },
+  "gpc": {
+    "num_outputs": 1,
+    "num_fidelities": 1,
+    "additive": null,
+    "nu": null,
+    "s": 0.0,
+    "cov": "SEard",
+    "degree": 3,
+    "rank": 1,
+    "lik": "likErf",
+    "init": "kmeans",
+    "seed": 0
+  },
+  "gpc_fit": {
+    "max_iter": 200,
+    "learn_xu": true
+  },
+  "decision": {
+    "threshold": 0.5
+  },
+  "sparse": {
+    "cov": "SEard",
+    "degree": 3,
+    "mean": "const",
+    "lik": "likGauss",
+    "s": 0.0,
+    "init": "kmeans",
+    "learn_snu": false,
+    "seed": 0
+  },
+  "sparse_fit": {
+    "learn_xu": true,
+    "swap": 0,
+    "max_iter": 200
+  },
+  "ar1": {
+    "correlation": "matern32",
+    "regression": "none",
+    "hp0": 0.5,
+    "hp_bounds": [
+      -2.0,
+      2.0
+    ],
+    "rho0": 5.0,
+    "rho_bounds": [
+      0.1,
+      5.0
+    ],
+    "num_restarts": 4,
+    "seed": 0,
+    "hyperparameters": null
+  },
+  "dag": {
+    "target": null,
+    "correlation": "matern32",
+    "regression": "none",
+    "hp0": 0.5,
+    "hp_bounds": [
+      -2.0,
+      2.0
+    ],
+    "rho0": 1.0,
+    "rho_bounds": [
+      -5.0,
+      5.0
+    ],
+    "log_variance_bounds": [
+      -6.0,
+      6.0
+    ],
+    "num_restarts": 4,
+    "seed": 0,
+    "hyperparameters": null
+  },
+  "covariance": {
+    "kind": "SEard",
+    "degree": 3,
+    "orders": 2
+  },
+  "mean": {
+    "kind": "const"
+  },
+  "task_covariance": {
+    "num_outputs": 1,
+    "num_fidelities": 1,
+    "rank": 1
+  },
+  "initialization": {
+    "lengthscale_floor": 0.001,
+    "regression_signal_std": 1.0,
+    "classification_signal_std": 2.0,
+    "noise_std": 0.1,
+    "sparse_noise_std_divisor": 2.0,
+    "signal_std_floor": 0.001
+  },
+  "task_initialization": {
+    "w0": 0.7,
+    "kappa0": 0.5,
+    "rho0": 1.0
+  }
+}

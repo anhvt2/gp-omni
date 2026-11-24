@@ -27,9 +27,12 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.lik import LikGauss
 from gp_omni.sparse.mean import Mean
+
+DEFAULTS = load_defaults("models")
 
 
 def augment(x: Tensor, output: Tensor | None = None, fidelity: Tensor | None = None) -> Tensor:
@@ -54,7 +57,12 @@ class TaskCov:
     """Structured multi-output / multi-fidelity covariance (see module docstring)."""
 
     def __init__(
-        self, base: Cov, dim: int, num_outputs: int = 1, num_fidelities: int = 1, rank: int = 1
+        self,
+        base: Cov,
+        dim: int,
+        num_outputs: int = DEFAULTS["task_covariance"]["num_outputs"],
+        num_fidelities: int = DEFAULTS["task_covariance"]["num_fidelities"],
+        rank: int = DEFAULTS["task_covariance"]["rank"],
     ):
         if num_outputs < 1 or num_fidelities < 1:
             raise ValueError("need at least one output and one fidelity")
@@ -72,7 +80,12 @@ class TaskCov:
     def num_hyp(self, dim: int | None = None) -> int:
         return self.L * self._per_latent() + self.O * (self.L - 1)
 
-    def initial_hyp(self, base_hyp: Tensor, w0: float = 0.7, kappa0: float = 0.5) -> Tensor:
+    def initial_hyp(
+        self,
+        base_hyp: Tensor,
+        w0: float = DEFAULTS["task_initialization"]["w0"],
+        kappa0: float = DEFAULTS["task_initialization"]["kappa0"],
+    ) -> Tensor:
         """A reasonable starting vector: same base hyperparameters for every latent process."""
         parts: list[Tensor] = []
         for _ in range(self.L):
@@ -82,7 +95,7 @@ class TaskCov:
                     torch.full((self.O * self.rank,), w0),
                     torch.full((self.O,), float(torch.log(torch.tensor(kappa0)))),
                 ]
-        parts.append(torch.ones(self.O * (self.L - 1)))
+        parts.append(torch.full((self.O * (self.L - 1),), DEFAULTS["task_initialization"]["rho0"]))
         return torch.cat(parts)
 
     def _unpack(self, hyp: Tensor):

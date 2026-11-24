@@ -5,6 +5,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
+
+DEFAULTS = load_defaults("models")
+
 _KINDS = ("zero", "const", "linear", "linear+const")
 
 
@@ -12,7 +16,7 @@ class Mean:
     """``zero`` (no hyp), ``const`` (``[c]``), ``linear`` (``[a_1..a_D]``) or
     ``linear+const`` (``[a_1..a_D, c]``, gpml ``{@meanSum,{@meanLinear,@meanConst}}``)."""
 
-    def __init__(self, kind: str = "const"):
+    def __init__(self, kind: str = DEFAULTS["mean"]["kind"]):
         if kind not in _KINDS:
             raise ValueError(f"unknown mean {kind!r}; choose from {_KINDS}")
         self.kind = kind

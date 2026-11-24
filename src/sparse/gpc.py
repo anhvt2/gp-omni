@@ -5,7 +5,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.gpr import GPR
+
+DEFAULTS = load_defaults("models")
 
 
 def _as_labels(y: Tensor) -> Tensor:
@@ -43,17 +46,17 @@ class GPC(GPR):
 
     def __init__(
         self,
-        num_outputs: int = 1,
-        num_fidelities: int = 1,
-        additive: int | list[int] | None = None,
-        nu: int | None = None,
-        s: float = 0.0,
-        cov: str = "SEard",
-        degree: int = 3,
-        rank: int = 1,
-        lik: str = "likErf",
-        init: str = "kmeans",
-        seed: int = 0,
+        num_outputs: int = DEFAULTS["gpc"]["num_outputs"],
+        num_fidelities: int = DEFAULTS["gpc"]["num_fidelities"],
+        additive: int | list[int] | None = DEFAULTS["gpc"]["additive"],
+        nu: int | None = DEFAULTS["gpc"]["nu"],
+        s: float = DEFAULTS["gpc"]["s"],
+        cov: str = DEFAULTS["gpc"]["cov"],
+        degree: int = DEFAULTS["gpc"]["degree"],
+        rank: int = DEFAULTS["gpc"]["rank"],
+        lik: str = DEFAULTS["gpc"]["lik"],
+        init: str = DEFAULTS["gpc"]["init"],
+        seed: int = DEFAULTS["gpc"]["seed"],
     ):
         if lik == "likGauss":
             raise ValueError("GPC needs a classification likelihood: likErf or likLogistic")
@@ -67,8 +70,8 @@ class GPC(GPR):
         y: Tensor,
         output: Tensor | None = None,
         fidelity: Tensor | None = None,
-        max_iter: int = 200,
-        learn_xu: bool = True,
+        max_iter: int = DEFAULTS["gpc_fit"]["max_iter"],
+        learn_xu: bool = DEFAULTS["gpc_fit"]["learn_xu"],
     ) -> GPC:
         """Fit on constraint labels ``y`` (``+1`` feasible); see :meth:`GPR.fit`."""
         super().fit(x, _as_labels(y), output, fidelity, max_iter, learn_xu)
@@ -85,7 +88,7 @@ class GPC(GPR):
         xs: Tensor,
         output: int | None = None,
         fidelity: int | None = None,
-        threshold: float = 0.5,
+        threshold: float = DEFAULTS["decision"]["threshold"],
     ) -> Tensor:
         """Boolean feasibility decision ``P(feasible) >= threshold``."""
         return self.predict_proba(xs, output, fidelity) >= threshold
