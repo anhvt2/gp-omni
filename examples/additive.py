@@ -4,6 +4,7 @@ import torch
 
 import gp_omni  # noqa: F401
 from gp_omni.build.gpytorch import additive_gpr, exact_gpr
+from gp_omni.infer import predict
 from gp_omni.train.gpytorch import fit_exact
 
 
@@ -18,7 +19,7 @@ def main() -> dict:
     for name, m in (("additive", additive_gpr(X, y, max_degree=2)), ("plain_ard", exact_gpr(X, y))):
         fit_exact(m)
         with torch.no_grad():
-            err = ((m(Xt).mean - f(Xt)) ** 2).mean().sqrt() / f(Xt).std()
+            err = ((predict(m, Xt)["fmu"] - f(Xt)) ** 2).mean().sqrt() / f(Xt).std()
         out[f"{name}_nrmse"] = err.item()
     return out
 

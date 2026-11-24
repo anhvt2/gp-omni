@@ -133,6 +133,32 @@ Load reusable settings with `async_bo_config.from_json(...)` or
 `query_script` instead of `evaluate`; the job-folder protocol is described in
 [`async_bo`](src/train/asyncbo/loop.py).
 
+## Build, train, infer
+
+The source follows the three phases of a GP workflow:
+
+| Package | Responsibility |
+| --- | --- |
+| [`gp_omni.build`](src/build/) | Prepare models, covariance, means, likelihoods, and inducing inputs for the problem |
+| [`gp_omni.train`](src/train/) | Optimize evidence or ELBO objectives and orchestrate Bayesian optimization |
+| [`gp_omni.infer`](src/infer/) | Compute posterior distributions, predictive moments, and class probabilities |
+
+```python
+from gp_omni.build import GPR
+from gp_omni.train import fit
+from gp_omni.infer import predict
+
+model = GPR(cov="matern_ard", nu=20)
+fit(model, x, y, max_iter=100)
+prediction = predict(model, x_new)
+```
+
+The model methods `fit()` and `predict()` delegate to these phase implementations.
+For GPyTorch models, use `train.gpytorch.fit_exact` or `fit_variational` and
+`infer.predict`; supply the separately trained likelihood for variational predictions.
+Co-kriging constructors prepare data and topology; call `fit()` explicitly to train
+and assemble their posterior before predicting.
+
 ## Compose your surrogate
 
 Use the same `fit` / `predict` interface as your modeling needs grow. This example combines

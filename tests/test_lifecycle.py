@@ -2,12 +2,15 @@
 
 import importlib
 
+import gpytorch
 import pytest
 import torch
 
 from gp_omni import build, infer, train
 from gp_omni.build import GPC, GPR, ar1_cokriging, dag_cokriging, sparse_gp
+from gp_omni.build.gpytorch import exact_gpr, svgp
 from gp_omni.build.likelihood import gaussian, logistic, make_likelihood, probit
+from gp_omni.train.gpytorch import fit_exact, fit_variational
 
 
 @pytest.mark.parametrize("model_type", [GPR, GPC, sparse_gp])
@@ -66,3 +69,21 @@ def test_likelihood_names_select_the_expected_model(name, expected):
     train.fit(model, x, y.to(torch.float64) * 2 - 1 if name != "gaussian" else y, max_iter=3)
     assert isinstance(model.lik, expected)
     assert torch.isfinite(infer.predict(model, x[:2])["fmu"]).all()
+
+
+def test_gpytorch_predictions_use_the_inference_phase():
+    x = torch.linspace(0, 1, 16).unsqueeze(-1)
+    exact = exact_gpr(x, torch.sin(5 * x[:, 0]))
+    fit_exact(exact)
+    state = {key: value.clone() for key, value in exact.state_dict().items()}
+    prediction = infer.predict(exact, x[:3])
+    assert prediction["fmu"].shape == (3,)
+    assert (prediction["ys2"] >= prediction["fs2"]).all()
+    for key, value in state.items():
+        torch.testing.assert_close(exact.state_dict()[key], value)
+
+    classifier = svgp(x[:5].clone())
+    likelihood = gpytorch.likelihoods.BernoulliLikelihood()
+    fit_variational(classifier, likelihood, x, (x[:, 0] > 0.5).double(), epochs=3)
+    probability = infer.predict(classifier, x[:3], likelihood=likelihood)["ymu"]
+    assert ((probability >= 0) & (probability <= 1)).all()
