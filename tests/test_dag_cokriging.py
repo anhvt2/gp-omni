@@ -6,7 +6,8 @@ import torch
 from botorch.acquisition.analytic import LogExpectedImprovement
 from botorch.optim import optimize_acqf
 
-from gp_omni import AR1CoKriging, DAGCoKriging
+from gp_omni import ar1_cokriging, dag_cokriging
+from gp_omni.train.cokriging import factor_dag
 
 
 def data(nodes=5):
@@ -73,7 +74,9 @@ def dense_reference(model, x, node):
 )
 def test_dense_reference_and_interpolation(regression, edges, target):
     X, Y = data()
-    m = DAGCoKriging(X, Y, edges, target, regression=regression, hyperparameters=fixed(5, edges))
+    m = dag_cokriging(
+        X, Y, edges, target, regression=regression, hyperparameters=fixed(5, edges)
+    ).fit()
     x = np.linspace(0.03, 0.97, 6)[:, None]
     for node in range(5):
         A, mean, cov = dense_reference(m, x, node)
@@ -89,7 +92,7 @@ def test_dense_reference_and_interpolation(regression, edges, target):
 def test_missing_edge_allows_indirect_covariance_and_shared_ancestors():
     X, Y = data(4)
     edges = [(0, 1), (0, 2), (1, 3), (2, 3)]
-    m = DAGCoKriging(X, Y, edges, hyperparameters=fixed(4, edges))
+    m = dag_cokriging(X, Y, edges, hyperparameters=fixed(4, edges)).fit()
     A = m.loadings
     assert A[3, 0] == m.rho[0] * m.rho[2] + m.rho[1] * m.rho[3]
     assert m._covariance(1, 2, X[1], X[2], A, m.theta, m.variances).abs().max() > 0
@@ -101,8 +104,8 @@ def test_zero_edge_and_disconnected_nodes_do_not_transfer_data():
     edges = [(0, 1)]
     hp = fixed(3, edges)
     hp["rho"].zero_()
-    a = DAGCoKriging(X, Y, edges, target=1, hyperparameters=hp)
-    b = DAGCoKriging(X, [Y[0] + 100, Y[1], Y[2] - 100], edges, target=1, hyperparameters=hp)
+    a = dag_cokriging(X, Y, edges, target=1, hyperparameters=hp).fit()
+    b = dag_cokriging(X, [Y[0] + 100, Y[1], Y[2] - 100], edges, target=1, hyperparameters=hp).fit()
     x = torch.linspace(0, 1, 10)[:, None]
     for va, vb in zip(a.predict(x), b.predict(x)):
         torch.testing.assert_close(va, vb)
@@ -111,11 +114,11 @@ def test_zero_edge_and_disconnected_nodes_do_not_transfer_data():
 @pytest.mark.parametrize("kind", ["none", "regpoly0", "regpoly1"])
 def test_two_node_predictions_match_legacy_with_same_variances(kind):
     X, Y = data(2)
-    old = AR1CoKriging(
+    old = ar1_cokriging(
         X, Y, regression=kind, hyperparameters={"theta1": [0.2], "theta2": [0.4], "rho": 1.3}
-    )
+    ).fit()
     hp = {"theta": [[0.2], [0.4]], "rho": [1.3], "sigma2": [old.level1.sigma2, old.level2.sigma2]}
-    new = DAGCoKriging(X, Y, [(0, 1)], regression=kind, hyperparameters=hp)
+    new = dag_cokriging(X, Y, [(0, 1)], regression=kind, hyperparameters=hp).fit()
     x = torch.linspace(0.01, 0.99, 20)[:, None]
     for actual, expected in zip(new.predict(x), old.predict(x)):
         torch.testing.assert_close(actual, expected, atol=2e-7, rtol=2e-5)
@@ -124,7 +127,7 @@ def test_two_node_predictions_match_legacy_with_same_variances(kind):
 def test_batches_gradients_and_acquisition_optimization():
     X, Y = data(3)
     edges = [(0, 1), (1, 2)]
-    m = DAGCoKriging(X, Y, edges, regression="regpoly1", hyperparameters=fixed(3, edges))
+    m = dag_cokriging(X, Y, edges, regression="regpoly1", hyperparameters=fixed(3, edges)).fit()
     x = torch.tensor([[[0.11], [0.45]], [[0.67], [0.92]]], requires_grad=True)
     post = m.posterior(x)
     mean, var = m.predict(x)
@@ -147,21 +150,21 @@ def test_batches_gradients_and_acquisition_optimization():
 
 def test_joint_fit_is_finite_and_interpolates():
     X, Y = data(3)
-    m = DAGCoKriging(X, Y, [(0, 1), (0, 2), (1, 2)], regression="regpoly0", num_restarts=0)
+    m = dag_cokriging(X, Y, [(0, 1), (0, 2), (1, 2)], regression="regpoly0", num_restarts=0).fit()
     assert all(torch.isfinite(t).all() for t in m.hyperparameters.values())
     for i in range(3):
         mean, var = m.predict(X[i], fidelity=i)
         torch.testing.assert_close(mean, Y[i], atol=1e-5, rtol=1e-5)
         assert var.min() >= 0
-    restored = DAGCoKriging(
+    restored = dag_cokriging(
         X, Y, list(m.edges), regression="regpoly0", hyperparameters=m.hyperparameters
-    )
+    ).fit()
     torch.testing.assert_close(restored.predict(X[0])[0], m.predict(X[0])[0])
 
 
 def test_single_node_and_buffer_conversion():
     X, Y = data(1)
-    m = DAGCoKriging(X, Y, [], hyperparameters=fixed(1, []))
+    m = dag_cokriging(X, Y, [], hyperparameters=fixed(1, [])).fit()
     assert m.target == 0
     assert "_X0" in m.state_dict() and "_L" in m.state_dict()
     m.to(dtype=torch.float32)
@@ -183,7 +186,7 @@ def test_single_node_and_buffer_conversion():
 def test_rejects_invalid_graph(edges, target):
     X, Y = data(2)
     with pytest.raises(ValueError):
-        DAGCoKriging(X, Y, edges, target=target)
+        dag_cokriging(X, Y, edges, target=target).fit()
 
 
 @pytest.mark.parametrize(
@@ -201,20 +204,20 @@ def test_rejects_invalid_hyperparameters(key, value):
     hp = fixed(2, [(0, 1)])
     hp[key] = value
     with pytest.raises(ValueError):
-        DAGCoKriging(X, Y, [(0, 1)], hyperparameters=hp)
+        dag_cokriging(X, Y, [(0, 1)], hyperparameters=hp).fit()
 
 
 def test_rejects_invalid_data_and_unsupported_posterior_options():
     X, Y = data(1)
     with pytest.raises(ValueError):
-        DAGCoKriging([], [], [])
+        dag_cokriging([], [], []).fit()
     with pytest.raises(ValueError):
-        DAGCoKriging(X, [Y[0][None]], [])
+        dag_cokriging(X, [Y[0][None]], []).fit()
     with pytest.raises(ValueError):
-        DAGCoKriging([torch.ones(3, 1)], [torch.ones(3)], [], regression="regpoly1")
+        dag_cokriging([torch.ones(3, 1)], [torch.ones(3)], [], regression="regpoly1").fit()
     with pytest.raises(ValueError):
-        DAGCoKriging(X, Y, [], hp_bounds=(2, -2))
-    m = DAGCoKriging(X, Y, [], hyperparameters=fixed(1, []))
+        dag_cokriging(X, Y, [], hp_bounds=(2, -2)).fit()
+    m = dag_cokriging(X, Y, [], hyperparameters=fixed(1, [])).fit()
     with pytest.raises(ValueError):
         m.predict(X[0], fidelity=2)
     with pytest.raises(ValueError):
@@ -231,7 +234,7 @@ def test_multidimensional_kernels_signed_edges_and_transform(name):
     X = [torch.rand(9, 2, generator=rng) for _ in range(3)]
     Y = [torch.sin(x[:, 0] * 5) + x[:, 1] for x in X]
     hp = {"theta": [[0.3], [0.1], [0.7]], "rho": [-0.6, 1.3], "sigma2": [1, 0.5, 0.2]}
-    m = DAGCoKriging(X, Y, [(0, 1), (1, 2)], correlation=name, hyperparameters=hp)
+    m = dag_cokriging(X, Y, [(0, 1), (1, 2)], correlation=name, hyperparameters=hp).fit()
     B = m.coupling_matrix
     assert B[0, 2] == 0 and B[0, 1] == -0.6
     torch.testing.assert_close(m.loadings, torch.linalg.inv(torch.eye(3) - B.T))
@@ -248,13 +251,13 @@ def test_multidimensional_kernels_signed_edges_and_transform(name):
 def test_joint_likelihood_parameter_gradients():
     X, Y = data(3)
     edges = [(0, 1), (0, 2), (1, 2)]
-    m = DAGCoKriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed(3, edges))
+    m = dag_cokriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed(3, edges)).fit()
     theta = m.theta.clone().requires_grad_()
     rho = m.rho.clone().requires_grad_()
     log_s = m.variances.log().requires_grad_()
 
     def objective(t, r, s):
-        L, _, _, _, residual = m._factor(t, r, s.exp())
+        L, _, _, _, residual = factor_dag(m, t, r, s.exp())
         return L.diagonal().log().sum() + 0.5 * residual.square().sum()
 
     assert torch.autograd.gradcheck(objective, (theta, rho, log_s), atol=2e-4)

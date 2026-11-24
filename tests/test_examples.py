@@ -20,7 +20,7 @@ def run(name: str) -> dict:
 
 
 LIMITS = {
-    "exact_gp": {"rmse": 0.05},
+    "exact_gpr": {"rmse": 0.05},
     "multioutput": {"icm_rmse": 0.05, "lmc_rmse": 0.05},
     "sparse": {"sgpr_rmse": 0.05, "kiss_rmse": 0.05, "svgp_rmse": 0.1},
 }
@@ -66,30 +66,30 @@ def test_sparse_gpml_example():
     assert res["probit_accuracy"] > 0.9
 
 
-def test_omni_multiobjective_example():
-    res = run("omni_multiobjective")
+def test_gpr_multioutput_example():
+    res = run("gpr_multioutput")
     assert res["joint_nrmse"] < 0.5 * res["alone_nrmse"], res
 
 
-def test_omni_multifidelity_example():
-    res = run("omni_multifidelity")
+def test_gpr_multifidelity_example():
+    res = run("gpr_multifidelity")
     assert res["mf_rmse"] < 0.6 * res["hi_only_rmse"], res
 
 
-def test_omni_bigdata_example():
-    res = run("omni_bigdata")
+def test_gpr_sparse_example():
+    res = run("gpr_sparse")
     assert res["vfe_rmse"] < 0.02 and res["fitc_rmse"] < 0.02
     assert abs(res["vfe_noise_sd"] - 0.1) < 0.02
 
 
-def test_omni_additive_example():
-    res = run("omni_additive")
+def test_gpr_additive_example():
+    res = run("gpr_additive")
     assert res["additive_nrmse"] < 0.1
     assert res["additive_nrmse"] < 0.3 * res["plain_ard_nrmse"], res
 
 
-def test_omni_combined_example_default_runs_the_progressive_configs():
-    res = run("omni_combined")
+def test_gpr_combined_example_default_runs_the_progressive_configs():
+    res = run("gpr_combined")
     assert set(res) == {"mo+mf", "mo+mf+sparse", "mo+mf+sparse+additive"}
     assert all(v < 0.1 for v in res.values()), res
 
@@ -102,18 +102,18 @@ def _load(name):
 
 
 @pytest.mark.parametrize("mo,mf,sparse,additive", list(itertools.product([0, 1], repeat=4)))
-def test_omni_combined_example_any_subset_of_features(mo, mf, sparse, additive):
+def test_gpr_combined_example_any_subset_of_features(mo, mf, sparse, additive):
     """Each of the 16 subsets runs end to end through the example and is accurate."""
-    mod = _load("omni_combined")
+    mod = _load("gpr_combined")
     chosen = {f for f, on in zip(mod.FEATURES, (mo, mf, sparse, additive), strict=True) if on}
     res = mod.main(chosen)
     assert len(res) == 1 and next(iter(res.values())) < 0.1, (chosen, res)
 
 
-def test_omni_combined_example_command_line_subset():
-    """``python examples/omni_combined.py mo additive`` (high-dimensional multi-objective)."""
+def test_gpr_combined_example_command_line_subset():
+    """``python examples/gpr_combined.py mo additive`` (high-dimensional multi-objective)."""
     out = subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "omni_combined.py"), "mo", "additive"],
+        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_combined.py"), "mo", "additive"],
         capture_output=True,
         text=True,
         check=True,
@@ -121,7 +121,7 @@ def test_omni_combined_example_command_line_subset():
     res = ast.literal_eval(out.strip().splitlines()[-1])
     assert list(res) == ["mo+additive"] and res["mo+additive"] < 0.1, res
     bad = subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "omni_combined.py"), "bogus"],
+        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_combined.py"), "bogus"],
         capture_output=True,
         text=True,
         check=False,
@@ -141,16 +141,16 @@ def test_omni_combined_example_command_line_subset():
         ["mo", "mf", "sparse", "additive"],
     ],
 )
-def test_omni_constraints_example_twins_share_any_features(features):
-    mod = _load("omni_constraints")
+def test_gpr_gpc_constraints_example_twins_share_any_features(features):
+    mod = _load("gpr_gpc_constraints")
     ((name, res),) = mod.main(set(features)).items()
     assert name == ("+".join(f for f in mod.FEATURES if f in features) or "none")
     assert res["objective_nrmse"] < 0.1 and res["constraint_accuracy"] > 0.9, res
 
 
-def test_omni_constraints_example_command_line():
+def test_gpr_gpc_constraints_example_command_line():
     run_cmd = lambda *a: subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "omni_constraints.py"), *a],
+        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_gpc_constraints.py"), *a],
         capture_output=True,
         text=True,
         check=False,

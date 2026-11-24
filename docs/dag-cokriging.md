@@ -1,17 +1,18 @@
 # Hierarchical DAG co-kriging
 
-`DAGCoKriging` models noiseless observations at any number of fidelity nodes linked
+`dag_cokriging` models noiseless observations at any number of fidelity nodes linked
 by a supplied directed acyclic graph. Nodes may have multiple parents, and designs
 may differ across nodes. Each node needs nonempty observations in the same input
 dimension. The graph is supplied by the user; fitting learns weights, not topology.
 
 ```python
-from gp_omni import DAGCoKriging
+from gp_omni import dag_cokriging
 
 # X[j]: (n_j, d), Y[j]: (n_j,) or (n_j, 1), indexed by node j.
 # Diamond: 0 feeds 1 and 2, which both feed 3.
 edges = [(0, 1), (0, 2), (1, 3), (2, 3)]
-model = DAGCoKriging(X, Y, edges, regression="regpoly0", num_restarts=4)
+model = dag_cokriging(X, Y, edges, regression="regpoly0", num_restarts=4)
+model.fit()
 mean, variance = model.predict(x_new)  # unique sink: node 3
 parent_mean, parent_variance = model.predict(x_new, fidelity=1)
 posterior = model.posterior(x_new)  # BoTorch-compatible, with input gradients
@@ -70,7 +71,7 @@ Supply all hyperparameters to skip fitting:
 
 ```python
 fixed = model.hyperparameters
-restored = DAGCoKriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed)
+restored = dag_cokriging(X, Y, edges, regression="regpoly0", hyperparameters=fixed).fit()
 ```
 
 The dictionary contains `theta` with shape `(L, d)` (also accepts `(L, 1)` for
@@ -94,7 +95,7 @@ posterior transforms and `output_indices=[0]`. Observation noise is unsupported;
 small relative diagonal jitter is numerical stabilization only. Selecting the
 next fidelity or optimizing jointly over fidelities requires a custom workflow.
 
-The existing `AR1CoKriging` retains its two-level interface, sequential fitting,
+The existing `ar1_cokriging` retains its two-level interface, sequential fitting,
 and MATLAB parity behavior. With the same two-node kernel parameters, edge
 weight, and discrepancy variances, the new model gives the same high-fidelity
 predictions up to numerical jitter. Joint fitting can produce different fitted

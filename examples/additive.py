@@ -3,8 +3,9 @@
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni.builders import additive_gp, exact_gp
-from gp_omni.fit import fit_exact
+from gp_omni.build.gpytorch import additive_gpr, exact_gpr
+from gp_omni.infer import predict
+from gp_omni.train.gpytorch import fit_exact
 
 
 def main() -> dict:
@@ -15,10 +16,10 @@ def main() -> dict:
     X, Xt = torch.rand(120, d), torch.rand(300, d)
     y = f(X) + 0.02 * torch.randn(120)
     out = {}
-    for name, m in (("additive", additive_gp(X, y, max_degree=2)), ("plain_ard", exact_gp(X, y))):
+    for name, m in (("additive", additive_gpr(X, y, max_degree=2)), ("plain_ard", exact_gpr(X, y))):
         fit_exact(m)
         with torch.no_grad():
-            err = ((m(Xt).mean - f(Xt)) ** 2).mean().sqrt() / f(Xt).std()
+            err = ((predict(m, Xt)["fmu"] - f(Xt)) ** 2).mean().sqrt() / f(Xt).std()
         out[f"{name}_nrmse"] = err.item()
     return out
 

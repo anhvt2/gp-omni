@@ -5,7 +5,7 @@ Run: python examples/dag_cokriging.py
 
 import torch
 
-from gp_omni import DAGCoKriging
+from gp_omni import dag_cokriging
 
 
 def main() -> dict:
@@ -20,7 +20,7 @@ def main() -> dict:
     X = [torch.rand(n, 1, generator=generator) for n in (25, 15, 13, 7)]
     Y = [responses(x[:, 0])[i] for i, x in enumerate(X)]
     edges = [(0, 1), (0, 2), (1, 3), (2, 3)]
-    model = DAGCoKriging(X, Y, edges, regression="regpoly0", num_restarts=1, seed=4)
+    model = dag_cokriging(X, Y, edges, regression="regpoly0", num_restarts=1, seed=4).fit()
     grid = torch.linspace(0, 1, 101)[:, None]
     mean, variance = model.predict(grid)  # unique terminal node 3
     parent_mean, _ = model.predict(grid, fidelity=1)  # conditioned on all node data
