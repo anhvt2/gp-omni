@@ -52,15 +52,24 @@ def predict_objective(model: OmniGP, x: np.ndarray) -> tuple[float, float]:
     return float(out["ymu"][0]), max(float(out["ys2"][0]), 0.0)
 
 
-def predict_feasibility(classifier: OmniGPC | None, x: np.ndarray) -> float:
-    """``P(feasible | x)`` clipped to [0, 1]; 1 when there is no usable classifier."""
+def predict_feasibility(
+    classifier: OmniGPC | None, x: np.ndarray, relax_alpha: float | None = None
+) -> float:
+    """``P(feasible | x)`` clipped to [0, 1]; 1 when there is no usable classifier.
+
+    With ``relax_alpha`` (``classifPredictor.m``, 0.9 there) probabilities above ``alpha`` are
+    rounded to 1 and below ``1 - alpha`` to 0, so only the uncertain band is penalised softly.
+    """
     if classifier is None:
         return 1.0
     try:
         p = float(classifier.predict_proba(_row(x))[0])
     except Exception:  # noqa: BLE001 - mirrors the MATLAB try/catch safeguard
         return 1.0
-    return min(max(p, 0.0), 1.0)
+    p = min(max(p, 0.0), 1.0)
+    if relax_alpha is not None:
+        p = 1.0 if p > relax_alpha else 0.0 if p < 1 - relax_alpha else p
+    return p
 
 
 def acquisition_value(
@@ -91,13 +100,14 @@ def negative_acquisition(
     x_obs: np.ndarray,
     y_obs: np.ndarray,
     known_constraint: KnownConstraint = check_constraint,
+    relax_alpha: float | None = None,
 ) -> float:
     """``calculateNegativeAcquisitionFunction.m``: ``-acquisition * known * unknown``."""
     x = np.asarray(x, dtype=float).reshape(-1)
     known = known_constraint(x)
     if known == 0:
         return 0.0
-    unknown = predict_feasibility(classifier, x)
+    unknown = predict_feasibility(classifier, x, relax_alpha)
     y, s2 = predict_objective(model, x)
     t, d = x_obs.shape
     a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)
