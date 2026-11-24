@@ -57,9 +57,9 @@ class bo_config:
         "max_iter"
     ]  # includes initial points; units depend on the loop
     num_init_point: int = DEFAULTS["loop"]["num_init_point"]
-    x_scale: np.ndarray | float = DEFAULTS["loop"][
-        "x_scale"
-    ]  # rough scale so scaled inputs are O(1)
+    x_scale: np.ndarray | float = field(
+        default_factory=lambda: DEFAULTS["loop"]["x_scale"]
+    )  # rough scale so scaled inputs are O(1)
     y_scale: float = DEFAULTS["loop"]["y_scale"]
     check_time: float = DEFAULTS["loop"][
         "check_time"
