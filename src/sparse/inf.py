@@ -14,10 +14,13 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.apx import Approx, SparseCov, apx
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.lik import Lik, LikGauss
 from gp_omni.sparse.mean import Mean
+
+DEFAULTS = load_defaults("inference")
 
 
 @dataclass
@@ -62,9 +65,9 @@ def _psi(alpha: Tensor, m: Tensor, mvm, likfun):
 
 def _irls(alpha: Tensor, m: Tensor, K: Approx, likfun, opt: dict) -> Tensor:
     """Newton iterations with step-size search, as gpml's ``irls`` (run without autograd)."""
-    maxit = int(opt.get("irls_maxit", 20))
-    wmin = float(opt.get("irls_Wmin", 0.0))
-    tol = float(opt.get("irls_tol", 1e-6))
+    maxit = int(opt.get("irls_maxit", DEFAULTS["laplace"]["irls_maxit"]))
+    wmin = float(opt.get("irls_Wmin", DEFAULTS["laplace"]["irls_Wmin"]))
+    tol = float(opt.get("irls_tol", DEFAULTS["laplace"]["irls_tol"]))
     psi_new, f, dlp, W = _psi(alpha, m, K.mvm, likfun)
     psi_old, it = math.inf, 0
     while psi_old - psi_new > tol and it < maxit:
@@ -74,7 +77,7 @@ def _irls(alpha: Tensor, m: Tensor, K: Approx, likfun, opt: dict) -> Tensor:
         b = W * (f - m) + dlp
         dalpha = b - wf.solveKiW(K.mvm(b)) - alpha  # Newton direction
         best = (psi_new, alpha, f, dlp, W)
-        for s in (1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.0):  # backtracking line search
+        for s in DEFAULTS["laplace"]["step_sizes"]:  # backtracking line search
             cand = alpha + s * dalpha
             p, fc, dc, Wc = _psi(cand, m, K.mvm, likfun)
             if p <= psi_old:

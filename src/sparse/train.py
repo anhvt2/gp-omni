@@ -7,11 +7,14 @@ import torch
 from scipy.optimize import minimize
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.apx import SparseCov
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.gp import Inference, gp_nlz
 from gp_omni.sparse.lik import Lik
 from gp_omni.sparse.mean import Mean
+
+DEFAULTS = load_defaults("training")
 
 _BIG = 1e12
 
@@ -25,9 +28,9 @@ def train(
     x: Tensor,
     y: Tensor,
     opt: dict | None = None,
-    max_iter: int = 200,
-    fixed: tuple[str, ...] = (),
-    tol: float = 1e-9,
+    max_iter: int = DEFAULTS["sparse_optimizer"]["max_iter"],
+    fixed: tuple[str, ...] = tuple(DEFAULTS["sparse_optimizer"]["fixed"]),
+    tol: float = DEFAULTS["sparse_optimizer"]["tol"],
 ) -> tuple[dict[str, Tensor], float]:
     """Minimise the negative log marginal likelihood over all entries of ``hyp`` (including
     ``xu`` and ``snu`` when present) except those named in ``fixed``.
@@ -68,7 +71,7 @@ def train(
         v0,
         jac=True,
         method="L-BFGS-B",
-        options={"maxiter": max_iter, "ftol": tol, "gtol": 1e-7},
+        options={"maxiter": max_iter, "ftol": tol, "gtol": DEFAULTS["sparse_optimizer"]["gtol"]},
     )
     out = unpack(res.x)
     return {k: v.detach().clone().requires_grad_(k in sizes) for k, v in out.items()}, float(

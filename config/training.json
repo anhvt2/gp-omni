@@ -1,0 +1,32 @@
+{
+  "exact_optimizer": {
+    "steps": 200,
+    "lr": 0.1
+  },
+  "exact": {
+    "num_restarts": 0,
+    "noise": 1.0,
+    "seed": 0
+  },
+  "variational": {
+    "epochs": 300,
+    "lr": 0.05
+  },
+  "sparse_optimizer": {
+    "max_iter": 200,
+    "fixed": [],
+    "tol": 1e-09,
+    "gtol": 1e-07
+  },
+  "random_subset": {
+    "seed": 0
+  },
+  "kmeans": {
+    "max_iter": 5,
+    "seed": 0
+  },
+  "inducing": {
+    "method": "kmeans",
+    "seed": 0
+  }
+}

@@ -25,7 +25,10 @@ from dataclasses import dataclass, field
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.cov import Cov
+
+DEFAULTS = load_defaults("inference")
 
 
 def _tri_solve(R: Tensor, b: Tensor, upper: bool) -> Tensor:
@@ -88,7 +91,7 @@ def apx(
     """Build the covariance approximation: exact (dense) or sparse, like gpml's ``apx``."""
     opt = opt or {}
     if isinstance(cov, SparseCov):
-        return _sparse(hyp, cov, x, float(opt.get("s", 1.0)), want_L)
+        return _sparse(hyp, cov, x, float(opt.get("s", DEFAULTS["sparse"]["s"])), want_L)
     return _exact(hyp, cov, x)
 
 
@@ -129,7 +132,11 @@ def _sparse(hyp: dict, sc: SparseCov, x: Tensor, s: float, want_L: bool) -> Appr
     if "snu" in hyp:  # learnable inducing noise: log standard deviation
         snu2 = torch.exp(2 * hyp["snu"]) * torch.ones(nu, dtype=x.dtype)
     else:  # gpml default: one per mil of the signal standard deviation
-        snu2 = 1e-6 * (torch.trace(Kuu) / nu) * torch.ones(nu, dtype=x.dtype)
+        snu2 = (
+            DEFAULTS["sparse"]["inducing_noise_variance_ratio"]
+            * (torch.trace(Kuu) / nu)
+            * torch.ones(nu, dtype=x.dtype)
+        )
     Luu = torch.linalg.cholesky(Kuu + torch.diag(snu2), upper=True)  # Kuu+diag(snu2) = Luu'*Luu
     V = _tri_solve(Luu.T, Ku, upper=False)  # V = inv(Luu')*Ku  =>  V'*V = Q
     g = torch.clamp(diagK - (V * V).sum(0), min=0.0)  # g = diag(K) - diag(Q)

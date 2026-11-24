@@ -14,8 +14,11 @@ import math
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 from gp_omni.sparse.cov import Cov
 from gp_omni.sparse.mean import Mean
+
+DEFAULTS = load_defaults("inference")
 
 
 def _vfe(hyp: dict, mean: Mean, cov: Cov, xu: Tensor, x: Tensor, y: Tensor, z: Tensor):
@@ -24,7 +27,9 @@ def _vfe(hyp: dict, mean: Mean, cov: Cov, xu: Tensor, x: Tensor, y: Tensor, z: T
     m = mean(hyp["mean"], x)
     sn2 = torch.exp(2 * hyp["lik"][0])
     Kuu, Ku, diagK = cov(hc, xu), cov(hc, xu, x), cov(hc, x, "diag")
-    snu2 = 1e-6 * (torch.trace(Kuu) / nu)  # stabilise by 0.1% of signal std
+    snu2 = DEFAULTS["sparse"]["inducing_noise_variance_ratio"] * (
+        torch.trace(Kuu) / nu
+    )  # stabilise by 0.1% of signal std
     eye = torch.eye(nu, dtype=x.dtype)
     Luu = torch.linalg.cholesky(Kuu + snu2 * eye, upper=True)  # Kuu + snu2*I = Luu'*Luu
     inv_Luu = torch.linalg.solve_triangular(Luu, eye, upper=True)

@@ -12,14 +12,23 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
+from gp_omni.settings import load_defaults
 
-def random_subset(x: Tensor, nu: int, seed: int = 0) -> Tensor:
+DEFAULTS = load_defaults("training")
+
+
+def random_subset(x: Tensor, nu: int, seed: int = DEFAULTS["random_subset"]["seed"]) -> Tensor:
     """``nu`` training inputs chosen uniformly without replacement."""
     g = torch.Generator().manual_seed(seed)
     return x[torch.randperm(x.shape[0], generator=g)[:nu]].clone()
 
 
-def kmeans_landmarks(x: Tensor, nu: int, max_iter: int = 5, seed: int = 0) -> Tensor:
+def kmeans_landmarks(
+    x: Tensor,
+    nu: int,
+    max_iter: int = DEFAULTS["kmeans"]["max_iter"],
+    seed: int = DEFAULTS["kmeans"]["seed"],
+) -> Tensor:
     """Cluster centres after ``max_iter`` Lloyd iterations (Improved Nystrom landmarks)."""
     centre = random_subset(x, nu, seed)
     for _ in range(max_iter):
@@ -34,7 +43,12 @@ def kmeans_landmarks(x: Tensor, nu: int, max_iter: int = 5, seed: int = 0) -> Te
     return centre
 
 
-def init_inducing(x: Tensor, nu: int, method: str = "kmeans", seed: int = 0) -> Tensor:
+def init_inducing(
+    x: Tensor,
+    nu: int,
+    method: str = DEFAULTS["inducing"]["method"],
+    seed: int = DEFAULTS["inducing"]["seed"],
+) -> Tensor:
     if nu > x.shape[0]:
         raise ValueError("more inducing inputs than training points")
     if method == "kmeans":

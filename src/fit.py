@@ -10,8 +10,17 @@ from botorch.fit import fit_gpytorch_mll
 from botorch.models.model import Model
 from gpytorch.mlls import ExactMarginalLogLikelihood, VariationalELBO
 
+from gp_omni.settings import load_defaults
 
-def _fit(model, mll, steps: int = 200, lr: float = 0.1) -> None:
+DEFAULTS = load_defaults("training")
+
+
+def _fit(
+    model,
+    mll,
+    steps: int = DEFAULTS["exact_optimizer"]["steps"],
+    lr: float = DEFAULTS["exact_optimizer"]["lr"],
+) -> None:
     """BoTorch's scipy fitter for BoTorch models; plain Adam for other GPyTorch models."""
     if isinstance(model, Model):
         fit_gpytorch_mll(mll)
@@ -33,7 +42,12 @@ def _mll_value(model, mll) -> float:
     return float(val.sum())
 
 
-def fit_exact(model, num_restarts: int = 0, noise: float = 1.0, seed: int = 0):
+def fit_exact(
+    model,
+    num_restarts: int = DEFAULTS["exact"]["num_restarts"],
+    noise: float = DEFAULTS["exact"]["noise"],
+    seed: int = DEFAULTS["exact"]["seed"],
+):
     """Maximise the exact marginal likelihood; optionally with random restarts.
 
     Restart ``k`` perturbs the (unconstrained) hyperparameters of the original state with
@@ -64,7 +78,12 @@ def fit_exact(model, num_restarts: int = 0, noise: float = 1.0, seed: int = 0):
 
 
 def fit_variational(
-    model, likelihood, train_x, train_y, epochs: int = 300, lr: float = 0.05
+    model,
+    likelihood,
+    train_x,
+    train_y,
+    epochs: int = DEFAULTS["variational"]["epochs"],
+    lr: float = DEFAULTS["variational"]["lr"],
 ) -> float:
     """Adam on the ELBO for an ``ApproximateGP`` (SVGP, classification). Returns final loss."""
     elbo = VariationalELBO(likelihood, model, num_data=train_y.shape[0])
