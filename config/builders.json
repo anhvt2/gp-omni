@@ -1,0 +1,28 @@
+{
+  "additive": {
+    "max_degree": 2
+  },
+  "sparse": {
+    "seed": 0
+  },
+  "grid": {
+    "grid_size": 64
+  },
+  "multitask": {
+    "kind": "icm",
+    "rank": 1
+  },
+  "additive_kernel": {
+    "max_degree": 2,
+    "ard": false
+  },
+  "exact": {
+    "matern_nu": 2.5
+  },
+  "lmc": {
+    "matern_nu": 1.5
+  },
+  "variational": {
+    "learn_inducing_locations": true
+  }
+}

@@ -3,8 +3,9 @@
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni.builders import MultitaskExactGP
-from gp_omni.fit import fit_exact
+from gp_omni.build.gpytorch import multitask_gpr
+from gp_omni.infer import predict
+from gp_omni.train.gpytorch import fit_exact
 
 
 def main() -> dict:
@@ -13,10 +14,10 @@ def main() -> dict:
     f = lambda x: torch.stack([torch.sin(6 * x[:, 0]), 0.5 * torch.sin(6 * x[:, 0]) + x[:, 0]], -1)
     out = {}
     for kind in ("icm", "lmc"):
-        model = MultitaskExactGP(X, f(X) + 0.05 * torch.randn(150, 2), kind=kind)
+        model = multitask_gpr(X, f(X) + 0.05 * torch.randn(150, 2), kind=kind)
         fit_exact(model)
         with torch.no_grad():
-            out[f"{kind}_rmse"] = ((model(Xt).mean - f(Xt)) ** 2).mean().sqrt().item()
+            out[f"{kind}_rmse"] = ((predict(model, Xt)["fmu"] - f(Xt)) ** 2).mean().sqrt().item()
     return out
 
 

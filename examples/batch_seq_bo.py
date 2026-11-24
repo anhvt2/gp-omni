@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import gp_omni  # noqa: F401
-from gp_omni.batchbo import BatchSeqBO, BatchSeqBOConfig
+from gp_omni.train.batchbo import batch_bo, batch_bo_config
 
 CONFIG = Path(__file__).parents[1] / "config" / "batch_seq_bo.json"
 
@@ -32,9 +32,9 @@ def known_constraint(x):
 def main(max_iter: int | None = None, seed: int | None = None) -> dict:
     """Arguments override the settings file."""
     overrides = {k: v for k, v in {"max_iter": max_iter, "seed": seed}.items() if v is not None}
-    config = BatchSeqBOConfig.from_json(CONFIG, known_constraint=known_constraint, **overrides)
+    config = batch_bo_config.from_json(CONFIG, known_constraint=known_constraint, **overrides)
     with tempfile.TemporaryDirectory() as root:
-        x, y = BatchSeqBO(root, config, evaluate=simulation).run()
+        x, y = batch_bo(root, config, evaluate=simulation).run()
     print(f"best feasible x = {np.round(x, 3)}, y = {y:.4f}")
     return {"x": x, "y": y}
 

@@ -1,11 +1,12 @@
-"""Big-data GPs: SGPR (inducing points), SVGP (minibatch ELBO) and KISS-GP (grid)."""
+"""Big-data GPs: SGPR (inducing points), svgp (minibatch ELBO) and KISS-GP (grid)."""
 
 import gpytorch
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni.builders import SVGP, kiss_gp, sgpr
-from gp_omni.fit import fit_exact, fit_variational
+from gp_omni.build.gpytorch import kiss_gpr, sgpr, svgp
+from gp_omni.infer import predict
+from gp_omni.train.gpytorch import fit_exact, fit_variational
 
 
 def main() -> dict:
@@ -17,17 +18,19 @@ def main() -> dict:
     m = sgpr(X, y, num_inducing=25)
     fit_exact(m)
     with torch.no_grad():
-        out["sgpr_rmse"] = ((m.likelihood(m(Xt)).mean - f(Xt)) ** 2).mean().sqrt().item()
-    m = kiss_gp(X, y, grid_size=100)
+        out["sgpr_rmse"] = ((predict(m, Xt)["ymu"] - f(Xt)) ** 2).mean().sqrt().item()
+    m = kiss_gpr(X, y, grid_size=100)
     fit_exact(m)
     with torch.no_grad():
-        out["kiss_rmse"] = ((m.likelihood(m(Xt)).mean - f(Xt)) ** 2).mean().sqrt().item()
+        out["kiss_rmse"] = ((predict(m, Xt)["ymu"] - f(Xt)) ** 2).mean().sqrt().item()
     # Cover the domain before learning inducing locations; random sites can cluster.
     inducing = torch.linspace(0, 1, 25).reshape(-1, 1)
-    sv, lik = SVGP(inducing), gpytorch.likelihoods.GaussianLikelihood()
+    sv, lik = svgp(inducing), gpytorch.likelihoods.GaussianLikelihood()
     fit_variational(sv, lik, X, y, epochs=500, lr=0.03)
     with torch.no_grad():
-        out["svgp_rmse"] = ((sv(Xt).mean - f(Xt)) ** 2).mean().sqrt().item()
+        out["svgp_rmse"] = (
+            ((predict(sv, Xt, likelihood=lik)["fmu"] - f(Xt)) ** 2).mean().sqrt().item()
+        )
     return out
 
 

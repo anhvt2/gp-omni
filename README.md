@@ -20,17 +20,17 @@ BoTorch-compatible models. Released under the [Apache 2.0 license](LICENSE).
 
 | Your problem | What to plug in | Example |
 |---|---|---|
-| Several objectives or responses share structure | `OmniGP(num_outputs=O)` for correlated outputs | [Multi-output surrogate](examples/omni_multiobjective.py) |
-| Cheap approximations and expensive experiments | `OmniGP(num_fidelities=L)` for autoregressive fidelity levels | [Multi-fidelity](examples/omni_multifidelity.py) |
-| Too many observations for a dense GP | `OmniGP(nu=M)` for inducing-point inference: VFE, FITC, or sparse power EP | [Sparse inference](examples/omni_bigdata.py) |
-| Many inputs with low-order interactions | `OmniGP(additive=R)` for interaction orders `1..R` | [Additive modeling](examples/omni_additive.py) |
-| Unknown feasibility or simulation failures | `OmniGPC` for learned feasibility probabilities, with the same four switches | [Objective + constraint models](examples/omni_constraints.py) |
-| Evaluations run in parallel and finish together | `BatchSeqBO` for batch-sequential constrained BO | [Batch BO](examples/batch_seq_bo.py) |
-| Evaluations finish at different times | `AsyncBO` for asynchronous constrained BO with GP-Hedge | [Async BO](examples/async_bo.py) |
+| Several objectives or responses share structure | `GPR(num_outputs=O)` for correlated outputs | [Multi-output surrogate](examples/gpr_multioutput.py) |
+| Cheap approximations and expensive experiments | `GPR(num_fidelities=L)` for autoregressive fidelity levels | [Multi-fidelity](examples/gpr_multifidelity.py) |
+| Too many observations for a dense GP | `GPR(nu=M)` for inducing-point inference: VFE, FITC, or sparse power EP | [Sparse inference](examples/gpr_sparse.py) |
+| Many inputs with low-order interactions | `GPR(additive=R)` for interaction orders `1..R` | [Additive modeling](examples/gpr_additive.py) |
+| Unknown feasibility or simulation failures | `GPC` for learned feasibility probabilities, with the same four switches | [Objective + constraint models](examples/gpr_gpc_constraints.py) |
+| Evaluations run in parallel and finish together | `batch_bo` for batch-sequential constrained BO | [Batch BO](examples/batch_seq_bo.py) |
+| Evaluations finish at different times | `async_bo` for asynchronous constrained BO with GP-Hedge | [Async BO](examples/async_bo.py) |
 
 The four surrogate switches are independent: use any subset, including all four together.
 The built-in BO loops currently optimize one scalar objective at one fidelity using default
-`OmniGP` / `OmniGPC` models. Multi-output and multi-fidelity surrogates are available for
+`GPR` / `GPC` models. Multi-output and multi-fidelity surrogates are available for
 custom optimization workflows; Pareto search and cost-aware fidelity selection require
 your own acquisition and orchestration logic.
 
@@ -74,7 +74,7 @@ import tempfile
 
 import numpy as np
 
-from gp_omni.asyncbo import AsyncBO, AsyncBOConfig
+from gp_omni.train.asyncbo import async_bo, async_bo_config
 
 
 def evaluate(x: np.ndarray) -> tuple[float, bool]:
@@ -84,7 +84,7 @@ def evaluate(x: np.ndarray) -> tuple[float, bool]:
     return value, feasible
 
 
-config = AsyncBOConfig(
+config = async_bo_config(
     model_name="my_experiment",
     x_lb=[0.0, 0.0],
     x_ub=[1.0, 1.0],
@@ -100,7 +100,7 @@ config = AsyncBOConfig(
 )
 
 with tempfile.TemporaryDirectory() as run_dir:
-    best_x, best_y = AsyncBO(run_dir, config, evaluate=evaluate).run()
+    best_x, best_y = async_bo(run_dir, config, evaluate=evaluate).run()
 
 print("Best feasible observation:", best_x, best_y)
 ```
@@ -112,12 +112,12 @@ Choose the execution pattern that matches your evaluations:
 
 | Mode | Configuration | Behavior |
 |---|---|---|
-| Sequential | `AsyncBO` with `exploit_size=1`, both exploration sizes `0` | One evaluation at a time |
-| Batch-sequential | `BatchSeqBO` + `BatchSeqBOConfig` | Launch a batch, wait for all results, then propose the next batch |
-| Asynchronous | `AsyncBO` + `AsyncBOConfig` | Refill available slots while other evaluations continue |
+| Sequential | `async_bo` with `exploit_size=1`, both exploration sizes `0` | One evaluation at a time |
+| Batch-sequential | `batch_bo` + `batch_bo_config` | Launch a batch, wait for all results, then propose the next batch |
+| Asynchronous | `async_bo` + `async_bo_config` | Refill available slots while other evaluations continue |
 
-`AsyncBOConfig.max_iter` counts total evaluations, including initial points.
-`BatchSeqBOConfig.max_iter` counts iterations: after `num_init_point` initial evaluations,
+`async_bo_config.max_iter` counts total evaluations, including initial points.
+`batch_bo_config.max_iter` counts iterations: after `num_init_point` initial evaluations,
 each remaining iteration launches a whole batch. Batch size is the sum of `exploit_size`,
 `explore_size`, and `explore_classifier_size`.
 
@@ -127,11 +127,37 @@ proposals. Async BO uses GP-Hedge to select acquisitions; batch BO uses a config
 acquisition (EI by default). Known constraint callbacks and learned feasibility probabilities
 weight exploitation proposals; initial and exploration points can still be infeasible.
 
-Load reusable settings with `AsyncBOConfig.from_json(...)` or
-`BatchSeqBOConfig.from_json(...)`; see [async settings](config/async_bo.json) and
+Load reusable settings with `async_bo_config.from_json(...)` or
+`batch_bo_config.from_json(...)`; see [async settings](config/async_bo.json) and
 [batch settings](config/batch_seq_bo.json). For external executables, supply a
 `query_script` instead of `evaluate`; the job-folder protocol is described in
-[`AsyncBO`](src/asyncbo/loop.py).
+[`async_bo`](src/train/asyncbo/loop.py).
+
+## Build, train, infer
+
+The source follows the three phases of a GP workflow:
+
+| Package | Responsibility |
+| --- | --- |
+| [`gp_omni.build`](src/build/) | Prepare models, covariance, means, likelihoods, and inducing inputs for the problem |
+| [`gp_omni.train`](src/train/) | Optimize evidence or ELBO objectives and orchestrate Bayesian optimization |
+| [`gp_omni.infer`](src/infer/) | Compute posterior distributions, predictive moments, and class probabilities |
+
+```python
+from gp_omni.build import GPR
+from gp_omni.train import fit
+from gp_omni.infer import predict
+
+model = GPR(cov="matern_ard", nu=20)
+fit(model, x, y, max_iter=100)
+prediction = predict(model, x_new)
+```
+
+The model methods `fit()` and `predict()` delegate to these phase implementations.
+For GPyTorch models, use `train.gpytorch.fit_exact` or `fit_variational` and
+`infer.predict`; supply the separately trained likelihood for variational predictions.
+Co-kriging constructors prepare data and topology; call `fit()` explicitly to train
+and assemble their posterior before predicting.
 
 ## Compose your surrogate
 
@@ -141,7 +167,7 @@ two correlated outputs, two fidelities, sparse inference, and additive interacti
 ```python
 import torch
 
-from gp_omni import OmniGP, OmniGPC
+from gp_omni import GPR, GPC
 
 torch.manual_seed(0)
 x = torch.rand(160, 3)
@@ -151,8 +177,8 @@ y = torch.sin(6 * x[:, 0]) + 0.3 * output + 0.2 * fidelity
 feasible = x[:, 0] + x[:, 1] < 1.2
 
 settings = dict(num_outputs=2, num_fidelities=2, nu=20, additive=2)
-objective = OmniGP(**settings).fit(x, y, output=output, fidelity=fidelity)
-constraint = OmniGPC(**settings).fit(x, feasible, output=output, fidelity=fidelity)
+objective = GPR(**settings).fit(x, y, output=output, fidelity=fidelity)
+constraint = GPC(**settings).fit(x, feasible, output=output, fidelity=fidelity)
 
 x_next = torch.rand(5, 3)
 prediction = objective.predict(x_next)
@@ -169,29 +195,40 @@ highest. Predictions default to every output at the highest fidelity; pass `outp
 Regression targets are standardized per output/fidelity pair and predictions are returned
 in the original units. Scale inputs to comparable ranges, such as the unit cube.
 `fmu` / `fs2` describe the latent function; `ymu` / `ys2` include observation noise.
-`OmniGPC` accepts boolean, `{0, 1}`, or `{-1, +1}` labels and returns marginal feasibility
+`GPC` accepts boolean, `{0, 1}`, or `{-1, +1}` labels and returns marginal feasibility
 probabilities for each constraint output.
 
 See the [documentation](docs/README.md) for model choices, inference options,
 data layouts, and model limitations. Run combinations directly:
 
 ```bash
-uv run python examples/omni_combined.py mo additive
-uv run python examples/omni_combined.py mf sparse
-uv run python examples/omni_combined.py all
-uv run python examples/omni_constraints.py all
+uv run python examples/gpr_combined.py mo additive
+uv run python examples/gpr_combined.py mf sparse
+uv run python examples/gpr_combined.py all
+uv run python examples/gpr_gpc_constraints.py all
 ```
+
+Model, training, inference, and BO defaults live in [`config/`](config/README.md).
+Explicit arguments override them; use `GPR.from_json(...)` or `GPC.from_json(...)` for
+per-run constructor settings. Defaults are read at module import time.
+
+Models are constructed through `gp_omni.build`, fitted through `gp_omni.train`, and
+queried through `gp_omni.infer`. Project-owned helper types use snake_case; likelihood
+names are `gaussian`, `probit`, and `logistic`. Covariance names include `se_ard`,
+`se_iso`, `matern_ard`, and `matern_iso`. Update older configuration files accordingly.
+The old `sparse`, `models`, `builders`, and `fit` import paths have been replaced by the
+phase packages. Co-kriging now requires an explicit `fit()` call before prediction.
 
 ## Work with GPyTorch, BoTorch, and GPML conventions
 
-For direct GPyTorch / BoTorch workflows, [`gp_omni.builders`](src/builders.py) provides
+For direct GPyTorch / BoTorch workflows, [`gp_omni.build.gpytorch`](src/build/gpytorch.py) provides
 exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
-[`gp_omni.fit`](src/fit.py) for fitting helpers. The exact GP builders, `AR1CoKriging`, and `DAGCoKriging`
-expose BoTorch-compatible posteriors; `OmniGP` / `OmniGPC` expose their own prediction
+[`gp_omni.train.gpytorch`](src/train/gpytorch.py) for fitting helpers. The exact GP builders, `ar1_cokriging`, and `dag_cokriging`
+expose BoTorch-compatible posteriors; `GPR` / `GPC` expose their own prediction
 interface.
 
-- [Exact GP](examples/exact_gp.py) · [Correlated outputs](examples/multioutput.py)
-- [SGPR, SVGP, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
+- [Exact GP](examples/exact_gpr.py) · [Correlated outputs](examples/multioutput.py)
+- [SGPR, svgp, and KISS-GP](examples/sparse.py) · [Variational classification](examples/classification.py)
 - [AR1 co-kriging](examples/cokriging.py) · [BoTorch multi-fidelity](examples/multifidelity_botorch.py)
 - [Hierarchical DAG co-kriging](examples/dag_cokriging.py) · [DAG model guide](docs/dag-cokriging.md)
 - [GPML-style sparse inference](examples/sparse_gpml.py)

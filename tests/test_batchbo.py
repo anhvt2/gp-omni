@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 import gp_omni  # noqa: F401
-from gp_omni.asyncbo import database as db
-from gp_omni.batchbo import BatchSeqBO, BatchSeqBOConfig
+from gp_omni.train.asyncbo import database as db
+from gp_omni.train.batchbo import batch_bo, batch_bo_config
 
 
 def make_config(**overrides):
@@ -30,7 +30,7 @@ def make_config(**overrides):
         "seed": 1,
         "known_constraint": lambda x: float(x[0] + x[1] <= 1.5),
     }
-    return BatchSeqBOConfig(**{**values, **overrides})
+    return batch_bo_config(**{**values, **overrides})
 
 
 def test_batches_run_in_parallel_but_never_overlap(tmp_path):
@@ -53,7 +53,7 @@ def test_batches_run_in_parallel_but_never_overlap(tmp_path):
             events.append((start, time.monotonic()))
         return -np.sum((x - 0.3) ** 2), bool(x[0] < 0.8)  # unknown constraint x0 < 0.8
 
-    x, y = BatchSeqBO(tmp_path, config, evaluate=simulation).run()
+    x, y = batch_bo(tmp_path, config, evaluate=simulation).run()
 
     size = config.batch.total
     assert len(events) == config.num_init_point + (config.max_iter - config.num_init_point) * size
@@ -72,7 +72,7 @@ def test_batches_run_in_parallel_but_never_overlap(tmp_path):
 
 def test_batch_points_are_distinct_thanks_to_hallucination(tmp_path):
     config = make_config(exploit_size=4, explore_size=0, explore_classifier_size=0, max_iter=4)
-    BatchSeqBO(tmp_path, config, evaluate=lambda x: (-np.sum((x - 0.3) ** 2), True)).run()
+    batch_bo(tmp_path, config, evaluate=lambda x: (-np.sum((x - 0.3) ** 2), True)).run()
     x_obs, _, _, _ = db.update_db(tmp_path)
     batch = x_obs[config.num_init_point :]
     spread = np.linalg.norm(batch[:, None] - batch[None], axis=-1)[np.triu_indices(4, 1)]
@@ -97,7 +97,7 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
     query.chmod(query.stat().st_mode | stat.S_IXUSR)
 
     config = make_config(query_script="query.sh", max_iter=5, seed=2)
-    x, y = BatchSeqBO(tmp_path, config).run()
+    x, y = batch_bo(tmp_path, config).run()
 
     jobs = db.iter_folders(tmp_path, "toy")
     assert len(jobs) == 3 + 2 * 4
@@ -111,10 +111,10 @@ def test_end_to_end_with_shell_script_jobs(tmp_path):
 
 def test_shipped_config_loads():
     path = Path(__file__).parents[1] / "config" / "batch_seq_bo.json"
-    config = BatchSeqBOConfig.from_json(path)
+    config = batch_bo_config.from_json(path)
     assert config.acquisition == "EI" and config.relax_alpha == 0.9 and config.batch.total == 5
 
 
 def test_launcher_is_required():
     with pytest.raises(ValueError):
-        BatchSeqBO(Path("/tmp/unused-batchbo"), make_config())
+        batch_bo(Path("/tmp/unused-batchbo"), make_config())
