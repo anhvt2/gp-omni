@@ -8,7 +8,7 @@ import torch
 
 from gp_omni.build.hyperparameters import make_hyperparameters
 from gp_omni.build.inducing import init_inducing
-from gp_omni.build.likelihood import LikGauss
+from gp_omni.build.likelihood import gaussian
 from gp_omni.build.multitask import (
     augment,
 )
@@ -41,7 +41,7 @@ def fit(
             "output / fidelity indices must lie in [0, num_outputs) / [0, num_fidelities)"
         )
     model._build(D)
-    gauss = isinstance(model.lik, LikGauss)
+    gauss = isinstance(model.lik, gaussian)
     if not gauss and not set(y.unique().tolist()) <= {-1.0, 1.0}:
         raise ValueError("classification labels must be in {-1, +1}")
 

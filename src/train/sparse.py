@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 from gp_omni.build.inducing import init_inducing
-from gp_omni.build.likelihood import LikGauss
+from gp_omni.build.likelihood import gaussian
 from gp_omni.settings import load_defaults
 from gp_omni.train.inducing import vfe_xu_opt
 from gp_omni.train.objectives import negative_log_evidence
@@ -27,14 +27,14 @@ def fit(
     x, y = x.to(torch.float64), y.to(torch.float64).reshape(-1)
     if y.shape[0] != x.shape[0]:
         raise ValueError("x and y must have the same number of rows")
-    if not isinstance(model.lik, LikGauss) and not set(y.unique().tolist()) <= {-1.0, 1.0}:
+    if not isinstance(model.lik, gaussian) and not set(y.unique().tolist()) <= {-1.0, 1.0}:
         raise ValueError("classification labels must be in {-1, +1}")
     h = hyp or model._initial_hyp(x, y, learn_xu)
     if hyp is not None:
         model._xu0 = h.get("xu", init_inducing(x, model.nu, model.init, model.seed))
     opt = {"s": model.s}
     if swap > 0:
-        if not (isinstance(model.lik, LikGauss) and model.s == 0.0):
+        if not (isinstance(model.lik, gaussian) and model.s == 0.0):
             raise ValueError("vfe_xu_opt swaps need s=0 and a Gaussian likelihood")
         h["xu"] = model._xu0.clone()
         h, _ = vfe_xu_opt(h, model.mean, model.cov, x, y, x, swap)

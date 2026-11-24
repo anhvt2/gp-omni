@@ -5,10 +5,10 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import Lik
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import sparse_covariance
 
 
 def make_hyperparameters(**kw) -> dict[str, Tensor]:
@@ -22,9 +22,11 @@ def _t(key: str, v) -> Tensor:
     return t if key == "xu" else t.reshape(-1)
 
 
-def check_hyperparameters(hyp: dict, mean: Mean, cov: Cov | SparseCov, lik: Lik, dim: int) -> None:
+def check_hyperparameters(
+    hyp: dict, mean: mean_function, cov: covariance | sparse_covariance, lik: likelihood, dim: int
+) -> None:
     """gpml's hyperparameter-count checks."""
-    base = cov.cov if isinstance(cov, SparseCov) else cov
+    base = cov.cov if isinstance(cov, sparse_covariance) else cov
     for key, need in (
         ("mean", mean.num_hyp(dim)),
         ("cov", base.num_hyp(dim)),

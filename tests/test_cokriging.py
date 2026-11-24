@@ -5,8 +5,8 @@ import pytest
 import torch
 
 import gp_omni  # noqa: F401  (sets float64)
-from gp_omni.correlation import correlation
-from gp_omni.models import AR1CoKriging
+from gp_omni.build import ar1_cokriging
+from gp_omni.build.correlation import correlation
 
 
 def branin_pair(n_lo=14, n_hi=6, seed=0):
@@ -88,7 +88,7 @@ FIXED = {"theta1": [0.3, 0.1], "theta2": [0.6, 0.2], "rho": 1.4}
 @pytest.mark.parametrize("kind", ["none", "regpoly0", "regpoly1"])
 def test_matches_dense_reference(name, kind):
     X, Y = branin_pair()
-    m = AR1CoKriging(X, Y, correlation=name, regression=kind, hyperparameters=FIXED)
+    m = ar1_cokriging(X, Y, correlation=name, regression=kind, hyperparameters=FIXED)
     xs = np.random.default_rng(1).random((15, 2))
     mean, var = m.predict(torch.tensor(xs))
     rmean, rvar = reference_predict(m, xs, name, kind)
@@ -99,7 +99,7 @@ def test_matches_dense_reference(name, kind):
 
 def test_fit_interpolates_high_fidelity_and_variance_nonnegative():
     X, Y = branin_pair()
-    m = AR1CoKriging(X, Y, correlation="matern32", regression="regpoly0")
+    m = ar1_cokriging(X, Y, correlation="matern32", regression="regpoly0")
     mean, var = m.predict(X[1])
     np.testing.assert_allclose(mean.numpy(), Y[1].numpy(), atol=1e-5 * np.abs(Y[1].numpy()).max())
     assert var.max() < 1e-6 * m.sigma2
@@ -112,10 +112,10 @@ def test_fit_interpolates_high_fidelity_and_variance_nonnegative():
 def test_rho_zero_decouples_low_fidelity():
     X, Y = branin_pair()
     hp = dict(FIXED, rho=0.0)
-    m = AR1CoKriging(X, Y, correlation="matern32", regression="regpoly0", hyperparameters=hp)
+    m = ar1_cokriging(X, Y, correlation="matern32", regression="regpoly0", hyperparameters=hp)
     # Perturbing the low-fidelity outputs must not change high-fidelity predictions.
     Y2 = [Y[0] + 100.0 * torch.randn(Y[0].shape[0]), Y[1]]
-    m2 = AR1CoKriging(X, Y2, correlation="matern32", regression="regpoly0", hyperparameters=hp)
+    m2 = ar1_cokriging(X, Y2, correlation="matern32", regression="regpoly0", hyperparameters=hp)
     xs = torch.rand(10, 2)
     a, b = m.predict(xs)[0], m2.predict(xs)[0]
     # level-2 sigma2 differs only through the (zero-weighted) rho*yc term -> identical data
@@ -124,7 +124,7 @@ def test_rho_zero_decouples_low_fidelity():
 
 def test_posterior_matches_predict_and_is_psd():
     X, Y = branin_pair()
-    m = AR1CoKriging(X, Y, regression="regpoly1", hyperparameters=FIXED)
+    m = ar1_cokriging(X, Y, regression="regpoly1", hyperparameters=FIXED)
     xs = torch.rand(3, 4, 2)  # batch of 3 q=4 candidate sets
     post = m.posterior(xs)
     assert post.mean.shape == (3, 4, 1)
@@ -142,7 +142,7 @@ def test_works_with_botorch_acquisition():
     from botorch.acquisition.analytic import LogExpectedImprovement
 
     X, Y = branin_pair()
-    m = AR1CoKriging(X, Y, regression="regpoly0", hyperparameters=FIXED)
+    m = ar1_cokriging(X, Y, regression="regpoly0", hyperparameters=FIXED)
     acq = LogExpectedImprovement(m, best_f=Y[1].min(), maximize=False)
     val = acq(torch.rand(5, 1, 2))
     assert val.shape == (5,) and torch.isfinite(val).all()
@@ -151,9 +151,9 @@ def test_works_with_botorch_acquisition():
 def test_rejects_bad_inputs():
     X, Y = branin_pair()
     with pytest.raises(ValueError):
-        AR1CoKriging(X + [X[1]], Y + [Y[1]])
+        ar1_cokriging(X + [X[1]], Y + [Y[1]])
     with pytest.raises(ValueError):
-        AR1CoKriging(X, Y, correlation="nope")
+        ar1_cokriging(X, Y, correlation="nope")
 
 
 def test_forrester_1d_benchmark():
@@ -161,14 +161,14 @@ def test_forrester_1d_benchmark():
     lo = lambda x: 0.5 * hi(x) + 10 * (x - 0.5) - 5
     X = [torch.linspace(0, 1, 20).reshape(-1, 1), torch.linspace(0, 1, 4).reshape(-1, 1)]
     Y = [lo(X[0][:, 0]), hi(X[1][:, 0])]
-    m = AR1CoKriging(X, Y, correlation="matern32")
+    m = ar1_cokriging(X, Y, correlation="matern32")
     xs = torch.linspace(0, 1, 201).reshape(-1, 1)
     truth = hi(xs[:, 0])
     rmse = ((m.predict(xs)[0] - truth) ** 2).mean().sqrt()
     assert rmse < 0.5
     # co-kriging must beat kriging on the 4 high-fidelity points alone
     # (rho = 0 -> low fidelity ignored)
-    m_hi = AR1CoKriging(
+    m_hi = ar1_cokriging(
         X, Y, correlation="matern32", hyperparameters={**m.hyperparameters, "rho": 0.0}
     )
     rmse_hi = ((m_hi.predict(xs)[0] - truth) ** 2).mean().sqrt()
@@ -192,7 +192,7 @@ def test_matches_matlab_fixture():
     hp = {"theta1": theta, "theta2": theta, "rho": float(d["rho"])}
     xs = torch.tensor(d["xs"])
     for case in np.atleast_1d(d["cases"]):
-        m = AR1CoKriging(
+        m = ar1_cokriging(
             X, Y, correlation=str(case.corr), regression=str(case.regr), hyperparameters=hp
         )
         mean, var = m.predict(xs)

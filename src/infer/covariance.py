@@ -25,8 +25,8 @@ from dataclasses import dataclass, field
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.sparse_covariance import SparseCov, get_xu
+from gp_omni.build.covariance import covariance
+from gp_omni.build.sparse_covariance import get_xu, sparse_covariance
 from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("inference")
@@ -39,19 +39,19 @@ def _tri_solve(R: Tensor, b: Tensor, upper: bool) -> Tensor:
 
 
 @dataclass
-class Approx:
+class covariance_operator:
     """gpml's ``K`` structure: ``mvm``, ``P``, ``Pt`` and ``fun(W)``."""
 
     mvm: Callable[[Tensor], Tensor]
     P: Callable[[Tensor], Tensor]
     Pt: Callable[[Tensor], Tensor]
-    fun: Callable[[Tensor], WFuns]
+    fun: Callable[[Tensor], weighted_covariance]
     sparse: bool = False
     extra: dict = field(default_factory=dict)
 
 
 @dataclass
-class WFuns:
+class weighted_covariance:
     """Outputs of ``K.fun(W)``: ``ldB2 = log det(B)/2``, ``solveKiW(r) = (K + inv(W)) \\ r``
     and ``L`` (the matrix defining the predictive variance, see gpml ``gp.m``)."""
 
@@ -66,24 +66,24 @@ def _col(d: Tensor, r: Tensor) -> Tensor:
 
 def apx(
     hyp: dict,
-    cov: Cov | SparseCov,
+    cov: covariance | sparse_covariance,
     x: Tensor,
     opt: dict | None = None,
     want_L: bool = True,
-) -> Approx:
+) -> covariance_operator:
     """Build the covariance approximation: exact (dense) or sparse, like gpml's ``apx``."""
     opt = opt or {}
-    if isinstance(cov, SparseCov):
+    if isinstance(cov, sparse_covariance):
         return _sparse(hyp, cov, x, float(opt.get("s", DEFAULTS["sparse"]["s"])), want_L)
     return _exact(hyp, cov, x)
 
 
 # --------------------------------------------------------------------------- A) exact
-def _exact(hyp: dict, cov: Cov, x: Tensor) -> Approx:
+def _exact(hyp: dict, cov: covariance, x: Tensor) -> covariance_operator:
     K = cov(hyp["cov"], x)
     n = K.shape[0]
 
-    def fun(W: Tensor) -> WFuns:
+    def fun(W: Tensor) -> weighted_covariance:
         if bool((W < 0).any()):
             raise NotImplementedError("exact inference with negative W (LU mode) is not ported")
         sW = torch.sqrt(W)
@@ -96,14 +96,16 @@ def _exact(hyp: dict, cov: Cov, x: Tensor) -> Approx:
             u = _col(sW, r)
             return _col(sW, torch.cholesky_solve(u.reshape(n, -1), L, upper=True).reshape(r.shape))
 
-        return WFuns(ldB2, solveKiW, L)
+        return weighted_covariance(ldB2, solveKiW, L)
 
     ident = lambda v: v
-    return Approx(lambda v: K @ v, ident, ident, fun, sparse=False)
+    return covariance_operator(lambda v: K @ v, ident, ident, fun, sparse=False)
 
 
 # -------------------------------------------------------------------------- B) sparse
-def _sparse(hyp: dict, sc: SparseCov, x: Tensor, s: float, want_L: bool) -> Approx:
+def _sparse(
+    hyp: dict, sc: sparse_covariance, x: Tensor, s: float, want_L: bool
+) -> covariance_operator:
     if not 0.0 <= s <= 1.0:
         raise ValueError("opt['s'] must lie in [0, 1]")
     xu = get_xu(hyp, sc)  # hyp.xu has priority (gpml)
@@ -128,7 +130,7 @@ def _sparse(hyp: dict, sc: SparseCov, x: Tensor, s: float, want_L: bool) -> Appr
     P = lambda v: _tri_solve(Luu, V @ v, upper=True)
     Pt = lambda v: V.T @ _tri_solve(Luu.T, v, upper=False)
 
-    def fun(W: Tensor) -> WFuns:  # ldB2_sparse
+    def fun(W: Tensor) -> weighted_covariance:  # ldB2_sparse
         z = s * g * W
         if s == 0.0:
             t = g * W  # VFE: t = g*W
@@ -149,6 +151,8 @@ def _sparse(hyp: dict, sc: SparseCov, x: Tensor, s: float, want_L: bool) -> Appr
             L = torch.cholesky_inverse(Lu @ Luu, upper=True) - torch.cholesky_inverse(
                 Luu, upper=True
             )
-        return WFuns(ldB2, solveKiW, L)
+        return weighted_covariance(ldB2, solveKiW, L)
 
-    return Approx(mvm, P, Pt, fun, sparse=True, extra={"V": V, "g": g, "Luu": Luu, "xu": xu})
+    return covariance_operator(
+        mvm, P, Pt, fun, sparse=True, extra={"V": V, "g": g, "Luu": Luu, "xu": xu}
+    )

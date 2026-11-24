@@ -6,24 +6,24 @@ import pytest
 import torch
 
 from gp_omni import GPC, GPR
+from gp_omni.build.sparse import sparse_gp
 from gp_omni.settings import load_defaults
-from gp_omni.sparse import SparseGP
 
 
-@pytest.mark.parametrize("model_type", [GPR, GPC, SparseGP])
+@pytest.mark.parametrize("model_type", [GPR, GPC, sparse_gp])
 def test_model_config_fit_predict(model_type, tmp_path):
     path = tmp_path / "model.json"
-    path.write_text(json.dumps({"nu": 5, "cov": "Maternard", "seed": 12}))
+    path.write_text(json.dumps({"nu": 5, "cov": "matern_ard", "seed": 12}))
     # An explicit override takes precedence; omitted arguments retain model defaults.
     model = model_type.from_json(path, seed=7)
     assert model.seed == 7
     assert model.nu == 5
-    if model_type is SparseGP:
-        assert model.cov.kind == "Maternard"
+    if model_type is sparse_gp:
+        assert model.cov.kind == "matern_ard"
     else:
-        assert model.cov_kind == "Maternard"
+        assert model.cov_kind == "matern_ard"
     if model_type is GPC:
-        assert model.lik_name == "likErf"
+        assert model.lik_name == "probit"
 
     x = torch.linspace(0, 1, 12).unsqueeze(-1)
     y = x[:, 0] > 0.5 if model_type is GPC else torch.sin(6 * x[:, 0])
@@ -37,7 +37,7 @@ def test_model_config_fit_predict(model_type, tmp_path):
         assert ((probability >= 0) & (probability <= 1)).all()
 
 
-@pytest.mark.parametrize("model_type", [GPR, GPC, SparseGP])
+@pytest.mark.parametrize("model_type", [GPR, GPC, sparse_gp])
 def test_model_config_rejects_unknown_keys(model_type, tmp_path):
     path = tmp_path / "model.json"
     path.write_text('{"nu": 3, "typo": 42}')
@@ -56,7 +56,7 @@ def test_packaged_defaults_are_independent_of_working_directory(tmp_path, monkey
     monkeypatch.chdir(tmp_path)
     values = load_defaults("models")
     values["gpr"]["cov"] = "changed"
-    assert load_defaults("models")["gpr"]["cov"] == "SEard"
+    assert load_defaults("models")["gpr"]["cov"] == "se_ard"
     for name in ("training", "inference", "builders", "bo"):
         assert load_defaults(name)
     with pytest.raises(ValueError, match="unknown defaults"):

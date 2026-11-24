@@ -7,27 +7,27 @@ from collections.abc import Callable
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
+from gp_omni.build.covariance import covariance
 from gp_omni.build.hyperparameters import check_hyperparameters
-from gp_omni.build.likelihood import Lik
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov
-from gp_omni.infer.posterior import Posterior
+from gp_omni.build.likelihood import likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import sparse_covariance
+from gp_omni.infer.posterior import posterior_state
 
-inference_method = Callable[..., tuple[Posterior, Tensor]]
+inference_method = Callable[..., tuple[posterior_state, Tensor]]
 
 
 def negative_log_evidence(
     hyp: dict,
     inf: inference_method,
-    mean: Mean,
-    cov: Cov | SparseCov,
-    lik: Lik,
+    mean: mean_function,
+    cov: covariance | sparse_covariance,
+    lik: likelihood,
     x: Tensor,
     y: Tensor,
     opt: dict | None = None,
     grad: bool = True,
-) -> tuple[Tensor, dict[str, Tensor] | None, Posterior]:
+) -> tuple[Tensor, dict[str, Tensor] | None, posterior_state]:
     """``[nlZ, dnlZ, post] = gp(hyp, inf, mean, cov, lik, x, y)``.
 
     ``dnlZ`` has the same keys as ``hyp`` (all tensors in ``hyp`` that require grad are

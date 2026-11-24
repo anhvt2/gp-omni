@@ -14,14 +14,16 @@ import math
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.mean import Mean
+from gp_omni.build.covariance import covariance
+from gp_omni.build.mean import mean_function
 from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("inference")
 
 
-def _vfe(hyp: dict, mean: Mean, cov: Cov, xu: Tensor, x: Tensor, y: Tensor, z: Tensor):
+def _vfe(
+    hyp: dict, mean: mean_function, cov: covariance, xu: Tensor, x: Tensor, y: Tensor, z: Tensor
+):
     n, nu = x.shape[0], xu.shape[0]
     hc = hyp["cov"]
     m = mean(hyp["mean"], x)
@@ -73,8 +75,8 @@ def _vfe(hyp: dict, mean: Mean, cov: Cov, xu: Tensor, x: Tensor, y: Tensor, z: T
 
 def vfe_xu_opt(
     hyp: dict,
-    mean: Mean,
-    cov: Cov,
+    mean: mean_function,
+    cov: covariance,
     x: Tensor,
     y: Tensor,
     z: Tensor,

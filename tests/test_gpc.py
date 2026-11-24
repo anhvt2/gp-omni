@@ -139,7 +139,7 @@ def test_probabilities_are_calibrated_better_than_a_constant():
     brier = float(((p - truth_label) ** 2).mean())
     base_rate = float(truth_label.mean())
     assert brier < 0.5 * base_rate * (1 - base_rate)  # at least 2x better than predicting the rate
-    for like in ("likErf", "likLogistic"):
+    for like in ("probit", "logistic"):
         q = GPC(lik=like).fit(x, y).predict_proba(XT)
         assert float(((q >= 0.5).double() == truth_label).double().mean()) > 0.9
 
@@ -162,7 +162,7 @@ def test_label_formats_and_validation():
     with pytest.raises(ValueError):
         GPC().fit(x, torch.full_like(y, 2.0))
     with pytest.raises(ValueError):
-        GPC(lik="likGauss")
+        GPC(lik="gaussian")
     with pytest.raises(ValueError):
         GPC(lik="nonsense")
     with pytest.raises(RuntimeError):

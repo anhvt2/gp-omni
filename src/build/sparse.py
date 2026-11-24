@@ -15,20 +15,20 @@ from typing import Self
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
+from gp_omni.build.covariance import covariance
 from gp_omni.build.hyperparameters import make_hyperparameters
 from gp_omni.build.inducing import init_inducing
-from gp_omni.build.likelihood import LikGauss, make_likelihood
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov
-from gp_omni.infer.posterior import Posterior, gaussian_posterior, laplace_posterior
+from gp_omni.build.likelihood import gaussian, make_likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import sparse_covariance
+from gp_omni.infer.posterior import gaussian_posterior, laplace_posterior, posterior_state
 from gp_omni.settings import load_defaults, load_model_config
 
 DEFAULTS = load_defaults("models")
 INFERENCE = load_defaults("inference")
 
 
-class SparseGP:
+class sparse_gp:
     """Sparse GP regression / classification following gpml's ``apxSparse``.
 
     Parameters
@@ -56,13 +56,13 @@ class SparseGP:
     ):
         self.nu, self.s, self.init, self.seed, self.learn_snu = nu, s, init, seed, learn_snu
         self.cov, self.mean, self.lik = (
-            Cov(cov, degree),
-            Mean(mean),
+            covariance(cov, degree),
+            mean_function(mean),
             make_likelihood(lik),
         )
-        self.inf = gaussian_posterior if isinstance(self.lik, LikGauss) else laplace_posterior
+        self.inf = gaussian_posterior if isinstance(self.lik, gaussian) else laplace_posterior
         self.hyp: dict[str, Tensor] | None = None
-        self.post: Posterior | None = None
+        self.post: posterior_state | None = None
         self.nlZ: float | None = None
 
     @classmethod
@@ -74,7 +74,7 @@ class SparseGP:
     def _initial_hyp(self, x: Tensor, y: Tensor, learn_xu: bool) -> dict[str, Tensor]:
         d = x.shape[1]
         ell = torch.log(x.std(0).clamp_min(DEFAULTS["initialization"]["lengthscale_floor"]))
-        gauss = isinstance(self.lik, LikGauss)
+        gauss = isinstance(self.lik, gaussian)
         sf = (
             torch.log(y.std().clamp_min(DEFAULTS["initialization"]["signal_std_floor"]))
             if gauss
@@ -105,8 +105,8 @@ class SparseGP:
             )[None]
         return hyp
 
-    def _cov(self) -> SparseCov:
-        return SparseCov(self.cov, self._xu0)
+    def _cov(self) -> sparse_covariance:
+        return sparse_covariance(self.cov, self._xu0)
 
     # --------------------------------------------------------------------------- API
     def fit(
@@ -117,7 +117,7 @@ class SparseGP:
         swap: int = DEFAULTS["sparse_fit"]["swap"],
         max_iter: int = DEFAULTS["sparse_fit"]["max_iter"],
         hyp: dict[str, Tensor] | None = None,
-    ) -> SparseGP:
+    ) -> sparse_gp:
         """Fit through :mod:`gp_omni.train.sparse`."""
         from gp_omni.train.sparse import fit
 

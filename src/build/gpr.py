@@ -28,17 +28,17 @@ from typing import Self
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import LikGauss, make_likelihood
-from gp_omni.build.mean import Mean
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import gaussian, make_likelihood
+from gp_omni.build.mean import mean_function
 from gp_omni.build.multitask import (
-    LikGaussTask,
-    TaskCov,
-    TaskMean,
+    task_covariance,
     task_expand,
+    task_gaussian,
+    task_mean,
 )
-from gp_omni.build.sparse_covariance import SparseCov
-from gp_omni.infer.posterior import Posterior, gaussian_posterior, laplace_posterior
+from gp_omni.build.sparse_covariance import sparse_covariance
+from gp_omni.infer.posterior import gaussian_posterior, laplace_posterior, posterior_state
 from gp_omni.settings import load_defaults, load_model_config
 
 DEFAULTS = load_defaults("models")
@@ -83,7 +83,7 @@ class GPR:
         self.lik_name = lik
         make_likelihood(lik)  # fail early on an unknown likelihood name
         self.hyp: dict[str, Tensor] | None = None
-        self.post: Posterior | None = None
+        self.post: posterior_state | None = None
         self.nlZ: float | None = None
 
     @classmethod
@@ -94,26 +94,28 @@ class GPR:
     # ------------------------------------------------------------------ construction
     def _build(self, D: int) -> None:
         base = (
-            Cov("ADD", orders=self.additive) if self.additive else Cov(self.cov_kind, self.degree)
+            covariance("additive", orders=self.additive)
+            if self.additive
+            else covariance(self.cov_kind, self.degree)
         )
         self.base = base
-        gauss = self.lik_name == "likGauss"
+        gauss = self.lik_name == "gaussian"
         if self.multitask:
-            self.cov = TaskCov(base, D, self.O, self.L, self.rank)
-            self.mean = TaskMean(D, self.O, self.L)
-            self.lik = LikGaussTask(D, self.O, self.L) if gauss else make_likelihood(self.lik_name)
+            self.cov = task_covariance(base, D, self.O, self.L, self.rank)
+            self.mean = task_mean(D, self.O, self.L)
+            self.lik = task_gaussian(D, self.O, self.L) if gauss else make_likelihood(self.lik_name)
         else:
             self.cov, self.mean, self.lik = (
                 base,
-                Mean("const"),
+                mean_function("const"),
                 make_likelihood(self.lik_name),
             )
-        self.inf = gaussian_posterior if isinstance(self.lik, LikGauss) else laplace_posterior
+        self.inf = gaussian_posterior if isinstance(self.lik, gaussian) else laplace_posterior
 
     def _base_hyp(self, x: Tensor, sf: float) -> Tensor:
         D = x.shape[1]
         ell = torch.log(x.std(0).clamp_min(DEFAULTS["initialization"]["lengthscale_floor"]))
-        if self.base.kind == "ADD":
+        if self.base.kind == "additive":
             amp = torch.tensor([-0.5 * math.log(math.comb(D, r)) for r in self.base.orders])
             return torch.cat([ell, amp])
         if self.base.kind.endswith("ard"):
@@ -123,10 +125,10 @@ class GPR:
     def _expand(self):
         return task_expand(self._D, self.O, self.L) if self.multitask else None
 
-    def _sparse_cov(self, xu: Tensor | None) -> SparseCov | TaskCov | Cov:
+    def _sparse_cov(self, xu: Tensor | None) -> sparse_covariance | task_covariance | covariance:
         if self.nu is None:
             return self.cov
-        return SparseCov(self.cov, xu, expand=self._expand())
+        return sparse_covariance(self.cov, xu, expand=self._expand())
 
     # ------------------------------------------------------------------------- fit
     def fit(

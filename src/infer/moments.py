@@ -5,19 +5,19 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import Lik
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov, get_xu
-from gp_omni.infer.posterior import Posterior
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import get_xu, sparse_covariance
+from gp_omni.infer.posterior import posterior_state
 
 
 def predict_gp(
     hyp: dict,
-    post: Posterior,
-    mean: Mean,
-    cov: Cov | SparseCov,
-    lik: Lik,
+    post: posterior_state,
+    mean: mean_function,
+    cov: covariance | sparse_covariance,
+    lik: likelihood,
     x: Tensor,
     xs: Tensor,
     ys: Tensor | None = None,
@@ -25,9 +25,9 @@ def predict_gp(
     """``[ymu, ys2, fmu, fs2, lp] = gp(hyp, inf, mean, cov, lik, x, y, xs, ys)``."""
     with torch.no_grad():
         hd = {k: v.detach() for k, v in hyp.items()}
-        base = cov.cov if isinstance(cov, SparseCov) else cov
+        base = cov.cov if isinstance(cov, sparse_covariance) else cov
         kss = base(hd["cov"], xs, "diag")
-        if isinstance(cov, SparseCov):
+        if isinstance(cov, sparse_covariance):
             xu = get_xu(hd, cov)
             Ks = base(hd["cov"], xu, xs)  # cross-covariances to the inducing inputs
         else:

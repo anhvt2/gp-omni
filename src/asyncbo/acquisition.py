@@ -20,9 +20,9 @@ import torch
 from scipy.stats import norm
 
 from gp_omni.bo_config import KnownConstraint, check_constraint
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
 from gp_omni.settings import load_defaults
-from gp_omni.sparse.gpc import GPC
-from gp_omni.sparse.gpr import GPR
 
 DEFAULTS = load_defaults("bo")
 

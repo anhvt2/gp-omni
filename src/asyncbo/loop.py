@@ -35,8 +35,8 @@ from gp_omni.asyncbo.sampling import (
     get_next_sampling_point_reduce_mse,
 )
 from gp_omni.bo_config import BOConfig
-from gp_omni.sparse.gpc import GPC
-from gp_omni.sparse.gpr import GPR
+from gp_omni.build.gpc import GPC
+from gp_omni.build.gpr import GPR
 
 log = logging.getLogger(__name__)
 

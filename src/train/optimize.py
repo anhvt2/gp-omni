@@ -7,10 +7,10 @@ import torch
 from scipy.optimize import minimize
 from torch import Tensor
 
-from gp_omni.build.covariance import Cov
-from gp_omni.build.likelihood import Lik
-from gp_omni.build.mean import Mean
-from gp_omni.build.sparse_covariance import SparseCov
+from gp_omni.build.covariance import covariance
+from gp_omni.build.likelihood import likelihood
+from gp_omni.build.mean import mean_function
+from gp_omni.build.sparse_covariance import sparse_covariance
 from gp_omni.settings import load_defaults
 from gp_omni.train.objectives import inference_method, negative_log_evidence
 
@@ -22,9 +22,9 @@ _BIG = 1e12
 def optimize(
     hyp: dict[str, Tensor],
     inf: inference_method,
-    mean: Mean,
-    cov: Cov | SparseCov,
-    lik: Lik,
+    mean: mean_function,
+    cov: covariance | sparse_covariance,
+    lik: likelihood,
     x: Tensor,
     y: Tensor,
     opt: dict | None = None,
