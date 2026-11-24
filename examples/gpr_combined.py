@@ -1,9 +1,9 @@
 """Pick any subset of the four features and run it end to end.
 
-    python examples/omni_combined.py                      # 1+2, then +3, then +4 (default)
-    python examples/omni_combined.py mo additive          # high-dimensional multi-objective
-    python examples/omni_combined.py mf sparse            # sparse multi-fidelity
-    python examples/omni_combined.py mo mf sparse additive    # or: all
+    python examples/gpr_combined.py                      # 1+2, then +3, then +4 (default)
+    python examples/gpr_combined.py mo additive          # high-dimensional multi-objective
+    python examples/gpr_combined.py mf sparse            # sparse multi-fidelity
+    python examples/gpr_combined.py mo mf sparse additive    # or: all
 
 Features: ``mo`` (correlated multi-objective), ``mf`` (multi-fidelity), ``sparse`` (big data,
 sparse covariance), ``additive`` (additive high-dimensional). Any subset works, including one
@@ -18,7 +18,7 @@ import sys
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 FEATURES = ("mo", "mf", "sparse", "additive")
 W = [1.0, 0.8]  # how each objective loads on the shared structure
@@ -55,7 +55,7 @@ def run_features(features, max_iter: int = 80) -> float:
     x, y, o, f = torch.cat(xs), torch.cat(ys), torch.cat(os_), torch.cat(fs)
     xt = torch.rand(400, 4, generator=g)
 
-    model = OmniGP(
+    model = GPR(
         num_outputs=O,
         num_fidelities=L,
         nu=40 if "sparse" in features else None,

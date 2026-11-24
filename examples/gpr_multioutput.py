@@ -9,7 +9,7 @@ Data layout: stack all rows in one ``x``/``y`` and tell the model which output e
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 
 def main() -> dict:
@@ -23,8 +23,8 @@ def main() -> dict:
         [f[o](x[output == o]) + 0.02 * torch.randn(k, generator=g) for o, k in enumerate(n)]
     )
 
-    model = OmniGP(num_outputs=2).fit(x, y, output=output)  # <- the feature switch
-    alone = OmniGP().fit(x[output == 1], y[output == 1])  # only the 8 samples
+    model = GPR(num_outputs=2).fit(x, y, output=output)  # <- the feature switch
+    alone = GPR().fit(x[output == 1], y[output == 1])  # only the 8 samples
 
     xt = torch.rand(400, 3, generator=g)
     truth = f[1](xt)

@@ -8,7 +8,7 @@ import pytest
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP, OmniGPC
+from gp_omni import GPC, GPR
 from gp_omni.asyncbo import AsyncBO, AsyncBOConfig, negative_acquisition
 from gp_omni.asyncbo import database as db
 from gp_omni.asyncbo.acquisition import (
@@ -24,8 +24,8 @@ def models():
     x_obs = rng.random((12, 2))
     y_obs = -np.sum((x_obs - 0.5) ** 2, axis=1)
     f_obs = (x_obs[:, 0] < 0.8).astype(float)
-    obj = OmniGP().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=60)
-    classifier = OmniGPC().fit(torch.as_tensor(x_obs), torch.as_tensor(f_obs > 0), max_iter=60)
+    obj = GPR().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=60)
+    classifier = GPC().fit(torch.as_tensor(x_obs), torch.as_tensor(f_obs > 0), max_iter=60)
     return x_obs, y_obs, obj, classifier
 
 

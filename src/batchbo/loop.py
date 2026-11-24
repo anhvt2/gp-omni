@@ -39,7 +39,8 @@ from gp_omni.asyncbo.sampling import (
     get_next_sampling_point_reduce_mse,
 )
 from gp_omni.bo_config import BOConfig
-from gp_omni.sparse.omni import OmniGP, OmniGPC
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 
 log = logging.getLogger(__name__)
 
@@ -74,10 +75,10 @@ class BatchSeqBO(AsyncBO):
         y_obs = np.append(y_obs, mu)
         f_obs = np.append(f_obs, 1.0)
         n = self.config.gp_max_iter
-        self.model = OmniGP().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=n)
+        self.model = GPR().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=n)
         self.classifier = None
         if (f_obs == 0).any():
-            self.classifier = OmniGPC().fit(
+            self.classifier = GPC().fit(
                 torch.as_tensor(x_obs), torch.as_tensor(f_obs > 0), max_iter=n
             )
         self.y_hallucinated = y_obs

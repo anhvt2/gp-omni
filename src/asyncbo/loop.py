@@ -35,7 +35,8 @@ from gp_omni.asyncbo.sampling import (
     get_next_sampling_point_reduce_mse,
 )
 from gp_omni.bo_config import BOConfig
-from gp_omni.sparse.omni import OmniGP, OmniGPC
+from gp_omni.sparse.gpc import GPC
+from gp_omni.sparse.gpr import GPR
 
 log = logging.getLogger(__name__)
 
@@ -63,8 +64,8 @@ class AsyncBO:
         self.rng = np.random.default_rng(config.seed)
         self.pool = ThreadPoolExecutor(max_workers=config.batch.total) if evaluate else None
         self.futures: list[Future] = []
-        self.model: OmniGP | None = None
-        self.classifier: OmniGPC | None = None
+        self.model: GPR | None = None
+        self.classifier: GPC | None = None
         self.y_hallucinated: np.ndarray | None = None
         self.root.mkdir(parents=True, exist_ok=True)
         db.write_settings(self.root, config.model_name, config.batch, config.wait_time)
@@ -120,14 +121,14 @@ class AsyncBO:
         feasible = torch.as_tensor(f_obs > 0)
         self.model = self.classifier = self.y_hallucinated = None
         if feasible.sum() >= 2:
-            interp = OmniGP().fit(x_train[feasible], torch.as_tensor(y_obs)[feasible], max_iter=n)
+            interp = GPR().fit(x_train[feasible], torch.as_tensor(y_obs)[feasible], max_iter=n)
             y_obs = y_obs.copy()
             for i in np.flatnonzero(f_obs == 0):
                 y_obs[i] = predict_objective(interp, x_obs[i])[0]
-            self.model = OmniGP().fit(x_train, torch.as_tensor(y_obs), max_iter=n)
+            self.model = GPR().fit(x_train, torch.as_tensor(y_obs), max_iter=n)
             self.y_hallucinated = y_obs
         if 0 < feasible.sum() < len(f_obs):
-            self.classifier = OmniGPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
+            self.classifier = GPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
 
     # ------------------------------------------------------------------------ proposals
     def propose(self, batch_id: int, x_obs: np.ndarray) -> tuple[np.ndarray, str | None]:

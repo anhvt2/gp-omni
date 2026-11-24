@@ -7,7 +7,7 @@ method: 0 = variational free energy (default), 1 = FITC, in between = sparse pow
 import torch
 
 import gp_omni  # noqa: F401
-from gp_omni import OmniGP
+from gp_omni import GPR
 
 
 def main() -> dict:
@@ -17,7 +17,7 @@ def main() -> dict:
     y = f(x) + 0.1 * torch.randn(20_000, generator=g)
     out = {}
     for name, s in (("vfe", 0.0), ("fitc", 1.0)):
-        model = OmniGP(nu=40, s=s).fit(x, y, max_iter=30)  # <- the feature switch
+        model = GPR(nu=40, s=s).fit(x, y, max_iter=30)  # <- the feature switch
         xt = torch.rand(500, 2, generator=g)
         out[f"{name}_rmse"] = ((model.predict(xt)["fmu"] - f(xt)) ** 2).mean().sqrt().item()
         out[f"{name}_noise_sd"] = model.hyp["lik"].exp().item() * model._sd[0].item()  # true: 0.1
