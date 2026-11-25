@@ -21,8 +21,15 @@ def predict_gp(
     x: Tensor,
     xs: Tensor,
     ys: Tensor | None = None,
+    full_cov: bool = False,
 ) -> dict[str, Tensor]:
-    """``[ymu, ys2, fmu, fs2, lp] = gp(hyp, inf, mean, cov, lik, x, y, xs, ys)``."""
+    """``[ymu, ys2, fmu, fs2, lp] = gp(hyp, inf, mean, cov, lik, x, y, xs, ys)``.
+
+    ``full_cov=True`` also returns ``fcov``, the latent joint covariance over ``xs``
+    (exact GPs only).
+    """
+    if full_cov and isinstance(cov, sparse_covariance):
+        raise NotImplementedError("full_cov is not implemented yet for sparse GPs")
     with torch.no_grad():
         hd = {k: v.detach() for k, v in hyp.items()}
         base = cov.cov if isinstance(cov, sparse_covariance) else cov
@@ -41,5 +48,18 @@ def predict_gp(
         else:
             fs2 = kss + (Ks * post.L(Ks)).sum(0)
         fs2 = torch.clamp(fs2, min=0.0)
+        fcov = None
+        if full_cov:
+            kss_full = base(hd["cov"], xs, xs)
+            if post.L_kind == "chol":
+                fcov = kss_full - V.T @ V
+            elif post.L_kind == "matrix":
+                fcov = kss_full + Ks.T @ post.L @ Ks
+            else:
+                fcov = kss_full + Ks.T @ post.L(Ks)
+            fcov = (fcov + fcov.T) / 2
         lp, ymu, ys2 = lik.predict(hd["lik"], ys, fmu, fs2, xs)
-    return {"ymu": ymu, "ys2": ys2, "fmu": fmu, "fs2": fs2, "lp": lp}
+    out = {"ymu": ymu, "ys2": ys2, "fmu": fmu, "fs2": fs2, "lp": lp}
+    if fcov is not None:
+        out["fcov"] = fcov
+    return out

@@ -14,5 +14,6 @@
   "gp_max_iter": 60,
   "cma_max_evals": 60,
   "seed": 0,
+  "hedge_arms": ["UCB", "EI", "PI"],
   "query_script": null
 }

@@ -25,7 +25,7 @@ build-backend = "setuptools.build_meta"
 # The package lives directly in src/ and is installed/imported as `gp_omni`.
 [tool.setuptools]
 package-dir = { "gp_omni" = "src", "gp_omni.config" = "config" }
-packages = ["gp_omni", "gp_omni.build", "gp_omni.train", "gp_omni.infer", "gp_omni.train.asyncbo", "gp_omni.train.batchbo", "gp_omni.config"]
+packages = ["gp_omni", "gp_omni.build", "gp_omni.train", "gp_omni.infer", "gp_omni.opt", "gp_omni.opt.acquisition", "gp_omni.opt.acquisition.single_objective", "gp_omni.opt.acquisition.multi_objective", "gp_omni.opt.parallel", "gp_omni.opt.parallel.asyncbo", "gp_omni.opt.parallel.batchbo", "gp_omni.config"]
 
 [tool.setuptools.package-data]
 "gp_omni.config" = ["*.json"]

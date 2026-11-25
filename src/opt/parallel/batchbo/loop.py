@@ -2,14 +2,14 @@
 
 Every iteration proposes a whole batch of
 points, runs the batch in parallel, and moves on only when the *entire* batch has finished
-(the asynchronous variant in :mod:`gp_omni.train.asyncbo` instead refills slots one by one).
+(the asynchronous variant in :mod:`gp_omni.opt.parallel.asyncbo` instead refills slots one by one).
 
 Inside an iteration the points are chosen one after another with hallucination: after each
 proposal the point and the objective model's own prediction there are added to the data
 (labelled feasible) and both models are refitted, which pushes the next proposal elsewhere.
 The batch is filled in three parts, each launched as soon as its point is chosen:
 
-1. ``exploit_size`` points maximising ``EI * known_constraint * P(feasible)``;
+1. ``exploit_size`` points maximising ``acquisition * known_constraint * P(feasible)``;
 2. ``explore_size`` points of maximal objective-model uncertainty;
 3. ``explore_classifier_size`` points of maximal constraint-classifier uncertainty.
 
@@ -28,20 +28,18 @@ import time
 from dataclasses import dataclass
 
 import numpy as np
-import torch
 
-from gp_omni.build.gpc import GPC
-from gp_omni.build.gpr import GPR
-from gp_omni.settings import load_defaults
-from gp_omni.train.asyncbo import database as db
-from gp_omni.train.asyncbo.acquisition import predict_objective
-from gp_omni.train.asyncbo.loop import async_bo
-from gp_omni.train.asyncbo.sampling import (
+from gp_omni.opt.acquisition import check_acquisition_name
+from gp_omni.opt.config import bo_config
+from gp_omni.opt.parallel import jobs as db
+from gp_omni.opt.parallel.asyncbo.loop import async_bo
+from gp_omni.opt.parallel.hallucination import hallucinate_point
+from gp_omni.opt.search import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
-from gp_omni.train.bo_config import bo_config
+from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("bo")
 
@@ -59,12 +57,16 @@ class batch_bo_config(bo_config):
 
     acquisition: str = DEFAULTS["batch"][
         "acquisition"
-    ]  # PI, EI or UCB for the exploitation part of the batch
+    ]  # any acquisition name (PI, EI, UCB, PE, MES, KG, PES) for the exploitation part
+
+    def __post_init__(self):
+        super().__post_init__()
+        check_acquisition_name(self.acquisition)
 
 
 class batch_bo(async_bo):
     """Batch-sequential parallel BO; shares job launching and the folder protocol with
-    :class:`~gp_omni.train.asyncbo.async_bo` (``<model>_iter<i>_<kind>_batch<j>`` per job)."""
+    :class:`~gp_omni.opt.parallel.asyncbo.async_bo` (``<model>_iter<i>_<kind>_batch<j>`` per job)."""
 
     config: batch_bo_config
 
@@ -74,17 +76,9 @@ class batch_bo(async_bo):
     # ------------------------------------------------------------- hallucination
     def _hallucinate(self, x_obs, y_obs, f_obs, x_new):
         """Append ``x_new`` with the objective model's mean, labelled feasible, and refit."""
-        mu, _ = predict_objective(self.model, x_new)
-        x_obs = np.vstack([x_obs, x_new])
-        y_obs = np.append(y_obs, mu)
-        f_obs = np.append(f_obs, 1.0)
-        n = self.config.gp_max_iter
-        self.model = GPR().fit(torch.as_tensor(x_obs), torch.as_tensor(y_obs), max_iter=n)
-        self.classifier = None
-        if (f_obs == 0).any():
-            self.classifier = GPC().fit(
-                torch.as_tensor(x_obs), torch.as_tensor(f_obs > 0), max_iter=n
-            )
+        x_obs, y_obs, f_obs, self.model, self.classifier = hallucinate_point(
+            self.model, x_obs, y_obs, f_obs, x_new, self.config.gp_max_iter
+        )
         self.y_hallucinated = y_obs
         return x_obs, y_obs, f_obs
 

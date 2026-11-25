@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 import gp_omni  # noqa: F401
-from gp_omni.train.asyncbo import database as db
-from gp_omni.train.batchbo import batch_bo, batch_bo_config
+from gp_omni.opt.parallel import jobs as db
+from gp_omni.opt.parallel.batchbo import batch_bo, batch_bo_config
 
 
 def make_config(**overrides):
