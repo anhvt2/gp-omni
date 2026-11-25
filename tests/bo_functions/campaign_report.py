@@ -132,7 +132,7 @@ uniform initial designs of exactly d points with random search (d is the input d
 GP fitting: 75 optimizer iterations;
 acquisition search: 150 evaluations per CMA-ES restart, three restarts.
 
-[Plotting utility](bo_functions/plotting.py) · [Raw results and histories](results/bo_campaigns.json) · [Vector figure](results/bo_convergence.svg)
+[Plotting utility](bo_functions/plotting.py). Raw results and the vector figure are generated locally.
 
 Reproduce from the repository root:
 
