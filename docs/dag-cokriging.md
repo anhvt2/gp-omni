@@ -30,12 +30,18 @@ A graph with one node and no edges gives ordinary universal kriging.
 At each node, the process is a weighted sum of its parents plus an independent
 Gaussian process discrepancy:
 
-$$f_j(x)=\sum_{i\in\operatorname{parents}(j)}B_{ij}f_i(x)+\delta_j(x).$$
+$$
+f_j(x) = \sum_{i \in \mathcal{P}(j)} B_{ij} f_i(x) + \delta_j(x).
+$$
+
+Here, $\mathcal{P}(j)$ is the set of parents of node $j$.
 
 Let $k_q$ be the discrepancy covariance at node $q$, including its variance, and
 $A=(I-B^\mathsf{T})^{-1}$. Then
 
-$$K_{ij}(x,x')=\sum_q A_{iq} A_{jq} k_q(x,x').$$
+$$
+K_{ij}(x,x') = \sum_q A_{iq} A_{jq} k_q(x,x').
+$$
 
 The acyclic graph permits computing $A$ by propagation in topological order.
 Each entry sums products along **all** paths from an ancestor to a descendant,
