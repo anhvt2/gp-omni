@@ -9,6 +9,7 @@ import math
 
 import pytest
 import torch
+from bo_functions import multi_fidelity as mf
 from bo_functions import single_objective as so
 from bo_functions.common import sobol_design
 from botorch.test_functions import synthetic as bs
@@ -119,3 +120,66 @@ def test_eggholder_printed_formula_conflicts_with_its_stated_optimum():
     printed = -(x2 + 47) * math.sin(abs(x2 + x1 / 2 + 47)) - x1 * math.sin(abs(x1 - x2 - 47))
     assert printed == pytest.approx(615.7060847706929)
     assert so.eggholder(torch.tensor([[x1, x2]])).item() == pytest.approx(-959.6407, abs=1e-4)
+
+
+# --------------------------------------------------------------------------- multi-fidelity
+def test_forrester_matches_published_minimum_and_relation():
+    fn = mf.forrester()
+    t = torch.linspace(0, 1, 100_001).reshape(-1, 1)
+    assert fn(t).min().item() == pytest.approx(-6.02074, abs=1e-4)
+    assert fn(torch.tensor([[0.757249]])).item() == pytest.approx(-6.02074, abs=1e-4)
+    # f_L = 0.5 f_H + 10 (x - 0.5) - 5, by construction
+    assert torch.allclose(fn(t, 0), 0.5 * fn(t, 1) + 10 * (t[:, 0] - 0.5) - 5)
+
+
+def test_currin_maximum_and_boundary():
+    fn = mf.currin()
+    assert fn(torch.tensor([[0.2167, 0.0087]])).item() == pytest.approx(13.7987, abs=1e-3)
+    grid = torch.cartesian_prod(torch.linspace(0, 1, 401), torch.linspace(0, 1, 401))
+    assert fn(grid).max().item() == pytest.approx(13.7987, abs=5e-3)
+    edge = torch.tensor([[0.5, 0.0], [0.0, 0.0], [1.0, 0.0]])
+    assert torch.isfinite(fn(edge)).all() and torch.isfinite(fn(edge, 0)).all()  # x_2 = 0: 1/(2 x_2)
+    x = rand_in(fn.bounds, 2000)
+    assert torch.corrcoef(torch.stack([fn(x, 0), fn(x, 1)]))[0, 1] > 0.99
+
+
+def test_borehole_low_fidelities_bracket_the_high_fidelity():
+    """The manuscript claims f_L1 <= f_H <= f_L2 for the three-fidelity borehole."""
+    fn = mf.borehole(3)
+    x = rand_in(fn.bounds, 20_000)
+    low2, low1, high = (fn(x, k) for k in range(3))
+    assert (low1 <= high).all() and (high <= low2).all()
+
+
+def test_borehole_levels_are_positive_flow_rates_and_correlated():
+    fn = mf.borehole(2)
+    x = rand_in(fn.bounds, 5000)
+    lo, hi = fn(x, 0), fn(x, 1)
+    assert (hi > 0).all() and (lo > 0).all()
+    assert torch.corrcoef(torch.stack([lo, hi]))[0, 1] > 0.95
+
+
+def test_welded_beam_cost_matches_the_classic_optimum():
+    # Ragsdell & Phillips optimum: cost 1.7249 at (h, l, t, b) = (0.2057, 3.4705, 9.0366, 0.2057)
+    x = torch.tensor([[0.20573, 3.47049, 9.03662, 0.20573]])
+    assert mf.weld_cost(*x[0], m=0, w=0).item() == pytest.approx(1.7249, abs=1e-3)
+    assert mf.welded_beam()(x).item() == pytest.approx(1.7245, abs=1e-3)  # f_H is steel, w=0
+    g = mf.weld_constraints(x, m=0, w=0)[0]
+    assert g[1].abs().item() < 0.1  # bending stress active (sigma = sigma_d)
+    assert g[2].abs().item() < 1e-9  # b - h = 0 active
+    assert g[4].item() > 0  # deflection satisfied
+
+
+def test_welded_beam_levels_rank_by_material_cost():
+    fn = mf.welded_beam()
+    x = rand_in(fn.bounds, 500)
+    assert fn.num_fidelities == 4
+    steel, cast, alu, brass = fn(x, 3), fn(x, 2), fn(x, 1), fn(x, 0)
+    assert (cast < steel).all() and (steel < alu).all() and (alu < brass).all()
+
+
+def test_sobol_design_is_in_bounds_and_seeded():
+    b = mf.borehole(2).bounds
+    x = sobol_design(b, 33, seed=1)
+    assert x.shape == (33, 8) and (x >= b[0]).all() and (x <= b[1]).all()
+    assert torch.equal(x, sobol_design(b, 33, seed=1)) and not torch.equal(x, sobol_design(b, 33, seed=2))
