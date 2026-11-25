@@ -31,6 +31,7 @@ import numpy as np
 import torch
 from scipy.linalg import cho_factor, cho_solve
 from scipy.optimize import minimize
+from scipy.special import erfcx
 from scipy.stats import norm
 
 from gp_omni.build.gpr import GPR
@@ -189,8 +190,19 @@ def truncated_moments(mean: float, var: float, bound: float, sign: float) -> tup
     """Mean / variance of ``N(mean, var)`` truncated to ``sign * (z - bound) >= 0``."""
     s = math.sqrt(var)
     alpha = sign * (mean - bound) / s
-    cdf = max(norm.cdf(alpha), 1e-300)
-    lam = norm.pdf(alpha) / cdf
+    if alpha < -100:
+        # Tail expansions of the excess mean and variance avoid subtracting nearly
+        # equal numbers in both mean + s*lambda and 1 - lambda*(alpha + lambda).
+        inv = -1 / alpha
+        u = inv**2
+        excess = inv * (1 + u * (-2 + u * (10 + u * (-74 + u * 706))))
+        factor = u * (1 + u * (-6 + u * (50 + u * (-518 + u * 6354))))
+        return bound + sign * s * excess, var * factor
+    lam = (
+        math.sqrt(2 / math.pi) / erfcx(-alpha / math.sqrt(2))
+        if alpha <= 0
+        else norm.pdf(alpha) / norm.cdf(alpha)
+    )
     return mean + sign * s * lam, var * max(1 - lam * (alpha + lam), 1e-12)
 
 
@@ -307,9 +319,7 @@ def conditional_variance(m: se_model, state: optimum_state, x: np.ndarray) -> fl
     s = v_s + v_x - 2 * c
     if s <= 1e-12:
         return max(v_x, 1e-12)
-    alpha = mu_t / math.sqrt(s)
-    lam = norm.pdf(alpha) / max(norm.cdf(alpha), 1e-300)
-    var_t = s * max(1 - lam * (alpha + lam), 1e-12)
+    _, var_t = truncated_moments(mu_t, s, 0.0, 1.0)
     cov_ft = c - v_x
     return max(v_x - (cov_ft / s) ** 2 * (s - var_t), 1e-12)
 
