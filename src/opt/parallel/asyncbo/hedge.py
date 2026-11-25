@@ -25,19 +25,24 @@ def get_rewards(
     """``getRewards.py``: GP-Hedge rewards, one per arm, written to ``rewards.dat``.
 
     An acquisition function earns +1 each time one of its points set a new best-so-far
-    objective (infeasible / unfinished points, whose output is 0 or missing, never count).
+    objective. Only completed, feasible jobs with finite outputs count; zero is a valid
+    objective value. All valid initial observations establish the initial best-so-far.
     """
     model_name, _, _ = read_settings(root)
     ys, acquisitions = [], []
     for folder in iter_folders(root, model_name):
-        output = folder / "output.dat"
-        ys.append(_num(output, np.nan))
+        y = -np.inf
+        if _num(folder / "complete.dat", 0.0) == 1 and _num(folder / "feasible.dat", 0.0) > 0:
+            value = _num(folder / "output.dat", np.nan)
+            if np.isfinite(value):
+                y = value
+        ys.append(y)
         scheme = folder / "acquisition_scheme.dat"
         acquisitions.append(scheme.read_text().strip() if scheme.is_file() else None)
 
-    best, winners = ys[0], []
+    best, winners = max(ys[:num_init_point], default=-np.inf), []
     for i in range(num_init_point, len(ys)):
-        if best < ys[i] and ys[i] != 0:  # NaN (unfinished) compares False
+        if best < ys[i]:
             winners.append(acquisitions[i])
             best = ys[i]
     rewards = np.array([float(winners.count(name)) for name in arms])

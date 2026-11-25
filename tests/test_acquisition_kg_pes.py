@@ -175,6 +175,8 @@ def test_hedge_rewards_follow_the_arms(tmp_path):
         folder = tmp_path / f"m_iter{i}"
         folder.mkdir()
         (folder / "output.dat").write_text(f"{y}\n")
+        (folder / "feasible.dat").write_text("1\n")
+        (folder / "complete.dat").write_text("1\n")
         if scheme:
             (folder / "acquisition_scheme.dat").write_text(scheme)
     arms = ("EI", "KG", "PES")
