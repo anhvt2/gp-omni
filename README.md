@@ -212,12 +212,9 @@ Model, training, inference, and BO defaults live in [`config/`](config/README.md
 Explicit arguments override them; use `GPR.from_json(...)` or `GPC.from_json(...)` for
 per-run constructor settings. Defaults are read at module import time.
 
-Models are constructed through `gp_omni.build`, fitted through `gp_omni.train`, and
-queried through `gp_omni.infer`. Project-owned helper types use snake_case; likelihood
-names are `gaussian`, `probit`, and `logistic`. Covariance names include `se_ard`,
-`se_iso`, `matern_ard`, and `matern_iso`. Update older configuration files accordingly.
-The old `sparse`, `models`, `builders`, and `fit` import paths have been replaced by the
-phase packages. Co-kriging now requires an explicit `fit()` call before prediction.
+Models use the `gp_omni.build`, `gp_omni.train`, and `gp_omni.infer` packages.
+Likelihood names are `gaussian`, `probit`, and `logistic`. Covariance names include
+`se_ard`, `se_iso`, `matern_ard`, and `matern_iso`.
 
 ## Work with GPyTorch and BoTorch
 
@@ -245,3 +242,6 @@ uv run pytest -q
 
 The test suite covers all 16 combinations of the four surrogate switches for regression
 and classification, plus kernels, sparse inference, co-kriging, and the BO loops.
+
+See the [benchmark accuracy report](docs/test_function_accuracy.md) for analytical test
+functions, modeling conventions, held-out errors, and reproduction settings.
