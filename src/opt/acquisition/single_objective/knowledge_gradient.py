@@ -85,11 +85,12 @@ def knowledge_gradient(x: np.ndarray, model: GPR, candidates: np.ndarray) -> flo
     """KG of sampling ``x``; ``candidates`` is the belief-evaluation set ``A``."""
     xs = torch.as_tensor(np.vstack([candidates, np.asarray(x, float).reshape(1, -1)]))
     out = model.predict(xs, full_cov=True)
-    mu = out["fmu"].numpy()
+    # The query is appended only to obtain its covariance with the fixed decision set.
+    mu = out["fmu"][:-1].numpy()
     cov = out["fcov"].numpy()
     noise = float(out["ys2"][-1] - out["fs2"][-1])
     total = cov[-1, -1] + noise
     if total <= 0:
         return 0.0
-    sigma_tilde = cov[:, -1] / np.sqrt(total)
+    sigma_tilde = cov[:-1, -1] / np.sqrt(total)
     return max(expected_max_of_lines(mu, sigma_tilde) - float(mu.max()), 0.0)
