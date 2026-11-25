@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">GP-Omni icon</title>
+  <desc id="desc">An orbital ring surrounds a Gaussian process curve and its uncertainty band. A coral point marks the next experiment.</desc>
+  <defs>
+    <linearGradient id="orbit" x1="36" y1="210" x2="220" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#a5b4fc"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="60" fill="#101b30"/>
+  <circle cx="128" cy="128" r="88" fill="none" stroke="url(#orbit)" stroke-width="9"/>
+  <path d="M55 151 C83 146 87 69 119 79 S157 154 201 89 L201 147 C159 196 151 128 119 118 S85 178 55 177Z" fill="#5eead4" fill-opacity=".18"/>
+  <path d="M55 164 C84 163 87 91 119 99 S157 176 201 118" fill="none" stroke="#5eead4" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="83" cy="138" r="7" fill="#f1f5f9"/>
+  <circle cx="139" cy="122" r="7" fill="#f1f5f9"/>
+  <circle cx="201" cy="118" r="11" fill="#fb927e" stroke="#101b30" stroke-width="4"/>
+</svg>
