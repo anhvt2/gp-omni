@@ -72,7 +72,7 @@ import tempfile
 
 import numpy as np
 
-from gp_omni.train.asyncbo import async_bo, async_bo_config
+from gp_omni.opt.parallel.asyncbo import async_bo, async_bo_config
 
 
 def evaluate(x: np.ndarray) -> tuple[float, bool]:
@@ -123,17 +123,26 @@ Choose the execution pattern that matches your evaluations:
 each remaining iteration launches a whole batch. Batch size is the sum of `exploit_size`,
 `explore_size`, and `explore_classifier_size`.
 
-The loops include PI, EI, and UCB acquisitions, CMA-ES acquisition optimization, objective
-and constraint exploration slots, and predicted values for pending points to diversify
-proposals. Async BO uses GP-Hedge to select acquisitions; batch BO uses a configured
-acquisition (EI by default). Known constraint callbacks and learned feasibility probabilities
-weight exploitation proposals; initial and exploration points can still be infeasible.
+The loops share one set of single-objective acquisitions
+([`gp_omni.opt.acquisition`](../src/opt/acquisition/single_objective/)): `PI`, `EI`, `UCB`,
+`PE` (pure exploration), `MES` (max-value entropy search), `KG` (knowledge gradient), and
+`PES` (predictive entropy search; `cov="se_ard"` models only, other models raise
+`NotImplementedError`). Acquisitions are always sequential. Parallel runs
+([`gp_omni.opt.parallel`](../src/opt/parallel/)) only hallucinate pending points, using the
+posterior mean as their output, and then search for the next point.
+
+Async BO uses GP-Hedge to pick an acquisition for each proposal; choose its arms with
+`async_bo_config(hedge_arms=("UCB", "EI", "PI"))` (any names above). Batch BO uses the single
+`batch_bo_config(acquisition="EI")`. The loops also include CMA-ES acquisition optimization
+and objective and constraint exploration slots. Known constraint callbacks and learned
+feasibility probabilities weight exploitation proposals; initial and exploration points can
+still be infeasible.
 
 Load reusable settings with `async_bo_config.from_json(...)` or
 `batch_bo_config.from_json(...)`; see [async settings](../config/async_bo.json) and
 [batch settings](../config/batch_seq_bo.json). For external executables, supply a
 `query_script` instead of `evaluate`; the job-folder protocol is described in
-[`async_bo`](../src/train/asyncbo/loop.py).
+[`async_bo`](../src/opt/parallel/asyncbo/loop.py).
 
 ## Learn from cheap and expensive evaluations
 
@@ -233,13 +242,14 @@ provide marginal predictions through their own interface.
 
 ## Build, train, infer
 
-The source follows the three phases of a GP workflow:
+The source follows the three phases of a GP workflow, plus an optimization layer on top:
 
 | Package | Responsibility |
 | --- | --- |
 | [`gp_omni.build`](../src/build/) | Prepare models, covariance, means, likelihoods, and inducing inputs for the problem |
-| [`gp_omni.train`](../src/train/) | Optimize evidence or ELBO objectives and orchestrate Bayesian optimization |
+| [`gp_omni.train`](../src/train/) | Optimize evidence or ELBO objectives |
 | [`gp_omni.infer`](../src/infer/) | Compute posterior distributions, predictive moments, and class probabilities |
+| [`gp_omni.opt`](../src/opt/) | Sampling schemes for Bayesian optimization: acquisition functions, the inner search, and batch/async loops |
 
 ```python
 from gp_omni.build import GPR
