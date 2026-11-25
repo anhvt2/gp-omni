@@ -101,6 +101,32 @@ def _load(name):
     return mod
 
 
+def test_constrained_multiobjective_pareto_filter():
+    import torch
+
+    mod = _load("constrained_multiobjective")
+    # A dominated point, a tied optimum, and two competing extremes.
+    y = torch.tensor([[0.0, 0.0], [1.0, 1.0], [1.0, 1.0], [2.0, 0.0], [0.0, 2.0]])
+    assert mod.nondominated(y).tolist() == [False, True, True, True, True]
+
+
+def test_constrained_multiobjective_example():
+    import torch
+
+    mod = _load("constrained_multiobjective")
+    result = mod.main()
+    assert result["low_fidelity_designs"] == 25
+    assert result["initial_high_fidelity_designs"] == 9
+    assert 1 < result["parallel_batch_size"] <= 4
+    assert len(result["batch_feasible"]) == result["parallel_batch_size"]
+    x = torch.tensor(result["pareto_x"]).reshape(-1, 1)
+    y = torch.tensor(result["pareto_objectives"])
+    measured, feasible = mod.evaluate_high(x)
+    assert feasible.all()
+    assert torch.allclose(y, measured)
+    assert mod.nondominated(y).all()
+
+
 @pytest.mark.parametrize("mo,mf,sparse,additive", list(itertools.product([0, 1], repeat=4)))
 def test_gpr_combined_example_any_subset_of_features(mo, mf, sparse, additive):
     """Each of the 16 subsets runs end to end through the example and is accurate."""
