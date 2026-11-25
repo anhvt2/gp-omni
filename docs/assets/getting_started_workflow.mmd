@@ -1,0 +1,12 @@
+flowchart TD
+    observations["1 · Observe<br/>Inputs, scores, feasibility"]
+    surrogates["2 · Learn<br/>GP response + feasibility probability"]
+    proposals["3 · Choose<br/>Promising untested designs"]
+    experiments["4 · Evaluate in parallel<br/>Collect results, then repeat"]
+    observations --> surrogates --> proposals --> experiments
+    classDef data fill:#f1f5f9,stroke:#64748b,color:#101b30
+    classDef model fill:#ecfdf5,stroke:#0f766e,color:#101b30
+    classDef action fill:#fff1ed,stroke:#c2410c,color:#101b30
+    class observations data
+    class surrogates model
+    class proposals,experiments action
