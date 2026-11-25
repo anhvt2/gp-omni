@@ -10,8 +10,10 @@ import math
 import pytest
 import torch
 from bo_functions import multi_fidelity as mf
+from bo_functions import multi_objective as mo
 from bo_functions import single_objective as so
 from bo_functions.common import sobol_design
+from botorch.test_functions import multi_objective as bm
 from botorch.test_functions import synthetic as bs
 
 import gp_omni  # noqa: F401  (float64)
@@ -176,6 +178,135 @@ def test_welded_beam_levels_rank_by_material_cost():
     assert fn.num_fidelities == 4
     steel, cast, alu, brass = fn(x, 3), fn(x, 2), fn(x, 1), fn(x, 0)
     assert (cast < steel).all() and (steel < alu).all() and (alu < brass).all()
+
+
+# ------------------------------------------------------------------------ multi-objective
+def test_zdt1_zdt2_match_botorch_everywhere():
+    for name, cls in (("zdt1", bm.ZDT1), ("zdt2", bm.ZDT2)):
+        x = torch.rand(100, 3, generator=GEN)
+        assert torch.allclose(mo.zdt(name)(x), cls(dim=3)(x)), name
+
+
+def test_zdt3_matches_botorch_on_the_pareto_set_only():
+    """BoTorch's ZDT3 returns h instead of g*h; the two coincide where g = 1."""
+    x = torch.cat([torch.rand(100, 1, generator=GEN), torch.zeros(100, 2)], 1)
+    assert torch.allclose(mo.zdt("zdt3")(x), bm.ZDT3(dim=3)(x))
+    x = torch.rand(100, 3, generator=GEN)
+    assert not torch.allclose(mo.zdt("zdt3")(x), bm.ZDT3(dim=3)(x))
+
+
+@pytest.mark.parametrize("name", ["zdt1", "zdt2", "zdt3", "zdt4", "zdt6"])
+def test_zdt_pareto_set_lies_on_the_analytic_front(name):
+    fn = mo.zdt(name)
+    f1 = torch.rand(200, 1, generator=GEN)
+    x = torch.cat([f1, torch.zeros(200, fn.dim - 1)], 1)  # g = 1 on the Pareto set
+    f = fn(x)
+    front = {
+        "zdt1": lambda a: 1 - a.sqrt(),
+        "zdt2": lambda a: 1 - a**2,
+        "zdt3": lambda a: 1 - a.sqrt() - a * torch.sin(10 * math.pi * a),
+        "zdt4": lambda a: 1 - a.sqrt(),
+        "zdt6": lambda a: 1 - a**2,
+    }[name]
+    assert torch.allclose(f[:, 1], front(f[:, 0]), atol=1e-10)
+
+
+@pytest.mark.parametrize("name", ["zdt1", "zdt2", "zdt4", "zdt6"])
+def test_zdt_front_is_never_dominated_by_random_points(name):
+    fn = mo.zdt(name, dim=3)
+    front = fn.pareto_front(400)
+    f = fn(rand_in(fn.bounds, 5000))
+    # no sampled point may strictly dominate a front point
+    dom = (f[:, None, :] <= front[None] + 1e-9).all(-1) & (f[:, None, :] < front[None] - 1e-9).any(-1)
+    assert not dom.any()
+
+
+def test_zdt3_front_segments_are_nondominated_and_on_the_curve():
+    fn = mo.zdt("zdt3")
+    front = fn.pareto_front(500)
+    assert torch.allclose(front[:, 1], 1 - front[:, 0].sqrt() - front[:, 0] * torch.sin(10 * math.pi * front[:, 0]))
+    f = fn(rand_in(fn.bounds, 5000))
+    dom = (f[:, None, :] <= front[None] + 1e-9).all(-1) & (f[:, None, :] < front[None] - 1e-9).any(-1)
+    assert not dom.any()
+
+
+@pytest.mark.parametrize("n", [0, 1, 3, 6, 11, 501])
+def test_zdt3_front_returns_the_requested_number_of_points(n):
+    assert mo.zdt("zdt3").pareto_front(n).shape == (n, 2)
+
+
+@pytest.mark.parametrize("name,cls", [("dtlz1", bm.DTLZ1), ("dtlz2", bm.DTLZ2), ("dtlz3", bm.DTLZ3),
+                                       ("dtlz5", bm.DTLZ5)])
+def test_dtlz_matches_botorch_everywhere(name, cls):
+    x = torch.rand(100, 4, generator=GEN)
+    scale = 1.0 if name == "dtlz1" else 0.5  # preserve the manuscript scale
+    assert torch.allclose(mo.dtlz(name)(x), scale * cls(dim=4, num_objectives=3)(x),
+                          atol=1e-9, rtol=1e-9)
+
+
+def test_dtlz4_preserves_the_manuscript_partial_alpha_power():
+    """The printed cosine powers are valid even though this is not standard DTLZ4."""
+    x = torch.rand(100, 4, generator=GEN)
+    assert torch.allclose(mo.dtlz4(x, 3, alpha=1.0), mo.dtlz2(x, 3))
+    assert not torch.allclose(mo.dtlz4(x, 3), mo.dtlz2(x, 3))
+    a, b = x[:, 0], x[:, 1]
+    radius = 0.5 * (1 + ((x[:, 2:] - 0.5) ** 2).sum(1))
+    ca, cb = torch.cos(a**100 * math.pi / 2), torch.cos(b**100 * math.pi / 2)
+    expect = radius[:, None] * torch.stack(
+        [ca * cb, ca * torch.sin(b * math.pi / 2), torch.sin(a * math.pi / 2)], 1
+    )
+    assert torch.allclose(mo.dtlz4(x, 3), expect)
+    assert mo.dtlz("dtlz4").pareto_front is None
+
+
+def _pareto_x(n, m, d, tail):
+    return torch.cat([torch.rand(n, m - 1, generator=GEN), torch.full((n, d - m + 1), tail)], 1)
+
+
+@pytest.mark.parametrize("m,d", [(3, 4), (3, 8), (2, 6), (4, 7)])
+def test_dtlz_pareto_sets_lie_on_their_analytic_fronts(m, d):
+    half = _pareto_x(200, m, d, 0.5)
+    assert torch.allclose(mo.dtlz1(half, m).sum(1), torch.full((200,), 0.5))  # simplex
+    for fn in (mo.dtlz2, mo.dtlz3):
+        assert torch.allclose(fn(half, m).pow(2).sum(1), torch.full((200,), 0.25)), fn.__name__
+    assert torch.allclose(mo.dtlz5(half, m).pow(2).sum(1), torch.full((200,), 0.25))
+    assert torch.allclose(mo.dtlz6(_pareto_x(200, m, d, 0.0), m).pow(2).sum(1), torch.full((200,), 0.25))
+    assert mo.dtlz("dtlz2", m, d)(half).shape == (200, m)
+
+
+def test_dtlz5_front_is_a_curve():
+    """On the Pareto set (g = 0) theta_2.. are all pi/4, so the objectives depend only on x_1:
+    changing x_2 does not move the point (the 3-objective front collapses to a curve)."""
+    x = _pareto_x(100, 3, 6, 0.5)
+    x2 = x.clone()
+    x2[:, 1] = torch.rand(100, generator=GEN)
+    assert torch.allclose(mo.dtlz5(x, 3), mo.dtlz5(x2, 3), atol=1e-9)
+    x6, x6b = _pareto_x(100, 3, 6, 0.0), None
+    x6b = x6.clone()
+    x6b[:, 1] = torch.rand(100, generator=GEN)
+    assert torch.allclose(mo.dtlz6(x6, 3), mo.dtlz6(x6b, 3), atol=1e-9)
+
+
+def test_dtlz_default_shapes_follow_the_manuscript():
+    fn = mo.dtlz("dtlz2")
+    assert (fn.dim, fn.num_objectives) == (4, 3)
+    assert mo.zdt("zdt1").dim == 3 and mo.zdt("zdt1").num_objectives == 2
+    assert len(mo.all_multi_objective()) == 11
+
+
+def test_zdt4_domain_and_multimodality():
+    fn = mo.zdt("zdt4")
+    assert fn.lower == (0.0, -5.0, -5.0) and fn.upper == (1.0, 5.0, 5.0)
+    f = fn(rand_in(fn.bounds, 2000))
+    assert (f[:, 1] > 0).all()  # g >= 1 everywhere; the global front needs x_2.. = 0 exactly
+
+
+def test_pareto_front_generators_are_on_the_analytic_surfaces():
+    assert torch.allclose(mo.dtlz("dtlz1").pareto_front(100).sum(1), torch.full((100,), 0.5))
+    for name in ("dtlz2", "dtlz3"):
+        assert torch.allclose(mo.dtlz(name).pareto_front(100).pow(2).sum(1), torch.full((100,), 0.25))
+    z6 = mo.zdt("zdt6").pareto_front(50)
+    assert z6[:, 0].min().item() == pytest.approx(0.2807753191)
 
 
 def test_sobol_design_is_in_bounds_and_seeded():
