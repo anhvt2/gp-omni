@@ -91,8 +91,27 @@ def test_perm0db_does_not_overflow_at_its_optimum_for_the_manuscript_dimension()
     assert fn(torch.tensor([fn.argmin])).item() == pytest.approx(0.0, abs=1e-20)
 
 
+def test_scalable_functions_have_two_active_directions():
+    d = 15
+    for name in ("modified_zdt1", "modified_zdt2", "modified_zdt3"):
+        fn = so.scalable_function(name, d)
+        x = rand_in(fn.bounds, 5)
+        permuted = x.clone()
+        permuted[:, 1:] = x[:, 1:][:, torch.randperm(d - 1, generator=GEN)]
+        assert torch.allclose(fn(x), fn(permuted)), name  # depends on x_1 and sum(x_2..) only
+    assert so.scalable_function("squared_sum", d)(torch.ones(1, d)).item() == pytest.approx(d**2)
+    assert so.scalable_function("modified_zdt1", d)(torch.zeros(1, d)).item() == pytest.approx(1.0)
 
 
+@pytest.mark.parametrize("name,lo,value", [
+    ("modified_zdt1", -1.0, 2.3486121811340026),
+    ("modified_zdt2", -1.0, 81.9969512195122),
+    ("modified_zdt3", 0.0, 8.16886116991581),
+])
+def test_modified_zdt_preserves_each_printed_domain_and_g_scaling(name, lo, value):
+    fn = so.scalable_function(name, 3)
+    assert fn.lower == (lo,) * 3 and fn.upper == (1.0,) * 3
+    assert fn(torch.tensor([[0.5, 0.25, 0.75]])).item() == pytest.approx(value)
 
 
 def test_eggholder_printed_formula_conflicts_with_its_stated_optimum():
