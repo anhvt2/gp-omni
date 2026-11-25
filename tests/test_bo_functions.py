@@ -11,6 +11,7 @@ import pytest
 import torch
 from bo_functions import multi_fidelity as mf
 from bo_functions import multi_objective as mo
+from bo_functions import noisy_regression as nr
 from bo_functions import single_objective as so
 from bo_functions.common import sobol_design
 from botorch.test_functions import multi_objective as bm
@@ -307,6 +308,22 @@ def test_pareto_front_generators_are_on_the_analytic_surfaces():
         assert torch.allclose(mo.dtlz(name).pareto_front(100).pow(2).sum(1), torch.full((100,), 0.25))
     z6 = mo.zdt("zdt6").pareto_front(50)
     assert z6[:, 0].min().item() == pytest.approx(0.2807753191)
+
+
+# ------------------------------------------------------------------------- noisy regression
+def test_noisy_problems_truth_and_noise_models():
+    log, hp = nr.noisy_logistic(), nr.heteroscedastic_hall_petch()
+    assert log.truth(torch.tensor([0.0])).item() == pytest.approx(0.5)
+    assert (hp.truth(torch.tensor([15.0, 350.0])).diff() < 0).all()  # monotone decreasing in d
+    assert hp.truth(torch.tensor([350.0])).item() == pytest.approx(17.4, abs=0.1)
+    sd = hp.noise_sd(torch.tensor([15.0, 350.0]))
+    assert (sd.diff() > 0).all() and sd[1].item() == pytest.approx(math.sqrt(2.2e10 * 350**3))
+    assert nr.hall_petch_noise_sd_metres(torch.tensor([350.0])).item() == pytest.approx(0.97, abs=0.05)
+    for p in (log, hp):
+        x, y = p.sample(seed=3)
+        assert x.shape == (p.num_train, 1) and y.shape == (p.num_train,)
+        assert x.min() >= p.lower and x.max() <= p.upper
+        assert torch.equal(p.sample(seed=3)[1], y)  # deterministic given the seed
 
 
 def test_sobol_design_is_in_bounds_and_seeded():
