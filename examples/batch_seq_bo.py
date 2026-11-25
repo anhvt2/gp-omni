@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import gp_omni  # noqa: F401
-from gp_omni.train.batchbo import batch_bo, batch_bo_config
+from gp_omni.opt.parallel.batchbo import batch_bo, batch_bo_config
 
 CONFIG = Path(__file__).parents[1] / "config" / "batch_seq_bo.json"
 
