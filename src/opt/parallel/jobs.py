@@ -1,4 +1,7 @@
-"""File-based asynchronous job pool.
+"""File-based job pool shared by the batch-sequential and asynchronous loops.
+
+GP-Hedge bookkeeping (``rewards.dat``) lives in :mod:`gp_omni.opt.parallel.asyncbo.hedge`.
+
 
 Layout (kept stable so existing ``query*.sh`` scripts and
 ``<model>_template/`` folders keep working)::
@@ -11,7 +14,7 @@ Layout (kept stable so existing ``query*.sh`` scripts and
         acquisition_scheme.dat gp_predictions.dat   per-evaluation files
 
 A job is *in flight* while its ``complete.dat`` is 0. Batch IDs: 0 initial, 1 acquisition
-(GP-Hedge), 2 explore objective, 3 explore classifier, 4 all slots busy.
+(acquisition; GP-Hedge in async runs), 2 explore objective, 3 explore classifier, 4 all slots busy.
 """
 
 from __future__ import annotations
@@ -24,11 +27,9 @@ from pathlib import Path
 import numpy as np
 from natsort import natsorted
 
-from gp_omni.train.bo_config import batch_settings
+from gp_omni.opt.config import batch_settings
 
 log = logging.getLogger(__name__)
-
-ACQUISITIONS = ("UCB", "EI", "PI")  # order of the lines in rewards.dat
 
 
 def _num(path: Path, default: float) -> float:
@@ -123,48 +124,6 @@ def update_db(root: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarra
     np.savetxt(root / "f_obs.dat", f_obs, fmt="%d", delimiter=",")
     np.savetxt(root / "c_obs.dat", c_obs, fmt="%d", delimiter=",")
     return x_obs, y_obs, f_obs, c_obs
-
-
-def get_rewards(root: Path, num_init_point: int) -> np.ndarray:
-    """``getRewards.py``: GP-Hedge rewards ``[UCB, EI, PI]`` written to ``rewards.dat``.
-
-    An acquisition function earns +1 each time one of its points set a new best-so-far
-    objective (infeasible / unfinished points, whose output is 0 or missing, never count).
-    """
-    model_name, _, _ = read_settings(root)
-    ys, acquisitions = [], []
-    for folder in iter_folders(root, model_name):
-        output = folder / "output.dat"
-        ys.append(_num(output, np.nan))
-        scheme = folder / "acquisition_scheme.dat"
-        acquisitions.append(scheme.read_text().strip() if scheme.is_file() else None)
-
-    best, winners = ys[0], []
-    for i in range(num_init_point, len(ys)):
-        if best < ys[i] and ys[i] != 0:  # NaN (unfinished) compares False
-            winners.append(acquisitions[i])
-            best = ys[i]
-    rewards = np.array([float(winners.count(name)) for name in ACQUISITIONS])
-    (root / "rewards.dat").write_text("".join(f"{r:.2f}\n" for r in rewards))
-    return rewards
-
-
-def get_acquisition_scheme(
-    root: Path, num_init_point: int, rewards: np.ndarray, rng: np.random.Generator
-) -> str:
-    """``getAcquisitionScheme.py``: sample UCB / EI / PI from the GP-Hedge softmax.
-
-    Hoffman, Brochu & de Freitas, *Portfolio Allocation for Bayesian Optimization*, UAI 2011.
-    """
-    model_name, _, _ = read_settings(root)
-    horizon = max(len(iter_folders(root, model_name)) - (num_init_point - 1), 1)
-    k = len(ACQUISITIONS)
-    eta = np.sqrt(8 * np.log(k) / horizon)  # lemma 1, GP-Hedge
-    shifted = rewards - rewards.max()  # numerical stability: exp of non-positive numbers only
-    pmf = np.exp(eta * shifted) / np.exp(eta * shifted).sum()
-    scheme = str(rng.choice(ACQUISITIONS, p=pmf))
-    log.info("%s is selected (pmf=%s)", scheme, np.round(pmf, 3))
-    return scheme
 
 
 def wait_for_slot(root: Path, check_time_minutes: float) -> int:

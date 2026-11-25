@@ -1,8 +1,6 @@
-"""Penalised acquisition functions.
+"""Helpers shared by every acquisition family: model queries and constraint penalties.
 
-The objective of the CMA-ES inner search is (minimised)::
-
-    -acquisition(x) * known_constraint(x) * unknown_constraint(x)
+The inner search minimises ``-acquisition(x) * known_constraint(x) * unknown_constraint(x)``:
 
 * ``known_constraint``: 1 when ``x`` satisfies the analytic constraints, 0 when it violates
   one (the objective returns 0 immediately in that case).
@@ -17,14 +15,23 @@ import math
 
 import numpy as np
 import torch
-from scipy.stats import norm
 
 from gp_omni.build.gpc import GPC
 from gp_omni.build.gpr import GPR
+from gp_omni.opt.config import check_constraint, known_constraint_fn
 from gp_omni.settings import load_defaults
-from gp_omni.train.bo_config import check_constraint, known_constraint_fn
 
 DEFAULTS = load_defaults("bo")
+
+__all__ = [
+    "check_constraint",
+    "check_multiple_design_sites",
+    "known_constraint_fn",
+    "negative_classifier_mse",
+    "negative_mse",
+    "predict_feasibility",
+    "predict_objective",
+]
 
 
 def check_multiple_design_sites(
@@ -61,53 +68,6 @@ def predict_feasibility(classifier: GPC | None, x: np.ndarray) -> float:
     except Exception:  # noqa: BLE001 - a failed classifier must not stop the search
         return 1.0
     return min(max(p, 0.0), 1.0)
-
-
-def acquisition_value(
-    name: str,
-    y: float,
-    s2: float,
-    f_best: float,
-    t: int,
-    d: int,
-    delta: float = DEFAULTS["acquisition"]["delta"],
-) -> float:
-    """PI / EI / UCB for a maximisation problem."""
-    s = math.sqrt(s2)
-    if name == "UCB":
-        # option-2, Srinivas et al. theorem 2 / Daniel et al.
-        kappa = 2 * math.log(t ** (d / 2 + 2) * math.pi**2 / 3 / delta)
-        return y + math.sqrt(kappa) * s
-    if s == 0.0:  # avoid dividing by zero; PI/EI of a deterministic point are step functions
-        gain = y - f_best
-        return float(gain > 0) if name == "PI" else max(gain, 0.0)
-    gamma = (y - f_best) / s
-    if name == "PI":
-        return float(norm.cdf(gamma))
-    if name == "EI":
-        return s * (gamma * norm.cdf(gamma) + norm.pdf(gamma))
-    raise ValueError(f"acquisition function must be PI, EI or UCB, got {name!r}")
-
-
-def negative_acquisition(
-    x: np.ndarray,
-    model: GPR,
-    classifier: GPC | None,
-    acquisition: str,
-    x_obs: np.ndarray,
-    y_obs: np.ndarray,
-    known_constraint: known_constraint_fn = check_constraint,
-) -> float:
-    """``-acquisition * known * unknown``."""
-    x = np.asarray(x, dtype=float).reshape(-1)
-    known = known_constraint(x)
-    if known == 0:
-        return 0.0
-    unknown = predict_feasibility(classifier, x)
-    y, s2 = predict_objective(model, x)
-    t, d = x_obs.shape
-    a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d)
-    return -a * known * unknown
 
 
 def negative_mse(x: np.ndarray, model: GPR) -> float:

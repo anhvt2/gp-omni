@@ -11,15 +11,15 @@ from scipy.optimize import differential_evolution
 
 from gp_omni.build.gpc import GPC
 from gp_omni.build.gpr import GPR
-from gp_omni.settings import load_defaults
-from gp_omni.train.asyncbo.acquisition import (
-    check_constraint,
+from gp_omni.opt.acquisition import (
     check_multiple_design_sites,
-    known_constraint_fn,
     negative_acquisition,
     negative_classifier_mse,
     negative_mse,
+    prepare_context,
 )
+from gp_omni.opt.config import check_constraint, known_constraint_fn
+from gp_omni.settings import load_defaults
 
 DEFAULTS = load_defaults("bo")
 
@@ -99,10 +99,11 @@ def get_next_sampling_point(
 
     x_best = x_obs[int(np.argmax(y_obs))]
     sigma = (x_ub - x_lb) / 3
+    context = prepare_context(acquisition, model, x_lb, x_ub, x_obs, y_obs, rng)
 
     def objective(x):
         return negative_acquisition(
-            x, model, classifier, acquisition, x_obs, y_obs, known_constraint
+            x, model, classifier, acquisition, x_obs, y_obs, known_constraint, context
         )
 
     for attempt in range(max_retries):

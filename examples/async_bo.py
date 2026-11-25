@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 import gp_omni  # noqa: F401
-from gp_omni.train.asyncbo import async_bo, async_bo_config
+from gp_omni.opt.parallel.asyncbo import async_bo, async_bo_config
 
 CONFIG = Path(__file__).parents[1] / "config" / "async_bo.json"
 
