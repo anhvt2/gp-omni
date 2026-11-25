@@ -148,12 +148,19 @@ class GPR:
     # --------------------------------------------------------------------- predict
 
     def predict(
-        self, xs: Tensor, output: int | None = None, fidelity: int | None = None
+        self,
+        xs: Tensor,
+        output: int | None = None,
+        fidelity: int | None = None,
+        full_cov: bool = False,
     ) -> dict[str, Tensor]:
-        """Predict from the fitted model through :mod:`gp_omni.infer.gpr`."""
+        """Predict from the fitted model through :mod:`gp_omni.infer.gpr`.
+
+        ``full_cov=True`` adds ``fcov``, the latent joint covariance over ``xs``.
+        """
         from gp_omni.infer.gpr import predict
 
-        return predict(self, xs, output, fidelity)
+        return predict(self, xs, output, fidelity, full_cov)
 
     @property
     def inducing_inputs(self) -> Tensor | None:
