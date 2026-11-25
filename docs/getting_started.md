@@ -2,8 +2,21 @@
 
 [Documentation](README.md) · [Choose a model](use-cases.md) · [Project home](../README.md)
 
-Install the package, run a complete Bayesian optimization loop, or compose a surrogate
-for your own workflow. The distribution is `gp-omni`; the Python import is `gp_omni`.
+Learn an expensive response from a few experiments, use cheaper simulations where
+available, and choose what to evaluate next. This guide starts with a parallel constrained
+optimization loop, then builds a custom workflow for competing objectives.
+
+![Three views of experimental design: cheap and expensive response curves, a feasible Pareto front, and overlapping worker timelines.](assets/getting_started_overview.svg)
+
+*Analytical toy responses and a schematic schedule, not benchmark results. Fidelity
+controls which model you evaluate; objectives describe what you want to improve;
+parallelism controls how many evaluations can run together.*
+
+| Your experiment | Start here |
+|---|---|
+| One score, feasibility labels, several workers | [Parallel constrained BO](#plug-in-your-objective) |
+| Many cheap simulations, a few expensive measurements | [Multi-fidelity regression](#learn-from-cheap-and-expensive-evaluations) |
+| Competing scores subject to feasibility | [Constrained Pareto screening](#compare-objectives-under-constraints) |
 
 ## Install
 
@@ -30,15 +43,29 @@ Provide a Python callable returning `(objective_value, feasible)`, set bounds an
 and run the pipeline:
 
 ```mermaid
-flowchart LR
-    initial["Evaluate initial designs"] --> fit["Fit objective and feasibility GPs"]
-    fit --> propose["Propose experiments"]
-    propose --> evaluate["Evaluate and collect results"]
-    evaluate --> fit
+flowchart TD
+    observations["1 · Observe<br/>Inputs, scores, feasibility"]
+    surrogates["2 · Learn<br/>GP response + feasibility probability"]
+    proposals["3 · Choose<br/>Promising untested designs"]
+    experiments["4 · Evaluate in parallel<br/>Collect results, then repeat"]
+    observations --> surrogates --> proposals --> experiments
+    classDef data fill:#f1f5f9,stroke:#64748b,color:#101b30
+    classDef model fill:#ecfdf5,stroke:#0f766e,color:#101b30
+    classDef action fill:#fff1ed,stroke:#c2410c,color:#101b30
+    class observations data
+    class surrogates model
+    class proposals,experiments action
 ```
 
-This complete example runs two acquisition jobs concurrently and returns the best feasible
-observation. Run it with `uv run python your_script.py` after installation.
+*Each new result informs the next proposal. Repeat steps 2–4 until the evaluation
+budget is exhausted.*
+
+[Rendered workflow](assets/getting_started_workflow.png) ·
+[Editable Mermaid source](assets/getting_started_workflow.mmd)
+
+This complete example provides two concurrent evaluation slots and returns the best
+feasible observation. The toy score peaks at `(0.3, 0.3)`; `x[0] >= 0.9` is infeasible.
+Run it with `uv run python your_script.py` after installation.
 
 ```python
 import tempfile
@@ -61,7 +88,7 @@ config = async_bo_config(
     x_ub=[1.0, 1.0],
     num_init_point=4,
     max_iter=12,
-    exploit_size=2,
+    exploit_size=2,  # two evaluation slots; each proposal uses an acquisition
     explore_size=0,
     explore_classifier_size=0,
     check_time=0.001,  # polling interval in minutes
@@ -75,6 +102,10 @@ with tempfile.TemporaryDirectory() as run_dir:
 
 print("Best feasible observation:", best_x, best_y)
 ```
+
+Python evaluators run in a thread pool: useful for simulator calls, I/O, and native code
+that releases the GIL. This toy calculation is too fast to demonstrate a speedup. After
+the initial design finishes, async BO refills free slots while other evaluations continue.
 
 Both BO loops **maximize** the objective; negate a loss to minimize it. The example uses
 a temporary directory; use a persistent run directory to retain job inputs and results.
@@ -103,6 +134,102 @@ Load reusable settings with `async_bo_config.from_json(...)` or
 [batch settings](../config/batch_seq_bo.json). For external executables, supply a
 `query_script` instead of `evaluate`; the job-folder protocol is described in
 [`async_bo`](../src/train/asyncbo/loop.py).
+
+## Learn from cheap and expensive evaluations
+
+A coarse simulation and a detailed simulation describe the same response at different
+fidelities. The autoregressive model relates them through
+
+$$
+f_1(x) = \rho f_0(x) + \delta(x),
+$$
+
+where the learned discrepancy $\delta$ corrects the cheap response. Here, 31 cheap
+observations support four expensive observations:
+
+```python
+import torch
+from gp_omni import GPR
+
+
+def high(x):
+    return (6 * x[:, 0] - 2) ** 2 * torch.sin(12 * x[:, 0] - 4)
+
+
+def low(x):
+    return 0.5 * high(x) + 10 * (x[:, 0] - 0.5) - 5
+
+
+x_low = torch.linspace(0, 1, 31).reshape(-1, 1)
+x_high = x_low[::10]
+x = torch.cat([x_low, x_high])
+y = torch.cat([low(x_low), high(x_high)])
+fidelity = torch.cat([torch.zeros(31), torch.ones(4)]).long()
+
+model = GPR(num_fidelities=2).fit(x, y, fidelity=fidelity)
+x_test = torch.linspace(0, 1, 200).reshape(-1, 1)
+prediction = model.predict(x_test, fidelity=1)
+mean, variance = prediction["fmu"], prediction["fs2"]
+```
+
+Fidelity `0` is cheapest; `L-1` is the target fidelity and the prediction default. Cheap
+and expensive observations can use different inputs. A fidelity index is metadata,
+separate from the physical input coordinates. The model learns their relationship;
+choosing which fidelity to evaluate next is a separate optimization decision.
+
+Run [the comparison example](../examples/gpr_multifidelity.py) to see held-out RMSE
+against a model trained only on the expensive observations:
+
+```bash
+uv run python examples/gpr_multifidelity.py
+```
+
+## Compare objectives under constraints
+
+Suppose a design must balance two competing scores while satisfying an experimentally
+measured constraint. We seek
+
+$$
+\max_{x \in [0,1]^D} \bigl(f_1(x), f_2(x)\bigr)
+\quad \text{subject to } c(x) \leq 0.
+$$
+
+There may be no single best design. A feasible design is **Pareto optimal** among the
+observations if no other feasible observation improves one score without worsening
+another. Negate any objective you want to minimize.
+
+The [complete runnable example](../examples/constrained_multiobjective.py) combines
+all three features in one custom screening round:
+
+1. Fit `GPR(num_outputs=2, num_fidelities=2)` to **25 cheap and nine expensive designs**.
+   Both scores are observed at each design; long-form rows carry output and fidelity indices.
+2. Fit `GPC()` to the expensive evaluations' feasibility labels.
+3. Predict both scores at the highest fidelity; retain unseen candidates with
+   `P(feasible) >= 0.8`, then find their non-dominated predicted scores.
+4. Select up to four designs spread across that predicted front and evaluate them in
+   parallel with `ThreadPoolExecutor(max_workers=4)`.
+5. Check observed feasibility and report the non-dominated **measured** scores from
+   the initial expensive design and the new batch.
+
+```bash
+uv run python examples/constrained_multiobjective.py
+```
+
+The printed result includes the batch size, actual feasibility flags, Pareto inputs,
+and their two scores. The toy objectives peak at different inputs (`0.2` and `0.8`),
+while the measured constraint requires `x <= 0.65`; maximizing each score independently
+would miss the feasible trade-offs.
+
+This is a finite-candidate, posterior-mean screening example. Its feasibility threshold
+is a model estimate, not a guarantee, and its Pareto set is relative to the observations.
+It demonstrates data preparation, filtering, parallel evaluation, and result selection;
+it does not optimize a hypervolume acquisition or automatically allocate fidelity costs.
+
+**Choose the right integration:** the built-in `async_bo` and `batch_bo` loops accept
+a scalar, single-fidelity objective. Use a custom workflow like this one for multiple
+objectives or fidelity selection. For joint-posterior acquisitions in BoTorch, start
+with the compatible builders [below](#work-with-gpytorch-and-botorch); `GPR` / `GPC`
+provide marginal predictions through their own interface.
 
 ## Build, train, infer
 
@@ -156,6 +283,10 @@ prediction = objective.predict(x_next)
 mean, variance = prediction["fmu"], prediction["fs2"]  # shape (5, 2)
 probability_feasible = constraint.predict_proba(x_next)  # shape (5, 2)
 ```
+
+**Multiple outputs describe responses; a Pareto rule makes them an optimization problem.**
+The snippet above fits surrogates; the constrained example above demonstrates selection
+and evaluation.
 
 Keep observations in one table: inputs `x` have shape `(n, D)`, targets `y` have shape
 `(n,)`, and optional integer `output` and `fidelity` indices identify each row. Outputs and
