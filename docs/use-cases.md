@@ -67,7 +67,7 @@ See the [combined objective and constraint example](../examples/gpr_gpc_constrai
 ## Bayesian optimization
 
 Supply `evaluate(x) -> (objective_value, feasible)`. Both built-in loops maximize the
-objective; negate a loss to minimize it. The [quickstart](../README.md#plug-in-your-objective)
+objective; negate a loss to minimize it. The [quickstart](getting_started.md#plug-in-your-objective)
 contains a complete runnable pipeline.
 
 | Execution mode | Use | Budget |
@@ -104,4 +104,4 @@ The exact GP builders, `ar1_cokriging`, and `dag_cokriging` expose BoTorch-compa
 ## Related Notes
 
 - [Documentation index](README.md) — guide overview.
-- [Project README](../README.md) — installation, runnable pipeline, and contributions.
+- [Getting started](getting_started.md) — installation, runnable pipeline, and contributions.
