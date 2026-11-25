@@ -9,13 +9,13 @@ import torch
 
 import gp_omni  # noqa: F401
 from gp_omni import GPC, GPR
-from gp_omni.train.asyncbo import async_bo, async_bo_config, negative_acquisition
-from gp_omni.train.asyncbo import database as db
-from gp_omni.train.asyncbo.acquisition import (
+from gp_omni.opt.acquisition import (
     acquisition_value,
     check_multiple_design_sites,
     predict_feasibility,
 )
+from gp_omni.opt.parallel import jobs as db
+from gp_omni.opt.parallel.asyncbo import async_bo, async_bo_config, hedge, negative_acquisition
 
 
 @pytest.fixture(scope="module")
@@ -122,7 +122,7 @@ def test_rewards_credit_new_bests_only(tmp_path):
     make_job(tmp_path, 4, [0, 3], y=0, feasible=0, scheme="PI")  # infeasible
     make_job(tmp_path, 5, [0, 4], y=3.0, scheme="EI")  # new best -> EI
     make_job(tmp_path, 6, [0, 5], complete=0, scheme="UCB")  # no output yet
-    assert db.get_rewards(tmp_path, num_init_point=1).tolist() == [0.0, 2.0, 0.0]
+    assert hedge.get_rewards(tmp_path, num_init_point=1).tolist() == [0.0, 2.0, 0.0]
 
 
 def test_hedge_scheme_follows_rewards(tmp_path):
@@ -131,7 +131,8 @@ def test_hedge_scheme_follows_rewards(tmp_path):
         (tmp_path / f"m_iter{i}").mkdir()
     rng = np.random.default_rng(0)
     picks = [
-        db.get_acquisition_scheme(tmp_path, 1, np.array([0.0, 50.0, 0.0]), rng) for _ in range(200)
+        hedge.get_acquisition_scheme(tmp_path, 1, np.array([0.0, 50.0, 0.0]), rng)
+        for _ in range(200)
     ]
     assert picks.count("EI") > 150
 

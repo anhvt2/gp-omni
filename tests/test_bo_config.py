@@ -12,8 +12,8 @@ import pytest
 
 import gp_omni.config
 from gp_omni import bo_config
-from gp_omni.train.asyncbo import async_bo_config
-from gp_omni.train.batchbo import batch_bo_config
+from gp_omni.opt.parallel.asyncbo import async_bo_config
+from gp_omni.opt.parallel.batchbo import batch_bo_config
 
 
 @pytest.mark.parametrize("scale", [1.5, [1.0, 2.0]])
@@ -38,8 +38,8 @@ def test_packaged_scale_defaults_import_and_remain_independent(scale, tmp_path):
 import numpy as np
 from gp_omni import bo_config
 from gp_omni.settings import load_defaults
-from gp_omni.train.asyncbo import async_bo_config
-from gp_omni.train.batchbo import batch_bo_config
+from gp_omni.opt.parallel.asyncbo import async_bo_config
+from gp_omni.opt.parallel.batchbo import batch_bo_config
 
 expected = np.broadcast_to(load_defaults("bo")["loop"]["x_scale"], (2,))
 for cls in (bo_config, async_bo_config, batch_bo_config):

@@ -8,7 +8,7 @@ output 0 / feasible 0, so they are hallucinated with the objective model's own p
 (kriging believer) and the next proposal is pushed away from them.
 
 Each proposal maximises ``acquisition * known_constraint * P(feasible)`` (see
-:mod:`gp_omni.train.asyncbo.acquisition`).
+:mod:`gp_omni.opt.acquisition`).
 
 The maximisation convention is kept: to minimise, negate the objective.
 """
@@ -25,18 +25,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import torch
 
 from gp_omni.build.gpc import GPC
 from gp_omni.build.gpr import GPR
-from gp_omni.train.asyncbo import database as db
-from gp_omni.train.asyncbo.acquisition import predict_objective
-from gp_omni.train.asyncbo.sampling import (
+from gp_omni.opt.acquisition import check_acquisition_name, predict_objective
+from gp_omni.opt.config import bo_config
+from gp_omni.opt.parallel import jobs as db
+from gp_omni.opt.parallel.asyncbo import hedge
+from gp_omni.opt.parallel.hallucination import fit_models
+from gp_omni.opt.search import (
     get_next_sampling_point,
     get_next_sampling_point_classifier_reduce_mse,
     get_next_sampling_point_reduce_mse,
 )
-from gp_omni.train.bo_config import bo_config
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +46,21 @@ evaluator_fn = Callable[[np.ndarray], tuple[float, bool]]  # x (unscaled) -> (ob
 
 @dataclass
 class async_bo_config(bo_config):
-    """Asynchronous GP-Hedge settings; ``max_iter`` counts evaluations launched."""
+    """Asynchronous GP-Hedge settings; ``max_iter`` counts evaluations launched.
+
+    ``hedge_arms`` are the acquisition functions the GP-Hedge portfolio chooses from (any
+    name of :mod:`gp_omni.opt.acquisition`).
+    """
+
+    hedge_arms: tuple[str, ...] = hedge.DEFAULT_ARMS
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.hedge_arms = tuple(self.hedge_arms)
+        if not self.hedge_arms:
+            raise ValueError("hedge_arms must name at least one acquisition function")
+        for name in self.hedge_arms:
+            check_acquisition_name(name)
 
 
 class async_bo:
@@ -110,25 +125,10 @@ class async_bo:
         return x_obs / self.config.x_scale, y_obs / self.config.y_scale, f_obs
 
     def fit_models(self, x_obs: np.ndarray, y_obs: np.ndarray, f_obs: np.ndarray) -> None:
-        """Hallucinate infeasible / pending outputs, then fit objective model and classifier.
-
-        1. fit the objective on feasible points only; 2. replace the outputs of infeasible
-        and pending points with that model's prediction; 3. refit on everything;
-        4. fit the constraint classifier on ``f_obs`` (skipped while every label is the same).
-        """
-        n = self.config.gp_max_iter
-        x_train = torch.as_tensor(x_obs)
-        feasible = torch.as_tensor(f_obs > 0)
-        self.model = self.classifier = self.y_hallucinated = None
-        if feasible.sum() >= 2:
-            interp = GPR().fit(x_train[feasible], torch.as_tensor(y_obs)[feasible], max_iter=n)
-            y_obs = y_obs.copy()
-            for i in np.flatnonzero(f_obs == 0):
-                y_obs[i] = predict_objective(interp, x_obs[i])[0]
-            self.model = GPR().fit(x_train, torch.as_tensor(y_obs), max_iter=n)
-            self.y_hallucinated = y_obs
-        if 0 < feasible.sum() < len(f_obs):
-            self.classifier = GPC().fit(x_train, torch.as_tensor(f_obs > 0), max_iter=n)
+        """Fit the models on hallucinated data (see :mod:`gp_omni.opt.parallel.hallucination`)."""
+        self.model, self.classifier, self.y_hallucinated = fit_models(
+            x_obs, y_obs, f_obs, self.config.gp_max_iter
+        )
 
     # ------------------------------------------------------------------------ proposals
     def propose(self, batch_id: int, x_obs: np.ndarray) -> tuple[np.ndarray, str | None]:
@@ -139,8 +139,11 @@ class async_bo:
                 config.x_ub - config.x_lb
             ), scheme
         if batch_id == 1:
-            rewards = db.get_rewards(self.root, config.num_init_point)
-            scheme = db.get_acquisition_scheme(self.root, config.num_init_point, rewards, self.rng)
+            arms = config.hedge_arms
+            rewards = hedge.get_rewards(self.root, config.num_init_point, arms)
+            scheme = hedge.get_acquisition_scheme(
+                self.root, config.num_init_point, rewards, self.rng, arms
+            )
             x = get_next_sampling_point(
                 self.model,
                 self.classifier,
