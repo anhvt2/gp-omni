@@ -1,8 +1,7 @@
-"""The ported manuscript test functions are right (no GP involved).
+"""Validate analytical benchmarks independently of GP fitting.
 
-Checks: published optima, no random point beats the optimum, exact agreement with BoTorch's
-independent implementations where they exist, analytic Pareto fronts, and the manuscripts' own
-claims about the multi-fidelity pairs.
+Check known optima, sampled lower bounds, agreement with BoTorch where applicable,
+analytic Pareto fronts, and explicit multi-fidelity relationships.
 """
 
 import math
@@ -28,7 +27,7 @@ def rand_in(bounds, n):
 
 # ----------------------------------------------------------------------- single objective
 FIXED = so.fixed_dim_functions()
-FREE = [so.free_dim_function(n, so.MANUSCRIPT_DIM[n]) for n in so.FREE_DIM_NAMES]
+FREE = [so.free_dim_function(n, so.REFERENCE_DIM[n]) for n in so.FREE_DIM_NAMES]
 
 
 @pytest.mark.parametrize("fn", [f for f in [*FIXED.values(), *FREE] if f.argmin], ids=lambda f: f.name)
@@ -90,7 +89,7 @@ def test_functions_without_botorch_twin_against_closed_forms():
     assert torch.allclose(so.free_dim_function("rotated_hyper_ellipsoid", 3)(x), expect)
 
 
-def test_perm0db_does_not_overflow_at_its_optimum_for_the_manuscript_dimension():
+def test_perm0db_does_not_overflow_at_its_optimum_in_eighty_dimensions():
     fn = so.free_dim_function("perm0db", 80)  # integer j**i would overflow int64 here
     assert fn(torch.tensor([fn.argmin])).item() == pytest.approx(0.0, abs=1e-20)
 
@@ -112,16 +111,16 @@ def test_scalable_functions_have_two_active_directions():
     ("modified_zdt2", -1.0, 81.9969512195122),
     ("modified_zdt3", 0.0, 8.16886116991581),
 ])
-def test_modified_zdt_preserves_each_printed_domain_and_g_scaling(name, lo, value):
+def test_modified_zdt_preserves_each_variant_domain_and_g_scaling(name, lo, value):
     fn = so.scalable_function(name, 3)
     assert fn.lower == (lo,) * 3 and fn.upper == (1.0,) * 3
     assert fn(torch.tensor([[0.5, 0.25, 0.75]])).item() == pytest.approx(value)
 
 
-def test_eggholder_printed_formula_conflicts_with_its_stated_optimum():
+def test_eggholder_requires_square_roots_to_reproduce_its_optimum():
     x1, x2 = 512.0, 404.2319
-    printed = -(x2 + 47) * math.sin(abs(x2 + x1 / 2 + 47)) - x1 * math.sin(abs(x1 - x2 - 47))
-    assert printed == pytest.approx(615.7060847706929)
+    without_roots = -(x2 + 47) * math.sin(abs(x2 + x1 / 2 + 47)) - x1 * math.sin(abs(x1 - x2 - 47))
+    assert without_roots == pytest.approx(615.7060847706929)
     assert so.eggholder(torch.tensor([[x1, x2]])).item() == pytest.approx(-959.6407, abs=1e-4)
 
 
@@ -147,7 +146,7 @@ def test_currin_maximum_and_boundary():
 
 
 def test_borehole_low_fidelities_bracket_the_high_fidelity():
-    """The manuscript claims f_L1 <= f_H <= f_L2 for the three-fidelity borehole."""
+    """The three-fidelity borehole satisfies f_L1 <= f_H <= f_L2."""
     fn = mf.borehole(3)
     x = rand_in(fn.bounds, 20_000)
     low2, low1, high = (fn(x, k) for k in range(3))
@@ -240,13 +239,13 @@ def test_zdt3_front_returns_the_requested_number_of_points(n):
                                        ("dtlz5", bm.DTLZ5)])
 def test_dtlz_matches_botorch_everywhere(name, cls):
     x = torch.rand(100, 4, generator=GEN)
-    scale = 1.0 if name == "dtlz1" else 0.5  # preserve the manuscript scale
+    scale = 1.0 if name == "dtlz1" else 0.5  # scaled DTLZ variant
     assert torch.allclose(mo.dtlz(name)(x), scale * cls(dim=4, num_objectives=3)(x),
                           atol=1e-9, rtol=1e-9)
 
 
-def test_dtlz4_preserves_the_manuscript_partial_alpha_power():
-    """The printed cosine powers are valid even though this is not standard DTLZ4."""
+def test_dtlz4_variant_applies_alpha_only_to_cosine_factors():
+    """This variant applies alpha to cosine factors while leaving sine factors unpowered."""
     x = torch.rand(100, 4, generator=GEN)
     assert torch.allclose(mo.dtlz4(x, 3, alpha=1.0), mo.dtlz2(x, 3))
     assert not torch.allclose(mo.dtlz4(x, 3), mo.dtlz2(x, 3))
@@ -288,7 +287,7 @@ def test_dtlz5_front_is_a_curve():
     assert torch.allclose(mo.dtlz6(x6, 3), mo.dtlz6(x6b, 3), atol=1e-9)
 
 
-def test_dtlz_default_shapes_follow_the_manuscript():
+def test_multi_objective_default_shapes():
     fn = mo.dtlz("dtlz2")
     assert (fn.dim, fn.num_objectives) == (4, 3)
     assert mo.zdt("zdt1").dim == 3 and mo.zdt("zdt1").num_objectives == 2

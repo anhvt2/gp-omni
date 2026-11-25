@@ -1,14 +1,14 @@
-"""Numerical test functions ported from the author's Bayesian-optimization manuscripts.
+"""Analytical benchmarks for Gaussian-process regression and Bayesian optimization.
 
-Only the functions are here (no BO algorithm). Four families, one module each:
+Four families provide scalar, multi-fidelity, multi-objective, and noisy targets:
 
-- :mod:`.single_objective`  -- analytic single-fidelity benchmarks (async/parallel BO paper).
-- :mod:`.multi_fidelity`    -- Forrester, Currin, borehole, welded beam (multi-fidelity BO paper).
-- :mod:`.multi_objective`   -- ZDT and DTLZ suites (multi-objective BO papers).
-- :mod:`.noisy_regression`  -- noisy logistic and heteroscedastic Hall-Petch (monotonic GP paper).
+- :mod:`.single_objective` -- fixed-dimensional and scalable scalar functions.
+- :mod:`.multi_fidelity` -- Forrester, Currin, borehole, and welded beam.
+- :mod:`.multi_objective` -- ZDT and scaled DTLZ variants.
+- :mod:`.noisy_regression` -- logistic and heteroscedastic Hall-Petch regression.
 
-Every function takes a ``(n, d)`` tensor and returns ``(n,)`` (or ``(n, M)``) in torch's default
-dtype. Fidelity levels are indexed cheapest = 0 ... highest = L - 1, matching ``GPR``.
+Every function takes a ``(n, d)`` tensor and returns ``(n,)`` or ``(n, M)`` in torch's
+default dtype. Fidelity levels run from cheapest = 0 to highest = L - 1, matching ``GPR``.
 """
 
 from .common import BenchmarkFunction, MultiFidelityFunction, MultiObjectiveFunction

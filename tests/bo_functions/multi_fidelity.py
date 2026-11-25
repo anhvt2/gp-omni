@@ -1,6 +1,7 @@
-"""Multi-fidelity functions from ``sMfConsBO_7Mar20.tex`` (final submission).
+"""Multi-fidelity analytical benchmarks with levels ordered from cheapest to highest.
 
-Levels are ordered cheapest first, so ``levels[-1]`` is the high-fidelity function ``f_H``.
+Forrester, Currin, borehole, and material-dependent welded-beam functions include
+physical domains and explicit fidelity relationships.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from torch import Tensor
 
 from .common import MultiFidelityFunction
 
-SOURCE = "sMfConsBO_7Mar20"
+SOURCE = "Multi-fidelity analytical benchmarks"
 
 
 # ------------------------------------------------------------------ Forrester (1d, 2 levels)
@@ -64,7 +65,7 @@ BOREHOLE_UPPER = (0.15, 50000.0, 115600.0, 1110.0, 116.0, 820.0, 1680.0, 12045.0
 
 
 def _borehole(x: Tensor, num: float, shift: float) -> Tensor:
-    """Manuscript's ``x_1..x_8`` = (r_w, r, T_u, H_u, T_l, H_l, L, K_w)."""
+    """Input order ``x_1..x_8`` = (r_w, r, T_u, H_u, T_l, H_l, L, K_w)."""
     x1, x2, x3, x4, x5, x6, x7, x8 = x.unbind(1)
     log_term = torch.log(x2 / x1)
     return (num * x3 * (x4 - x6)) / (
@@ -97,7 +98,7 @@ def borehole(num_fidelities: int = 2) -> MultiFidelityFunction:
 
 
 # --------------------------------------------------------------- Welded beam (4d, 4 levels)
-# Materials: steel, cast iron, aluminum, brass (manuscript table).
+# Materials: steel, cast iron, aluminum, brass (material parameter order).
 WELD_C1 = (0.1047, 0.0489, 0.5235, 0.5584)
 WELD_C2 = (0.0481, 0.0224, 0.2405, 0.2566)
 WELD_SIGMA_D = (30e3, 8e3, 5e3, 8e3)
@@ -114,9 +115,9 @@ def weld_cost(h, l, t, b, m: int, w: int = 0) -> Tensor:
 
 
 def weld_constraints(x: Tensor, m: int = 0, w: int = 0) -> Tensor:
-    """The five inequality constraints ``g_1..g_5 >= 0``, shape ``(n, 5)``, exactly as printed.
+    """The five inequality constraints ``g_1..g_5 >= 0``, shape ``(n, 5)``, for this benchmark variant.
 
-    Caveat: the manuscript's ``J`` (and the ``P_c`` prefactor) differ from the classic Ragsdell &
+    Caveat: this variant's ``J`` and ``P_c`` prefactor differ from the classic Ragsdell &
     Phillips welded beam (``J`` there carries an extra factor 2), so ``g_1`` and ``g_4`` do not
     reproduce the classic optimum (cost 1.7245). ``g_2``, ``g_3``, ``g_5`` and the cost do."""
     h, l, t, b = x.unbind(1)

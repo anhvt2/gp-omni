@@ -137,7 +137,7 @@ MULTI_OBJECTIVE_SPARSE_CASES = tuple(
 @dataclass(frozen=True)
 class NoisyCase:
     problem_name: str
-    guard: float | None  # None: report an unlearnable printed noise model; check finiteness only
+    guard: float | None  # None: report an extreme noise stress case; check finiteness only
 
     def problem(self):
         return {"noisy_logistic": nr.noisy_logistic, "hall_petch": nr.heteroscedastic_hall_petch,
