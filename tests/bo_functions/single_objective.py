@@ -1,7 +1,7 @@
-"""Single-objective benchmarks from the async/parallel BO manuscript (``asyncPar_1Feb22.tex``).
+"""Single-objective analytical benchmarks with bounds and known optima.
 
-Formulas follow the manuscript and Surjanovic & Bingham's library. Where the manuscript has a
-typo, the standard definition is used (noted per function). "free d" functions take ``dim``.
+Fixed-dimensional functions use the Surjanovic & Bingham benchmark conventions.
+Scalable functions accept ``dim``; modified ZDT objectives use the variants defined below.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ def _box(lo: float, hi: float, d: int) -> tuple[tuple[float, ...], tuple[float, 
 
 
 def eggholder(x: Tensor) -> Tensor:
-    """Restore square roots omitted in print; these reproduce the manuscript's stated optimum."""
+    """Eggholder with square-root arguments and minimum approximately -959.6407."""
     x1, x2 = x[:, 0], x[:, 1]
     return -(x2 + 47) * torch.sin(torch.sqrt(torch.abs(x2 + x1 / 2 + 47))) - x1 * torch.sin(
         torch.sqrt(torch.abs(x1 - (x2 + 47)))
@@ -66,13 +66,13 @@ def hartmann3(x: Tensor) -> Tensor:
 
 
 def hartmann4(x: Tensor) -> Tensor:
-    """Manuscript's sum index ``j=4..3`` is a typo; the 4-d variant uses the first 4 columns
-    of the 6-d ``A``/``P`` with the ``(1.1 - sum) / 0.839`` rescale."""
+    """Four-dimensional Hartmann using the first four columns of the six-dimensional
+    ``A``/``P`` tables and the ``(1.1 - sum) / 0.839`` rescale."""
     return (1.1 - _hartmann_inner(x, _HART6_A, _HART6_P)) / 0.839
 
 
 def hartmann6(x: Tensor) -> Tensor:
-    """Use j=1..6 and a six-dimensional box, resolving the printed reversed limits/domain."""
+    """Six-dimensional Hartmann, summing over all six input coordinates."""
     return -_hartmann_inner(x, _HART6_A, _HART6_P)
 
 
@@ -120,8 +120,7 @@ def rotated_hyper_ellipsoid(x: Tensor) -> Tensor:
 
 
 def perm0db(x: Tensor, beta: float = 10.0) -> Tensor:
-    """Perm function 0, d, beta (``beta=10`` as in Surjanovic & Bingham; unspecified in the
-    manuscript)."""
+    """Perm function 0, d, beta, with the Surjanovic & Bingham default ``beta=10``."""
     d = x.shape[1]
     j = torch.arange(1, d + 1, dtype=x.dtype)  # float: integer j**i overflows for large d
     total = 0.0
@@ -130,12 +129,12 @@ def perm0db(x: Tensor, beta: float = 10.0) -> Tensor:
     return total
 
 
-def _fixed(name, dim, lo, hi, fn, gmin, argmin, source="asyncPar_1Feb22 / sfu.ca"):
+def _fixed(name, dim, lo, hi, fn, gmin, argmin, source="Surjanovic & Bingham benchmark library"):
     return BenchmarkFunction(name, dim, lo, hi, fn, gmin, argmin, source)
 
 
 def fixed_dim_functions() -> dict[str, BenchmarkFunction]:
-    """The functions with a fixed dimension in the manuscript."""
+    """Return the fixed-dimensional benchmarks with physical bounds and optima."""
     return {
         f.name: f
         for f in (
@@ -208,8 +207,8 @@ FREE_DIM_NAMES = (
     "perm0db",
 )
 
-# Manuscript dimensions for the "free d" functions (async BO paper), used for optimum checks.
-MANUSCRIPT_DIM = {
+# Reference dimensions for scalable-function optimum checks.
+REFERENCE_DIM = {
     "ackley": 5,
     "michalewicz": 10,
     "rosenbrock": 20,
@@ -223,9 +222,8 @@ MANUSCRIPT_DIM = {
 }
 
 
-# ---- scalable-BO paper (scalable3BO_28May21.tex): modified single-objective ZDT + sphere ----
-# Preserve each printed definition, including the different g scalings and ZDT3's [0,1]
-# domain. These are well-defined variants; agreement with standard ZDT is not required.
+# Modified single-objective ZDT variants and a squared-sum parabola.
+# Each variant has its own g scaling; ZDT1/2 use [-1,1]^d and ZDT3 uses [0,1]^d.
 
 
 def modified_zdt1_f2(x: Tensor) -> Tensor:
@@ -259,4 +257,4 @@ def scalable_function(name: str, dim: int) -> BenchmarkFunction:
         "squared_sum": (*_box(0, 1, d), squared_sum, 0.0),
     }
     lo, hi, fn, gmin = table[name]
-    return BenchmarkFunction(name, d, lo, hi, fn, gmin, None, "scalable3BO_28May21")
+    return BenchmarkFunction(name, d, lo, hi, fn, gmin, None, "Modified ZDT and squared-sum variants")

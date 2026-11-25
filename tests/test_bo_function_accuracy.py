@@ -1,4 +1,4 @@
-"""Regression guards on GPR accuracy against the true values of the manuscript test functions.
+"""Regression guards on GPR accuracy against analytical benchmark truth.
 
 Thresholds live in ``bo_functions/cases.py`` (about 2x the observed NRMSE, median over seeds).
 They guard against regressions; they are not claims that the model is accurate. Run

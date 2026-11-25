@@ -1,7 +1,7 @@
-"""Noisy 1-d regression problems from the monotonic-GP manuscript (``monotonicGP_25Aug22.tex``).
+"""Noisy one-dimensional logistic and Hall-Petch regression benchmarks.
 
-Only the data-generating processes are here: the noise-free truth, the noise model and the
-sampling design. They are accuracy targets for an ordinary (non-monotonic) GPR.
+Each problem defines noise-free truth, a noise model, and a seeded sampling design.
+These are accuracy targets for ordinary Gaussian-process regression.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class NoisyProblem:
     truth: Callable[[Tensor], Tensor]
     noise_sd: Callable[[Tensor], Tensor]  # x (n,) -> sd (n,)
     num_train: int
-    source: str = "monotonicGP_25Aug22"
+    source: str = "Logistic and Hall-Petch regression benchmarks"
 
     def sample(self, seed: int = 0) -> tuple[Tensor, Tensor]:
         g = torch.Generator().manual_seed(seed)
@@ -44,10 +44,10 @@ def hall_petch_truth(d: Tensor) -> Tensor:
 
 
 def hall_petch_noise_sd(d: Tensor) -> Tensor:
-    """Printed variance, using the same numerical d in micrometres as the truth equation.
+    """Variance ``2.2e10*d**3``, with numerical grain size ``d`` in micrometres.
 
-    The manuscript does not state a separate conversion in this noise term. Its large
-    magnitude is reported as written rather than silently changing the noise model.
+    This deliberately extreme noise model is a finiteness stress test. Use
+    ``hall_petch_noise_sd_metres`` for the separate metre-based noise variant.
     """
     return torch.sqrt(2.2e10 * d**3)
 

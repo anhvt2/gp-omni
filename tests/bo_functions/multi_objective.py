@@ -1,15 +1,11 @@
-"""ZDT and DTLZ suites from the multi-objective BO manuscripts (``sMoConsBO_25Aug21.tex``).
+"""ZDT benchmarks and scaled DTLZ variants for multi-output regression.
 
-Preserve the manuscript's 0.5 scale for DTLZ2-6 and its partial alpha power in DTLZ4.
-DTLZ4 is a well-defined variant, but its front is not the standard spherical front.
-DTLZ1 follows the manuscript's explicit tail-variable convention (k = d - M + 1).
-DTLZ5/6 use the cited DTLZ angle convention to resolve undefined theta_1 and duplicate
-pi/2 scaling in the printed equations. See the audit in the generated accuracy report.
+DTLZ2-6 use a 0.5 objective scale. DTLZ4 applies alpha only to cosine factors;
+its front is not the standard spherical front. DTLZ1 uses k = d - M + 1 tail
+variables. DTLZ5/6 use radian-valued angles with theta_1 = pi*x_1/2.
 
-BoTorch cross-check (``tests/test_bo_functions.py``): ZDT1/2 and DTLZ1 agree exactly; DTLZ2/3/5
-agree after applying the manuscript's 0.5 scale. BoTorch's
-ZDT3 returns ``h`` instead of ``g * h`` in the installed version, so ZDT3 and the manuscript's
-DTLZ4 variant are checked against their analytic definitions instead.
+ZDT1/2 and DTLZ1 are cross-checked against BoTorch; DTLZ2/3/5 are compared
+with a 0.5 scale. ZDT3 and the DTLZ4 variant are checked analytically.
 """
 
 from __future__ import annotations
@@ -21,7 +17,7 @@ from torch import Tensor
 
 from .common import MultiObjectiveFunction, sobol_unit
 
-SOURCE = "sMoConsBO_25Aug21"
+SOURCE = "ZDT benchmarks and scaled DTLZ variants"
 ZDT3_SEGMENTS = (
     (0.0, 0.0830015349),
     (0.1822287280, 0.2577623634),
@@ -84,7 +80,7 @@ def _zdt3_front(n: int) -> Tensor:
 
 
 def zdt(name: str, dim: int = 3) -> MultiObjectiveFunction:
-    """``zdt1`` .. ``zdt4``, ``zdt6`` with ``dim`` inputs (manuscript uses 3)."""
+    """``zdt1`` .. ``zdt4``, ``zdt6`` with ``dim`` inputs (default: 3)."""
     fns = {"zdt1": zdt1, "zdt2": zdt2, "zdt3": zdt3, "zdt4": zdt4, "zdt6": zdt6}
     fronts = {
         "zdt1": _front(lambda f: 1 - torch.sqrt(f)),
@@ -144,7 +140,7 @@ def dtlz3(x: Tensor, m: int = 3) -> Tensor:
 
 
 def dtlz4(x: Tensor, m: int = 3, alpha: float = 100.0) -> Tensor:
-    """Printed variant: alpha applies to cosine factors only (100 is an assumed default)."""
+    """Variant with alpha on cosine factors only (default: 100)."""
     head, tail = _split(x, m)
     g = ((tail - 0.5) ** 2).sum(1)
     fs = []
@@ -197,7 +193,7 @@ def _simplex_front(m: int):
 
 
 def dtlz(name: str, num_objectives: int = 3, dim: int = 4) -> MultiObjectiveFunction:
-    """``dtlz1`` .. ``dtlz6``; the manuscript uses ``M = 3`` objectives and ``d = 4`` inputs."""
+    """``dtlz1`` .. ``dtlz6``; defaults to ``M = 3`` objectives and ``d = 4`` inputs."""
     m = num_objectives
     fns = {"dtlz1": dtlz1, "dtlz2": dtlz2, "dtlz3": dtlz3, "dtlz4": dtlz4, "dtlz5": dtlz5}
     fns["dtlz6"] = dtlz6
