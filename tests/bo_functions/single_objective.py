@@ -221,3 +221,42 @@ MANUSCRIPT_DIM = {
     "rotated_hyper_ellipsoid": 70,
     "perm0db": 80,
 }
+
+
+# ---- scalable-BO paper (scalable3BO_28May21.tex): modified single-objective ZDT + sphere ----
+# Preserve each printed definition, including the different g scalings and ZDT3's [0,1]
+# domain. These are well-defined variants; agreement with standard ZDT is not required.
+
+
+def modified_zdt1_f2(x: Tensor) -> Tensor:
+    d = x.shape[1]
+    g = 1 + 9 * (x[:, 1:].sum(1) / (d - 1)) ** 2
+    return g * (1 - torch.sqrt(x[:, 0] ** 2 / g))
+
+
+def modified_zdt2_f2(x: Tensor) -> Tensor:
+    g = 1 + (9 * x[:, 1:].sum(1)) ** 2
+    return g * (1 - (x[:, 0] / g) ** 2)
+
+
+def modified_zdt3_f2(x: Tensor) -> Tensor:
+    g = 1 + 9 * x[:, 1:].sum(1) ** 2
+    r = x[:, 0] ** 2 / g
+    return g * (1 - torch.sqrt(r) - r * torch.sin(10 * math.pi * x[:, 0] ** 2))
+
+
+def squared_sum(x: Tensor) -> Tensor:
+    """Valley-shaped parabola ``(sum x_i)^2`` with a single effective direction."""
+    return x.sum(1) ** 2
+
+
+def scalable_function(name: str, dim: int) -> BenchmarkFunction:
+    d = dim
+    table = {
+        "modified_zdt1": (*_box(-1, 1, d), modified_zdt1_f2, 0.0),
+        "modified_zdt2": (*_box(-1, 1, d), modified_zdt2_f2, None),
+        "modified_zdt3": (*_box(0, 1, d), modified_zdt3_f2, None),
+        "squared_sum": (*_box(0, 1, d), squared_sum, 0.0),
+    }
+    lo, hi, fn, gmin = table[name]
+    return BenchmarkFunction(name, d, lo, hi, fn, gmin, None, "scalable3BO_28May21")
