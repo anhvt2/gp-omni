@@ -106,8 +106,9 @@ def sample_max_values(
 
     q25, q50, q75 = quantile(0.25), quantile(0.5), quantile(0.75)
     scale = max((q25 - q75) / (math.log(math.log(4 / 3)) - math.log(math.log(4))), 1e-12)
+    location = q50 + scale * math.log(math.log(2))
     r = rng.random(n_samples)
-    return np.maximum(q50 - scale * np.log(-np.log(r)), f_best)
+    return np.maximum(location - scale * np.log(-np.log(r)), f_best)
 
 
 def pointwise_value(
