@@ -8,12 +8,14 @@ name    acquisition                                                  reference
 ``UCB`` ``y + sqrt(kappa) s``, ``kappa`` from the regret bound       Srinivas et al. (2010)
 ``PE``  ``s2`` (pure exploration = maximum differential entropy)     Contal et al. (2013)
 ``MES`` mean over ``y*`` samples of the entropy reduction            Wang & Jegelka (2017)
+``KG``  one-step look-ahead gain in the best posterior mean          Frazier et al. (2009)
+``PES`` information about the optimum's location (``se_ard`` only)   Hernandez-Lobato (2014)
 ======  ===========================================================  =========================
 
 with ``gamma = (y - f_best - xi) / s``. All of them are sequential: parallel runs hallucinate
-pending points first (:mod:`gp_omni.opt.parallel`). ``MES`` needs a
-per-proposal ``context`` from :func:`prepare_context` (optimum-value samples) that stays
-fixed while the inner search runs.
+pending points first (:mod:`gp_omni.opt.parallel`). ``MES``, ``KG`` and ``PES`` need a
+per-proposal ``context`` from :func:`prepare_context` (optimum-value samples, candidate set,
+or sampled optima) that stays fixed while the inner search runs.
 """
 
 from __future__ import annotations
@@ -27,6 +29,12 @@ from gp_omni.opt.acquisition.common import (
     known_constraint_fn,
     predict_feasibility,
     predict_objective,
+)
+from gp_omni.opt.acquisition.single_objective import (
+    knowledge_gradient as kg,
+)
+from gp_omni.opt.acquisition.single_objective import (
+    predictive_entropy_search as pes,
 )
 from gp_omni.opt.acquisition.single_objective.pointwise import (
     DEFAULTS,
@@ -43,7 +51,7 @@ from gp_omni.opt.acquisition.single_objective.pointwise import (
 #: scored from ``(y, s2)`` alone
 POINTWISE = ("PI", "EI", "UCB", "PE")
 #: need the joint posterior or samples, prepared once per proposal
-CONTEXTUAL = ("MES",)
+CONTEXTUAL = ("MES", "KG", "PES")
 NAMES = POINTWISE + CONTEXTUAL
 RANDOM = "MC"  # uniform random sampling, handled by the search
 
@@ -55,8 +63,10 @@ __all__ = [
     "acquisition_value",
     "check_acquisition_name",
     "expected_improvement",
+    "kg",
     "max_value_entropy",
     "negative_acquisition",
+    "pes",
     "prepare_context",
     "probability_of_improvement",
     "pure_exploration",
@@ -85,6 +95,11 @@ def prepare_context(
     """Per-proposal quantities that must stay fixed while the inner search runs."""
     if name == "MES":
         return {"y_star": sample_max_values(model, x_lb, x_ub, float(np.max(y_obs)), rng)}
+    if name == "KG":
+        kg.check_supported(model)
+        return {"candidates": kg.candidate_set(x_lb, x_ub, x_obs, y_obs, rng)}
+    if name == "PES":
+        return pes.prepare(model, x_lb, x_ub, rng)
     return {}
 
 
@@ -99,7 +114,12 @@ def acquisition_value(
     xi: float = 0.0,
     context: dict | None = None,
 ) -> float:
-    """Score the marginal posterior ``N(y, s2)`` (PI, EI, UCB, PE, MES) for maximisation."""
+    """Score the marginal posterior ``N(y, s2)`` (PI, EI, UCB, PE, MES) for maximisation.
+
+    KG and PES need the model and the point itself: use :func:`negative_acquisition`.
+    """
+    if name in ("KG", "PES"):
+        raise ValueError(f"{name} needs the model: use negative_acquisition")
     if name not in NAMES:
         check_acquisition_name(name)
     y_star = None if context is None else context.get("y_star")
@@ -122,7 +142,16 @@ def negative_acquisition(
     if known == 0:
         return 0.0
     unknown = predict_feasibility(classifier, x)
-    y, s2 = predict_objective(model, x)
-    t, d = x_obs.shape
-    a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d, context=context)
+    if acquisition == "KG":
+        if not context or "candidates" not in context:
+            raise ValueError("KG needs context=prepare_context('KG', ...)")
+        a = kg.knowledge_gradient(x, model, context["candidates"])
+    elif acquisition == "PES":
+        if not context or "pes_states" not in context:
+            raise ValueError("PES needs context=prepare_context('PES', ...)")
+        a = pes.predictive_entropy_search(x, model, context)
+    else:
+        y, s2 = predict_objective(model, x)
+        t, d = x_obs.shape
+        a = acquisition_value(acquisition, y, s2, float(np.max(y_obs)), t, d, context=context)
     return -a * known * unknown
