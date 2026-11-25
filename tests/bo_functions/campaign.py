@@ -34,11 +34,15 @@ from .single_objective import fixed_dim_functions, free_dim_function, scalable_f
 @dataclass(frozen=True)
 class CampaignCase:
     function: BenchmarkFunction
-    n_init: int
     n_evals: int
     tolerance: float  # absolute simple regret, in original objective units
     y_scale: float = 1.0
     stress: bool = False
+
+    @property
+    def n_init(self) -> int:
+        """Start with one observation per input dimension."""
+        return self.function.dim
 
     @property
     def name(self) -> str:
@@ -57,38 +61,37 @@ CASES = (
             FORRESTER.levels[-1],
             FORRESTER.global_min,
         ),
-        4,
         20,
         0.01,
         10,
     ),
-    CampaignCase(free_dim_function("sphere", 2), 6, 50, 0.05, 25),
-    CampaignCase(free_dim_function("sum_squares", 2), 6, 40, 0.05, 50),
-    CampaignCase(free_dim_function("sum_squares", 3), 8, 60, 0.1, 100, stress=True),
-    CampaignCase(free_dim_function("rotated_hyper_ellipsoid", 2), 6, 60, 5.0, 10_000),
-    CampaignCase(free_dim_function("trid", 2), 6, 30, 0.05, 50),
-    CampaignCase(free_dim_function("sum_pow", 2), 6, 30, 0.01),
-    CampaignCase(scalable_function("squared_sum", 3), 8, 35, 0.01, 9),
-    CampaignCase(FIXED["three_hump_camel"], 8, 40, 0.05, 1000),
-    CampaignCase(FIXED["six_hump_camel"], 8, 40, 0.05, 50),
-    CampaignCase(FIXED["hartmann3"], 8, 40, 0.1, 4),
-    CampaignCase(FIXED["hartmann6"], 12, 70, 0.3, 4, stress=True),
-    CampaignCase(free_dim_function("rosenbrock", 2), 8, 60, 1.0, 100_000, stress=True),
-    CampaignCase(free_dim_function("ackley", 2), 8, 60, 0.5, 20, stress=True),
-    CampaignCase(FIXED["eggholder"], 10, 60, 10.0, 1000, stress=True),
+    CampaignCase(free_dim_function("sphere", 2), 50, 0.05, 25),
+    CampaignCase(free_dim_function("sum_squares", 2), 40, 0.05, 50),
+    CampaignCase(free_dim_function("sum_squares", 3), 60, 0.1, 100, stress=True),
+    CampaignCase(free_dim_function("rotated_hyper_ellipsoid", 2), 60, 5.0, 10_000),
+    CampaignCase(free_dim_function("trid", 2), 30, 0.05, 50),
+    CampaignCase(free_dim_function("sum_pow", 2), 30, 0.01),
+    CampaignCase(scalable_function("squared_sum", 3), 35, 0.01, 9),
+    CampaignCase(FIXED["three_hump_camel"], 40, 0.05, 1000),
+    CampaignCase(FIXED["six_hump_camel"], 40, 0.05, 50),
+    CampaignCase(FIXED["hartmann3"], 40, 0.1, 4),
+    CampaignCase(FIXED["hartmann6"], 70, 0.3, 4, stress=True),
+    CampaignCase(free_dim_function("rosenbrock", 2), 60, 1.0, 100_000, stress=True),
+    CampaignCase(free_dim_function("ackley", 2), 60, 0.5, 20, stress=True),
+    CampaignCase(FIXED["eggholder"], 60, 10.0, 1000, stress=True),
 )
 # Exploratory profile spanning every dimension from 3 through 9. Targets are
 # fixed before running; misses remain in the report rather than becoming guards.
 INTERMEDIATE_CASES = (
-    CampaignCase(FIXED["hartmann3"], 10, 100, 0.1, 4),
-    CampaignCase(FIXED["hartmann4"], 12, 120, 0.1, 4),
-    CampaignCase(free_dim_function("ackley", 5), 15, 160, 0.5, 20),
-    CampaignCase(free_dim_function("rosenbrock", 5), 15, 160, 1.0, 100_000),
-    CampaignCase(FIXED["hartmann6"], 18, 180, 0.1, 4),
-    CampaignCase(free_dim_function("sphere", 7), 21, 140, 0.1, 100),
-    CampaignCase(free_dim_function("sum_squares", 8), 24, 300, 0.1, 500),
-    CampaignCase(free_dim_function("trid", 9), 27, 300, 0.1, 50_000),
-    CampaignCase(free_dim_function("sum_pow", 9), 27, 160, 0.01, 3),
+    CampaignCase(FIXED["hartmann3"], 100, 0.1, 4),
+    CampaignCase(FIXED["hartmann4"], 120, 0.1, 4),
+    CampaignCase(free_dim_function("ackley", 5), 160, 0.5, 20),
+    CampaignCase(free_dim_function("rosenbrock", 5), 160, 1.0, 100_000),
+    CampaignCase(FIXED["hartmann6"], 180, 0.1, 4),
+    CampaignCase(free_dim_function("sphere", 7), 140, 0.1, 100),
+    CampaignCase(free_dim_function("sum_squares", 8), 300, 0.1, 500),
+    CampaignCase(free_dim_function("trid", 9), 300, 0.1, 50_000),
+    CampaignCase(free_dim_function("sum_pow", 9), 160, 0.01, 3),
 )
 SEEDS = (0, 1, 2)
 

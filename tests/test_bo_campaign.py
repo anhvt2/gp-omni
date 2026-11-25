@@ -20,6 +20,7 @@ def test_bo_campaign_reaches_known_global_minimum(case, seed, tmp_path):
         f"final regret={result['regret']:.6g}, tolerance={case.tolerance:g}, "
         f"best x={result['best_x']}"
     )
+    assert result["n_init"] == case.function.dim, diagnostic
     assert result["n_evals"] == case.n_evals, diagnostic
     for invariant in (
         "all_complete",
