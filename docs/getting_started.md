@@ -352,6 +352,17 @@ uv run ruff check .
 uv run pytest -q
 ```
 
+CI requires at least 80% of executed tests to pass, configured by
+`TEST_MIN_PASS_RATE` in `.github/workflows/ci.yml`. Skipped tests (including expected
+failures) are excluded from that rate. Collection, setup/teardown, and runner errors
+still fail CI, as do empty runs. Lint must also pass. Individual failures remain
+visible in the logs and the uploaded JUnit report; the job summary shows the pass rate.
+The local `pytest` command above still requires every test to pass. To use the CI gate:
+
+```bash
+uv run python scripts/ci_tests.py --min-pass-rate 80 -q --durations=10
+```
+
 The test suite covers all 16 combinations of the four surrogate switches for regression
 and classification, plus kernels, sparse inference, co-kriging, and the BO loops.
 
