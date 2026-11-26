@@ -1,5 +1,7 @@
 # Bundled centrifugal pump case
 
+![Reference volute and impeller mesh surfaces](../../assets/centrifugal_pump.png)
+
 This directory contains all mesh and field inputs needed by
 `../centrifugal_pump.py`. OpenFOAM reads the gzip-compressed mesh files directly.
 The solver run requires this repository and OpenCFD OpenFOAM v2406.
