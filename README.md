@@ -10,6 +10,15 @@ Composable Gaussian processes for expensive questions and better next experiment
   <a href="https://github.com/anhvt2/gp-omni/actions/workflows/ci.yml"><img src="https://github.com/anhvt2/gp-omni/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="docs/getting_started.md#install"><img src="https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&amp;logoColor=white" alt="Python 3.12+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="Apache 2.0 license"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/docs-get%20started-0E8A16?logo=readthedocs&amp;logoColor=white" alt="Documentation"></a>
+</p>
+
+<p align="center">
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&amp;logoColor=white" alt="Built with PyTorch"></a>
+  <a href="https://gpytorch.ai/"><img src="https://img.shields.io/badge/GPyTorch-3B6EA8" alt="Built with GPyTorch"></a>
+  <a href="https://botorch.org/"><img src="https://img.shields.io/badge/BoTorch-005A9C" alt="Built with BoTorch"></a>
+  <a href="https://docs.astral.sh/ruff/"><img src="https://img.shields.io/badge/lint-Ruff-D7FF64?logo=ruff&amp;logoColor=white" alt="Lint with Ruff"></a>
+  <a href="https://docs.astral.sh/uv/"><img src="https://img.shields.io/badge/dependencies-uv-DE5FE9?logo=uv&amp;logoColor=white" alt="Dependencies managed with uv"></a>
 </p>
 
 <p align="center">
