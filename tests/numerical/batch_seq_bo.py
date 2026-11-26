@@ -1,6 +1,6 @@
 """Batch-sequential parallel constrained BO on a 2-D toy problem.
 
-    python examples/batch_seq_bo.py
+    python tests/numerical/batch_seq_bo.py
 
 Same problem as ``async_bo.py`` (known constraint ``x0 + x1 <= 2.5``, unknown crash region),
 but every iteration launches a whole batch in parallel and waits for all of it to finish.
@@ -16,7 +16,7 @@ import numpy as np
 import gp_omni  # noqa: F401
 from gp_omni.opt.parallel.batchbo import batch_bo, batch_bo_config
 
-CONFIG = Path(__file__).parents[1] / "config" / "batch_seq_bo.json"
+CONFIG = Path(__file__).parents[2] / "config" / "batch_seq_bo.json"
 
 
 def simulation(x):
