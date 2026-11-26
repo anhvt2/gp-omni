@@ -336,6 +336,7 @@ exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
 expose BoTorch-compatible posteriors; `GPR` / `GPC` expose their own prediction
 interface.
 
+- [Engineering design examples](../examples/README.md)
 - [Exact GP](../tests/numerical/exact_gpr.py) · [Correlated outputs](../tests/numerical/multioutput.py)
 - [SGPR, svgp, and KISS-GP](../tests/numerical/sparse.py) · [Variational classification](../tests/numerical/classification.py)
 - [AR1 co-kriging](../tests/numerical/cokriging.py) · [BoTorch multi-fidelity](../tests/numerical/multifidelity_botorch.py)
