@@ -1,8 +1,8 @@
 """A constraint classifier that mirrors the objective model, feature for feature.
 
-    python examples/gpr_gpc_constraints.py                       # no feature switches
-    python examples/gpr_gpc_constraints.py mo additive           # correlated + additive
-    python examples/gpr_gpc_constraints.py mo mf sparse additive # everything (or: all)
+    python tests/numerical/gpr_gpc_constraints.py                       # no feature switches
+    python tests/numerical/gpr_gpc_constraints.py mo additive           # correlated + additive
+    python tests/numerical/gpr_gpc_constraints.py mo mf sparse additive # everything (or: all)
 
 Features: ``mo`` (several correlated outputs), ``mf`` (several fidelities), ``sparse``
 (inducing points), ``additive`` (additive covariance). The same switches configure both

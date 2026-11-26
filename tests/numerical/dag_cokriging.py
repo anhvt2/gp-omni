@@ -1,6 +1,6 @@
 """Fit a four-fidelity diamond DAG on nonnested one-dimensional designs.
 
-Run: python examples/dag_cokriging.py
+Run: python tests/numerical/dag_cokriging.py
 """
 
 import torch

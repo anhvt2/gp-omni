@@ -19,7 +19,7 @@ posterior = model.posterior(x_new)  # BoTorch-compatible, with input gradients
 B = model.coupling_matrix  # B[parent, child], zero for every absent edge
 ```
 
-Run the complete example with `uv run python examples/dag_cokriging.py`.
+Run the complete example with `uv run python tests/numerical/dag_cokriging.py`.
 Node identifiers are list indices, not fidelity ranks. Edges and nodes need not be
 in topological order. If several nodes are sinks (including disconnected nodes),
 supply `target=j` explicitly. Prediction at any node conditions on **all** node data.

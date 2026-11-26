@@ -65,6 +65,7 @@ Pareto search, and cost-aware fidelity selection need a custom acquisition and w
 - **[Get started](docs/getting_started.md)** — installation, runnable code, and configuration.
 - **[Choose a model](docs/use-cases.md)** — match your data and evaluation workflow.
 - **[Explore hierarchical fidelities](docs/dag-cokriging.md)** — co-kriging over a directed graph.
+- **[Run engineering design examples](examples/README.md)** — cantilever sizing with FEM and centrifugal pump sizing with CFD.
 - **[Check the evidence](docs/test_function_accuracy.md)** — analytical benchmarks and reproduction settings.
 - **[Contribute](docs/getting_started.md#contribute)** — bring a use case, report a bug, or improve the toolkit.
 
