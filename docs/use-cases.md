@@ -6,10 +6,10 @@
 
 | Need | Option | Example |
 |---|---|---|
-| Correlated responses or objectives | `num_outputs=O` | [Multiple outputs](../examples/gpr_multioutput.py) |
-| Cheap and expensive evaluations | `num_fidelities=L` | [Multiple fidelities](../examples/gpr_multifidelity.py) |
-| Larger datasets | `nu=M` inducing locations | [Sparse GP](../examples/gpr_sparse.py) |
-| Low-order effects across many inputs | `additive=R` for orders `1..R` | [Additive GP](../examples/gpr_additive.py) |
+| Correlated responses or objectives | `num_outputs=O` | [Multiple outputs](../tests/numerical/gpr_multioutput.py) |
+| Cheap and expensive evaluations | `num_fidelities=L` | [Multiple fidelities](../tests/numerical/gpr_multifidelity.py) |
+| Larger datasets | `nu=M` inducing locations | [Sparse GP](../tests/numerical/gpr_sparse.py) |
+| Low-order effects across many inputs | `additive=R` for orders `1..R` | [Additive GP](../tests/numerical/gpr_additive.py) |
 
 For sparse inference, `s=0` selects VFE (default), `s=1` selects FITC, and values between
 select sparse power EP. Inducing locations are learned unless `fit(..., learn_xu=False)`.
@@ -62,7 +62,7 @@ decision = constraint.predict_feasible(x_new)  # probability >= 0.5
 
 Classification uses a probit likelihood by default, or `lik="logistic"`, with a Laplace
 approximation. With multiple constraints, predictions are marginal probabilities per output.
-See the [combined objective and constraint example](../examples/gpr_gpc_constraints.py).
+See the [combined objective and constraint example](../tests/numerical/gpr_gpc_constraints.py).
 
 ## Bayesian optimization
 
@@ -93,10 +93,10 @@ Settings and runnable examples: [async BO](../examples/async_bo.py),
 
 | Need | Use |
 |---|---|
-| Small, noiseless, two-fidelity designs | [`ar1_cokriging`](../examples/cokriging.py) |
+| Small, noiseless, two-fidelity designs | [`ar1_cokriging`](../tests/numerical/cokriging.py) |
 | Noiseless fidelities linked by a DAG, including multiple parents | [`dag_cokriging`](dag-cokriging.md) |
 | Direct GPyTorch models: exact, SGPR, svgp, KISS-GP, or ICM/LMC | [`gp_omni.build.gpytorch`](../src/build/gpytorch.py) |
-| Sparse inference and inducing-input swaps | [`sparse_gp`](../examples/sparse_vfe.py) |
+| Sparse inference and inducing-input swaps | [`sparse_gp`](../tests/numerical/sparse_vfe.py) |
 
 The exact GP builders, `ar1_cokriging`, and `dag_cokriging` expose BoTorch-compatible posteriors.
 `GPR` and `GPC` use the prediction interface above.

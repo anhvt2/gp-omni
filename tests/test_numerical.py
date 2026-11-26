@@ -1,4 +1,4 @@
-"""Smoke tests: every example runs and reaches a sensible error on its toy problem."""
+"""Regression checks for the numerical model and optimization scripts."""
 
 import ast
 import importlib.util
@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-EXAMPLES = Path(__file__).parents[1] / "examples"
+NUMERICAL = Path(__file__).parent / "numerical"
 
 
 def run(name: str) -> dict:
-    spec = importlib.util.spec_from_file_location(name, EXAMPLES / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, NUMERICAL / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.main()
@@ -95,7 +95,7 @@ def test_gpr_combined_example_default_runs_the_progressive_configs():
 
 
 def _load(name):
-    spec = importlib.util.spec_from_file_location(name, EXAMPLES / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, NUMERICAL / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -137,9 +137,9 @@ def test_gpr_combined_example_any_subset_of_features(mo, mf, sparse, additive):
 
 
 def test_gpr_combined_example_command_line_subset():
-    """``python examples/gpr_combined.py mo additive`` (high-dimensional multi-objective)."""
+    """``python tests/numerical/gpr_combined.py mo additive`` (high-dimensional multi-objective)."""
     out = subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_combined.py"), "mo", "additive"],
+        [sys.executable, "-W", "ignore", str(NUMERICAL / "gpr_combined.py"), "mo", "additive"],
         capture_output=True,
         text=True,
         check=True,
@@ -147,7 +147,7 @@ def test_gpr_combined_example_command_line_subset():
     res = ast.literal_eval(out.strip().splitlines()[-1])
     assert list(res) == ["mo+additive"] and res["mo+additive"] < 0.1, res
     bad = subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_combined.py"), "bogus"],
+        [sys.executable, "-W", "ignore", str(NUMERICAL / "gpr_combined.py"), "bogus"],
         capture_output=True,
         text=True,
         check=False,
@@ -176,7 +176,7 @@ def test_gpr_gpc_constraints_example_twins_share_any_features(features):
 
 def test_gpr_gpc_constraints_example_command_line():
     run_cmd = lambda *a: subprocess.run(
-        [sys.executable, "-W", "ignore", str(EXAMPLES / "gpr_gpc_constraints.py"), *a],
+        [sys.executable, "-W", "ignore", str(NUMERICAL / "gpr_gpc_constraints.py"), *a],
         capture_output=True,
         text=True,
         check=False,
