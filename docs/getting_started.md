@@ -186,11 +186,11 @@ and expensive observations can use different inputs. A fidelity index is metadat
 separate from the physical input coordinates. The model learns their relationship;
 choosing which fidelity to evaluate next is a separate optimization decision.
 
-Run [the comparison example](../examples/gpr_multifidelity.py) to see held-out RMSE
+Run [the comparison example](../tests/numerical/gpr_multifidelity.py) to see held-out RMSE
 against a model trained only on the expensive observations:
 
 ```bash
-uv run python examples/gpr_multifidelity.py
+uv run python tests/numerical/gpr_multifidelity.py
 ```
 
 ## Compare objectives under constraints
@@ -207,7 +207,7 @@ There may be no single best design. A feasible design is **Pareto optimal** amon
 observations if no other feasible observation improves one score without worsening
 another. Negate any objective you want to minimize.
 
-The [complete runnable example](../examples/constrained_multiobjective.py) combines
+The [complete runnable example](../tests/numerical/constrained_multiobjective.py) combines
 all three features in one custom screening round:
 
 1. Fit `GPR(num_outputs=2, num_fidelities=2)` to **25 cheap and nine expensive designs**.
@@ -221,7 +221,7 @@ all three features in one custom screening round:
    the initial expensive design and the new batch.
 
 ```bash
-uv run python examples/constrained_multiobjective.py
+uv run python tests/numerical/constrained_multiobjective.py
 ```
 
 The printed result includes the batch size, actual feasibility flags, Pareto inputs,
@@ -314,10 +314,10 @@ See the [documentation](README.md) for model choices, inference options,
 data layouts, and model limitations. Run combinations directly:
 
 ```bash
-uv run python examples/gpr_combined.py mo additive
-uv run python examples/gpr_combined.py mf sparse
-uv run python examples/gpr_combined.py all
-uv run python examples/gpr_gpc_constraints.py all
+uv run python tests/numerical/gpr_combined.py mo additive
+uv run python tests/numerical/gpr_combined.py mf sparse
+uv run python tests/numerical/gpr_combined.py all
+uv run python tests/numerical/gpr_gpc_constraints.py all
 ```
 
 Model, training, inference, and BO defaults live in [`config/`](../config/README.md).
@@ -336,11 +336,11 @@ exact, additive, SGPR, KISS-GP, multitask ICM/LMC, and variational models. Use
 expose BoTorch-compatible posteriors; `GPR` / `GPC` expose their own prediction
 interface.
 
-- [Exact GP](../examples/exact_gpr.py) · [Correlated outputs](../examples/multioutput.py)
-- [SGPR, svgp, and KISS-GP](../examples/sparse.py) · [Variational classification](../examples/classification.py)
-- [AR1 co-kriging](../examples/cokriging.py) · [BoTorch multi-fidelity](../examples/multifidelity_botorch.py)
-- [Hierarchical DAG co-kriging](../examples/dag_cokriging.py) · [DAG model guide](dag-cokriging.md)
-- [Sparse variational inference (VFE / FITC)](../examples/sparse_vfe.py)
+- [Exact GP](../tests/numerical/exact_gpr.py) · [Correlated outputs](../tests/numerical/multioutput.py)
+- [SGPR, svgp, and KISS-GP](../tests/numerical/sparse.py) · [Variational classification](../tests/numerical/classification.py)
+- [AR1 co-kriging](../tests/numerical/cokriging.py) · [BoTorch multi-fidelity](../tests/numerical/multifidelity_botorch.py)
+- [Hierarchical DAG co-kriging](../tests/numerical/dag_cokriging.py) · [DAG model guide](dag-cokriging.md)
+- [Sparse variational inference (VFE / FITC)](../tests/numerical/sparse_vfe.py)
 
 ## Contribute
 
