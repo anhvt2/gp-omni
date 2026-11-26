@@ -1,6 +1,6 @@
 """Asynchronous parallel constrained GP-Hedge BO on a 2-D toy problem.
 
-    python examples/async_bo.py
+    python tests/numerical/async_bo.py
 
 Maximises ``-rosenbrock`` with a known constraint (``x0 + x1 <= 2.5``, analytic) and an
 unknown one (the "simulation" crashes inside a disc, discovered only by running it). Jobs
@@ -16,7 +16,7 @@ import numpy as np
 import gp_omni  # noqa: F401
 from gp_omni.opt.parallel.asyncbo import async_bo, async_bo_config
 
-CONFIG = Path(__file__).parents[1] / "config" / "async_bo.json"
+CONFIG = Path(__file__).parents[2] / "config" / "async_bo.json"
 
 
 def simulation(x):

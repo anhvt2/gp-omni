@@ -85,8 +85,8 @@ proposals; initial and exploration points can still be infeasible.
 
 The built-in loops use a scalar, single-fidelity objective with default models. Multi-output
 optimization, fidelity selection, and other surrogate configurations need a custom workflow.
-Settings and runnable examples: [async BO](../examples/async_bo.py),
-[batch BO](../examples/batch_seq_bo.py), [async config](../config/async_bo.json),
+Settings and runnable examples: [async BO](../tests/numerical/async_bo.py),
+[batch BO](../tests/numerical/batch_seq_bo.py), [async config](../config/async_bo.json),
 [batch config](../config/batch_seq_bo.json).
 
 ## Other model choices
