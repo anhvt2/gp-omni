@@ -1,6 +1,6 @@
 # Engineering design optimization
 
-Both examples run GP-Omni's constrained batch Bayesian optimization against a physics solver.
+These examples run GP-Omni's constrained batch Bayesian optimization against physics solvers.
 Run the commands from the repository root and give each run a new output directory.
 The [numerical scripts](../tests/numerical/) and [analytical benchmarks](../tests/bo_functions/)
 live under `tests/`.
@@ -56,5 +56,10 @@ and validation at the intended duty.
 
 ![Ten FEM reference geometries](assets/fem_reference_geometries.png)
 
-The views show the reference dimensions defined by each current problem.
-[Open the FEM image gallery](fem/README.md) for individual views and source links.
+Ten constrained 3D design problems, one script each, covering static stress, vibration and
+heat conduction. The views show their reference dimensions.
+[Cases, results, limits and image gallery](fem/README.md).
+
+```bash
+uv run --locked --with 'scikit-fem==12.0.2' --with 'gmsh==4.15.2' python examples/fem/drone_arm.py optimize drone-arm-run
+```
