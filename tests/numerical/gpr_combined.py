@@ -1,9 +1,9 @@
 """Pick any subset of the four features and run it end to end.
 
-    python examples/gpr_combined.py                      # 1+2, then +3, then +4 (default)
-    python examples/gpr_combined.py mo additive          # high-dimensional multi-objective
-    python examples/gpr_combined.py mf sparse            # sparse multi-fidelity
-    python examples/gpr_combined.py mo mf sparse additive    # or: all
+    python tests/numerical/gpr_combined.py                      # 1+2, then +3, then +4 (default)
+    python tests/numerical/gpr_combined.py mo additive          # high-dimensional multi-objective
+    python tests/numerical/gpr_combined.py mf sparse            # sparse multi-fidelity
+    python tests/numerical/gpr_combined.py mo mf sparse additive    # or: all
 
 Features: ``mo`` (correlated multi-objective), ``mf`` (multi-fidelity), ``sparse`` (big data,
 sparse covariance), ``additive`` (additive high-dimensional). Any subset works, including one
