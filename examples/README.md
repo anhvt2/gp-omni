@@ -28,18 +28,17 @@ reference pump's static pressure rise. The design variables are a uniform scale 
 to the impeller and volute mesh and the impeller's angular speed. Each evaluation uses
 OpenFOAM's steady `simpleFoam` solver with a multiple reference frame and the case's
 `kOmegaSST` turbulence model. Shaft power is the resisting moment on the rotor walls
-times the angular speed. [Upstream FreeCAD/OpenFOAM pump case](https://github.com/20jeka08/FreeCAD_OpenFOAM_Volute_Pump/tree/0f01c42f339f952f89d01cab5795f3666366737d)
+times the angular speed. All case inputs are bundled in [pump_case](cfd/pump_case/README.md),
+including the GPL-3.0 license, provenance, checksums, and reference measurements.
 
 Use the OpenCFD distribution of OpenFOAM v2406 in a shell that has sourced its
-`etc/bashrc`. Fetch the GPL-3.0 case separately. The script pairs the steady `volute`
-setup with the included `transient_case` mesh and runs each evaluation in its own directory.
+`etc/bashrc`. The case runs from the bundled files, and the driver verifies their
+checksums before running. Each evaluation starts from a fresh copy of those inputs.
 
 ```bash
-git clone https://github.com/20jeka08/FreeCAD_OpenFOAM_Volute_Pump.git /tmp/foam-pump-template
-git -C /tmp/foam-pump-template checkout --detach 0f01c42f339f952f89d01cab5795f3666366737d
-
-uv run --locked python examples/cfd/centrifugal_pump.py /tmp/foam-pump-template pump-baseline --baseline-only
-uv run --locked python examples/cfd/centrifugal_pump.py /tmp/foam-pump-template pump-run
+uv run --locked python examples/cfd/centrifugal_pump.py --verify-only
+uv run --locked python examples/cfd/centrifugal_pump.py pump-baseline --baseline-only
+uv run --locked python examples/cfd/centrifugal_pump.py pump-run
 ```
 
 The default run solves the reference pump and ten candidate designs at 3,000 SIMPLE
