@@ -1,7 +1,9 @@
 """Size a centrifugal pump and select its speed using steady OpenFOAM simulations."""
 
+import hashlib
 import json
 import logging
+import os
 import shutil
 import subprocess
 from argparse import ArgumentParser
@@ -16,6 +18,24 @@ REFERENCE_SPEED_RAD_S = 314.0
 MEASUREMENT_INTERVAL = 10
 TAIL_SAMPLES = 10
 FLOW_TOLERANCE = 0.03
+BUNDLED_CASE = Path(__file__).resolve().parent / "pump_case"
+
+
+def verify_case() -> dict[str, str]:
+    """Verify every bundled input before creating a solver case."""
+    manifest = json.loads((BUNDLED_CASE / "SHA256SUMS.json").read_text())
+    actual_files = {
+        str(path.relative_to(BUNDLED_CASE))
+        for path in BUNDLED_CASE.rglob("*")
+        if path.is_file() and path.name not in {"SHA256SUMS.json", "README.md"}
+    }
+    if actual_files != set(manifest):
+        raise ValueError("Bundled pump case file list differs from SHA256SUMS.json")
+    for name, expected in manifest.items():
+        actual = hashlib.sha256((BUNDLED_CASE / name).read_bytes()).hexdigest()
+        if actual != expected:
+            raise ValueError(f"Bundled pump input checksum mismatch for {name}")
+    return manifest
 
 
 def surface_monitor(name: str, patch: str, operation: str, field: str) -> str:
@@ -143,7 +163,6 @@ def measure(case: Path, speed: float, iterations: int) -> dict[str, float]:
 
 
 def simulate(
-    upstream: Path,
     case: Path,
     scale: float,
     speed_ratio: float,
@@ -151,8 +170,7 @@ def simulate(
     timeout: float,
 ) -> dict[str, float]:
     for folder in ("0", "constant", "system"):
-        shutil.copytree(upstream / "volute" / folder, case / folder)
-    shutil.copytree(upstream / "transient_case/constant/polyMesh", case / "constant/polyMesh")
+        shutil.copytree(BUNDLED_CASE / folder, case / folder)
     (case / "system/controlDict").write_text(control_dict(iterations))
     speed = REFERENCE_SPEED_RAD_S * speed_ratio
     design = {"scale": scale, "speed_rad_s": speed}
@@ -176,8 +194,10 @@ def simulate(
 
 def main() -> None:
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument("upstream", type=Path, help="checkout of FreeCAD_OpenFOAM_Volute_Pump")
-    parser.add_argument("output", type=Path, help="new directory for cases, logs, and BO data")
+    parser.add_argument(
+        "output", type=Path, nargs="?", help="new directory for cases, logs, and BO data"
+    )
+    parser.add_argument("--verify-only", action="store_true", help="verify bundled inputs offline")
     parser.add_argument("--baseline-only", action="store_true", help="solve the reference case")
     parser.add_argument("--iterations", type=int, default=3000, help="SIMPLE iterations per case")
     parser.add_argument(
@@ -187,6 +207,15 @@ def main() -> None:
         "--timeout-hours", type=float, default=4, help="wall time limit per OpenFOAM command"
     )
     args = parser.parse_args()
+    manifest = verify_case()
+    if args.verify_only:
+        print(f"Verified {len(manifest)} bundled pump inputs.")
+        return
+    if args.output is None:
+        parser.error("output is required for a solver run")
+    solver_version = os.environ.get("WM_PROJECT_VERSION", "")
+    if solver_version.lstrip("v") != "2406":
+        parser.error("source the OpenCFD OpenFOAM v2406 environment before running")
     if args.iterations < MEASUREMENT_INTERVAL * TAIL_SAMPLES:
         parser.error("at least 100 SIMPLE iterations are required")
     if args.batches < 1:
@@ -196,21 +225,28 @@ def main() -> None:
     for command in ("foamDictionary", "transformPoints", "simpleFoam"):
         if shutil.which(command) is None:
             parser.error(f"{command} is missing. Source the OpenFOAM environment first.")
-    for required in (
-        "volute/0/U",
-        "volute/system/fvSolution",
-        "volute/constant/MRFProperties",
-        "transient_case/constant/polyMesh/cellZones",
-    ):
-        if not (args.upstream / required).is_file():
-            parser.error(f"upstream case is missing {required}")
 
     logging.basicConfig(level=logging.WARNING)
     args.output.mkdir(parents=True)
+    (args.output / "run.json").write_text(
+        json.dumps(
+            {
+                "openfoam_version": solver_version,
+                "case_sha256": manifest,
+                "iterations": args.iterations,
+                "batches": args.batches,
+                "seed": 0,
+                "flow_m3_s": FLOW_M3_S,
+                "flow_tolerance": FLOW_TOLERANCE,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     baseline_dir = args.output / "baseline"
     baseline_dir.mkdir()
     timeout = args.timeout_hours * 3600
-    baseline = simulate(args.upstream, baseline_dir, 1.0, 1.0, args.iterations, timeout)
+    baseline = simulate(baseline_dir, 1.0, 1.0, args.iterations, timeout)
     minimum_pressure = 0.9 * baseline["pressure_rise_pa"]
     if minimum_pressure <= 0:
         raise ValueError(f"Reference case produced no positive pressure rise. See {baseline_dir}")
@@ -222,7 +258,7 @@ def main() -> None:
 
     def evaluate(x: np.ndarray) -> tuple[float, bool]:
         case = Path(mkdtemp(prefix="design-", dir=args.output))
-        result = simulate(args.upstream, case, *x, args.iterations, timeout)
+        result = simulate(case, *x, args.iterations, timeout)
         return -result["shaft_power_w"], result["pressure_rise_pa"] >= minimum_pressure
 
     initial_designs = 4
