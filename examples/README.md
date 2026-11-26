@@ -23,6 +23,8 @@ and small elastic deflections and sizes the beam for stiffness.
 
 ## CFD · Centrifugal water pump
 
+![Volute and impeller surfaces from the bundled reference mesh](assets/centrifugal_pump.png)
+
 Minimize shaft power at a fixed flow of 0.04167 m³/s while delivering at least 90% of the
 reference pump's static pressure rise. The design variables are a uniform scale applied
 to the impeller and volute mesh and the impeller's angular speed. Each evaluation uses
@@ -49,3 +51,10 @@ flows are within 3% of the prescribed rate and that the pressure rise and shaft 
 by at most 3% over the final ten samples. The campaign uses fixed mesh connectivity, one
 operating point, and steady single-phase flow. Engineering use requires mesh refinement
 and validation at the intended duty.
+
+## FEM · 3D reference designs
+
+![Ten FEM reference geometries](assets/fem_reference_geometries.png)
+
+The views show the reference dimensions defined by each current problem.
+[Open the FEM image gallery](fem/README.md) for individual views and source links.
