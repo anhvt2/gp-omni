@@ -1,6 +1,6 @@
 # Engineering design optimization
 
-This example runs GP-Omni's constrained batch Bayesian optimization against a physics solver.
+Both examples run GP-Omni's constrained batch Bayesian optimization against a physics solver.
 Run the commands from the repository root and give each run a new output directory.
 The [numerical scripts](../tests/numerical/) and [analytical benchmarks](../tests/bo_functions/)
 live under `tests/`.
@@ -20,3 +20,33 @@ uv run --locked --with 'scikit-fem==12.0.2' python examples/fem/cantilever.py ca
 The script reports the best observed feasible dimensions, mass, and tip deflection. The output
 directory contains the BO observations and feasibility flags. The model assumes an ideal clamp
 and small elastic deflections and sizes the beam for stiffness.
+
+## CFD · Centrifugal water pump
+
+Minimize shaft power at a fixed flow of 0.04167 m³/s while delivering at least 90% of the
+reference pump's static pressure rise. The design variables are a uniform scale applied
+to the impeller and volute mesh and the impeller's angular speed. Each evaluation uses
+OpenFOAM's steady `simpleFoam` solver with a multiple reference frame and the case's
+`kOmegaSST` turbulence model. Shaft power is the resisting moment on the rotor walls
+times the angular speed. [Upstream FreeCAD/OpenFOAM pump case](https://github.com/20jeka08/FreeCAD_OpenFOAM_Volute_Pump/tree/0f01c42f339f952f89d01cab5795f3666366737d)
+
+Use the OpenCFD distribution of OpenFOAM v2406 in a shell that has sourced its
+`etc/bashrc`. Fetch the GPL-3.0 case separately. The script pairs the steady `volute`
+setup with the included `transient_case` mesh and runs each evaluation in its own directory.
+
+```bash
+git clone https://github.com/20jeka08/FreeCAD_OpenFOAM_Volute_Pump.git /tmp/foam-pump-template
+git -C /tmp/foam-pump-template checkout --detach 0f01c42f339f952f89d01cab5795f3666366737d
+
+uv run --locked python examples/cfd/centrifugal_pump.py /tmp/foam-pump-template pump-baseline --baseline-only
+uv run --locked python examples/cfd/centrifugal_pump.py /tmp/foam-pump-template pump-run
+```
+
+The default run solves the reference pump and ten candidate designs at 3,000 SIMPLE
+iterations each. Use `--batches 1` to run a shorter campaign with six candidate designs.
+The script keeps the reference as an eligible design and records solver logs, patch
+measurements, and per-design JSON results in the output directory. It checks that both patch
+flows are within 3% of the prescribed rate and that the pressure rise and shaft power vary
+by at most 3% over the final ten samples. The campaign uses fixed mesh connectivity, one
+operating point, and steady single-phase flow. Engineering use requires mesh refinement
+and validation at the intended duty.
