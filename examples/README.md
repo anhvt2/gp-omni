@@ -1,28 +1,38 @@
 # Engineering design examples
 
-GP-Omni couples Bayesian optimization with finite element and flow solvers. The examples
-below include reference designs, optimization commands, and workflows for preparing meshes
-and turning simulation fields into figures.
+GP-Omni couples Bayesian optimization with finite element and flow solvers. Choose an
+example to see its reference design and how to reproduce the mesh, solve, or optimization.
 
-| Examples | Start here |
-| --- | --- |
-| 3D finite element analysis | [Ten structural and thermal designs](fem/README.md) |
-| Beam sizing | [Tapered aluminum cantilever](fem/README.md#tapered-aluminum-cantilever) |
-| Computational fluid dynamics | [49 OpenFOAM case guides with meshes and results](cfd/README.md) |
-| Pump sizing | [Centrifugal water pump](cfd/cases/centrifugal_pump/README.md) |
-| Mesh preparation | [Gmsh and OpenFOAM workflows](preprocessing/README.md) |
-| Results and figures | [ParaView scenes, VTK profiles, and publication exports](postprocessing/README.md) |
+## Finite element analysis
 
-## From simulation to figure
+| [Pin-fin heat sink](postprocessing/README.md#heat-sink-fem) | [Drone motor arm](fem/drone_arm.py) | [Lattice beam](fem/lattice_beam.py) |
+| --- | --- | --- |
+| ![Temperature rise in kelvins across the base and fins](assets/heat_sink_temperature.png) | ![Undeformed hollow tapered drone arm with lightening holes](assets/drone_arm.png) | ![Undeformed beam with diagonal lattice struts](assets/lattice_beam.png) |
+| Minimize temperature rise under a mass limit | Minimize mass under deflection, stress, and frequency limits | Size a lightweight beam under deflection, stress, and frequency limits |
 
-| Heat sink · Temperature rise above ambient | Pipe bend · Speed on the mid-plane |
-| --- | --- |
-| ![Temperature rise across a baseplate and pin fins with a 20 mm scale bar](assets/heat_sink_temperature.png) | ![Flow speed in a U-shaped pipe with a 0.2 m scale bar](assets/pipe_bend_speed.png) |
-| [Prepare, solve and plot the heat sink](postprocessing/README.md#heat-sink-fem) | [View and reproduce the pipe bend case](cfd/cases/pipe/README.md) |
+[Browse all ten 3D designs and run commands](fem/README.md) ·
+[Tapered aluminum cantilever sizing](fem/README.md#tapered-aluminum-cantilever)
 
-The previews use reference designs. The pipe bend is a coarse smoke run. The heat-sink
-model uses an assumed convection coefficient. See the case guides for verification and
-model limits.
+## Computational fluid dynamics
+
+| [Pipe bend](cfd/cases/pipe/README.md) | [Ducted axial fan](cfd/cases/axial_fan/README.md) | [Pump impeller and casing](cfd/cases/centrifugal_pump_optimization/README.md) |
+| --- | --- | --- |
+| ![Flow speed through the mid-plane of a 180-degree pipe bend](assets/pipe_bend_speed.png) | ![Flow speed across a full annulus reconstructed from one fan passage](cfd/cases/axial_fan/annulus.png) | ![Pressure field through the impeller and volute](cfd/cases/centrifugal_pump_optimization/results.png) |
+
+| [Ahmed reference car body](cfd/cases/ahmed_body/README.md) | [Cyclone separator](cfd/cases/cyclone_separator/README.md) | [Ventilated room](cfd/cases/human_comfort/README.md) |
+| --- | --- | --- |
+| ![Speed through a longitudinal section of the flow around the car body](cfd/cases/ahmed_body/results.png) | ![Flow speed inside the reverse-flow cyclone](cfd/cases/cyclone_separator/results.png) | ![Air temperature in a section through the room](cfd/cases/human_comfort/results.png) |
+
+[Browse all 49 OpenFOAM cases, meshes, and solved fields](cfd/README.md) ·
+[Centrifugal water pump sizing](cfd/cases/centrifugal_pump/README.md)
+
+The CFD previews show coarse reference runs. The heat-sink model uses an assumed
+convection coefficient. Each case guide describes the model and its limits.
+
+## Meshes and figures
+
+[Prepare meshes and export solver fields](preprocessing/README.md) ·
+[Render ParaView scenes, sample VTK profiles, and export figures](postprocessing/README.md)
 
 Run commands from the repository root and use a fresh directory under `runs/` for each
 mesh or simulation. [Numerical examples](../tests/numerical/) and

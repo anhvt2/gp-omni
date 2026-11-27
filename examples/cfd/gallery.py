@@ -119,6 +119,8 @@ def render_view(base, runs, stage, time, record, view, pvpython, *, name=None):
     recipe = {"time": time, "view": view, "record": record}
     if output.exists():
         metadata = read_json(output / "figure.json")
+        if field and (metadata.get("field") or {}).get("colormap") != "Fast":
+            raise ValueError(f"{output} uses an older field style; move it aside and retry")
         if metadata.get("run") != recipe or any(
             not (output / name).is_file() for name in ("preview.png", "scene.pvsm", "scene.png")
         ):

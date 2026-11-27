@@ -123,8 +123,9 @@ the full 3D periodic reconstruction.
 Use `--output` for a fresh gallery directory under `runs/`. Set `CFD_RUNS` to
 change the host runs directory, which the launcher mounts at `/runs`. If an
 export or render fails, read the named log and rerun the gallery command to
-reuse the passing OpenFOAM runs. After changing a view recipe, move the affected
-figure directory aside to render it again from the retained run.
+reuse the passing OpenFOAM runs. To refresh an older field preview or apply a
+changed view recipe, move aside the affected directory under `figures/` and
+rerun the gallery command with the retained OpenFOAM run.
 
 The underlying commands work independently:
 
