@@ -52,6 +52,19 @@ by at most 3% over the final ten samples. The campaign uses fixed mesh connectiv
 operating point, and steady single-phase flow. Engineering use requires mesh refinement
 and validation at the intended duty.
 
+## CFD · 49 OpenFOAM design cases
+
+Turbomachinery, internal flows and external aerodynamics, modelled on the application areas
+of the CFD Support case studies, with generated geometry. They run in a container with
+OpenCFD OpenFOAM v2406 and each plugs into the batch or asynchronous optimizer. Verification
+is a coarse-mesh pipeline check, not an accuracy study.
+[Setup, commands and limits](cfd/README.md).
+
+```bash
+examples/cfd/container/foam.sh build
+examples/cfd/container/foam.sh python examples/cfd/run.py verify --output /runs/verify
+```
+
 ## FEM · 3D reference designs
 
 ![Ten FEM reference geometries](assets/fem_reference_geometries.png)
