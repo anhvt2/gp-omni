@@ -133,6 +133,8 @@ def render(args):
         visible = simple.Slice(Input=source)
         visible.SliceType.Origin = origin.tolist()
         visible.SliceType.Normal = unit(normal).tolist()
+        if not args.field:
+            visible.Triangulatetheslice = 0
         visible.UpdatePipeline()
     info = visible.GetDataInformation()
     if info.GetNumberOfCells() == 0:
@@ -149,7 +151,7 @@ def render(args):
     display.Ambient = 1
     display.Diffuse = 0
     direction = args.view or (args.slice[3:] if args.slice else (1, -1.5, 1.15))
-    view_width = frame(view, info.GetBounds(), direction, args.up)
+    view_width = frame(view, args.frame or info.GetBounds(), direction, args.up)
 
     stats = None
     if args.field:
@@ -228,6 +230,7 @@ def render(args):
             "direction": list(direction),
             "up": list(view.CameraViewUp),
             "slice": args.slice,
+            "frame": args.frame,
         },
         "profile": profile_info,
     }
@@ -244,6 +247,13 @@ def main():
     parser.add_argument("--slice", type=float, nargs=6, metavar="N", help="origin then normal")
     parser.add_argument("--view", type=float, nargs=3, metavar="N", help="direction toward camera")
     parser.add_argument("--up", type=float, nargs=3, metavar="N", help="camera up direction")
+    parser.add_argument(
+        "--frame",
+        type=float,
+        nargs=6,
+        metavar="N",
+        help="camera bounds as xmin xmax ymin ymax zmin zmax in native units",
+    )
     parser.add_argument("--range", type=float, nargs=2, metavar=("MIN", "MAX"))
     parser.add_argument("--line", type=float, nargs=6, metavar="N", help="profile start and end")
     parser.add_argument("--samples", type=int, default=401)
@@ -252,6 +262,10 @@ def main():
         parser.error("input must be an existing VTU file")
     if (args.line or args.range or args.label) and not args.field:
         parser.error("--line, --range and --label require --field")
+    if args.frame:
+        low, high = np.asarray(args.frame).reshape(3, 2).T
+        if not np.isfinite(args.frame).all() or (low > high).any() or not (low < high).any():
+            parser.error("--frame must specify finite, ordered bounds with positive extent")
     if args.samples < 2:
         parser.error("--samples must be at least 2")
     metadata = render(args)

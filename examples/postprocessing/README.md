@@ -99,7 +99,8 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 - A field is coloured by its scalar value or vector magnitude. Use the same
   `--range MIN MAX` across designs for a direct comparison. Colorbar extensions mark
   values outside the specified range. `--view` controls the direction toward the camera
-  and `--up` sets its vertical axis.
+  and `--up` sets its vertical axis. Use `--frame XMIN XMAX YMIN YMAX ZMIN ZMAX`
+  to frame a region of interest in native coordinates.
 - `--line` accepts two points in the full volume. `--samples` sets the number of
   uniformly spaced positions. The CSV includes coordinates and a validity mask.
   Samples outside the domain appear as gaps in the profile.
