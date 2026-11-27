@@ -67,12 +67,34 @@ arrive. Learn unknown feasibility constraints alongside the objective.
 The built-in loops maximize one scalar objective at one fidelity. Multi-output optimization,
 Pareto search, and cost-aware fidelity selection need a custom acquisition and workflow.
 
+## Example gallery
+
+Connect the loop to a finite element or flow solver. Select an example to see its model and
+how to reproduce it.
+
+| [Pin-fin heat sink](examples/postprocessing/README.md#heat-sink-fem) | [Pipe bend](examples/cfd/cases/pipe/README.md) | [Ducted axial fan](examples/cfd/cases/axial_fan/README.md) |
+| :---: | :---: | :---: |
+| ![Temperature rise in kelvins across the base and fins of a heat sink](examples/assets/heat_sink_temperature.png) | ![Flow speed through the mid-plane of a 180-degree pipe bend](examples/assets/pipe_bend_speed.png) | ![Flow speed across a full annulus reconstructed from one fan passage](examples/cfd/cases/axial_fan/annulus.png) |
+| FEM · temperature rise | CFD · flow speed | CFD · flow speed |
+
+| [Pump impeller and casing](examples/cfd/cases/centrifugal_pump_optimization/README.md) | [Ahmed reference car body](examples/cfd/cases/ahmed_body/README.md) | [Cyclone separator](examples/cfd/cases/cyclone_separator/README.md) |
+| :---: | :---: | :---: |
+| ![Kinematic pressure through the pump impeller and spiral casing](examples/cfd/cases/centrifugal_pump_optimization/results.png) | ![Flow speed in a longitudinal section around the car body](examples/cfd/cases/ahmed_body/results.png) | ![Flow speed inside a reverse-flow cyclone](examples/cfd/cases/cyclone_separator/results.png) |
+| CFD · pressure | CFD · flow speed | CFD · flow speed |
+
+**[All examples](examples/README.md)** ·
+[10 3D finite element designs](examples/fem/README.md) ·
+[49 OpenFOAM cases](examples/cfd/README.md)
+
+The CFD images show coarse reference runs. The heat sink uses an assumed convection
+coefficient. Each case guide describes its model and limits.
+
 ## Start exploring
 
 - **[Get started](docs/getting_started.md)** — installation, runnable code, and configuration.
 - **[Choose a model](docs/use-cases.md)** — match your data and evaluation workflow.
 - **[Explore hierarchical fidelities](docs/dag-cokriging.md)** — co-kriging over a directed graph.
-- **[Run engineering design examples](examples/README.md)** — cantilever sizing with FEM and centrifugal pump sizing with CFD.
+- **[Run engineering design examples](examples/README.md)** — structural, thermal and flow designs with FEM and CFD solvers.
 - **[Check the evidence](docs/test_function_accuracy.md)** — analytical benchmarks and reproduction settings.
 - **[Contribute](docs/getting_started.md#contribute)** — bring a use case, report a bug, or improve the toolkit.
 
