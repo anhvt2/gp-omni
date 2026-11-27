@@ -34,6 +34,7 @@ host directory.
 foam="examples/cfd/container/foam.sh python examples/cfd/run.py"
 $foam list
 $foam describe axial_fan                      # variables, objective, limits, simplifications
+$foam mesh axial_fan --output /runs/axial_fan_mesh
 $foam run axial_fan --output /runs/axial_fan  # the reference design
 $foam run axial_fan --output /runs/axial_fan_b \
     --design '{"inlet_offset_deg": 1, "camber_deg": 12, "chord_fraction": 0.28}'

@@ -116,9 +116,12 @@ def run_design(
     cores: int = 1,
     keep_fields: bool = False,
     minimum_free_gb: float = MINIMUM_FREE_GB,
+    *,
+    mesh_only: bool = False,
 ) -> dict:
     """Run ``design`` in the new ``directory`` and return its record.
 
+    A mesh-only run stops after checkMesh and retains the case for inspection.
     A failed stage gives a record with ``passed`` false instead of an exception. An
     existing directory or a nearly full disk raise, since nothing can be run safely.
     """
@@ -151,29 +154,32 @@ def run_design(
         record["stage"] = "check_mesh"
         record["mesh"] = parse_check_mesh(run(["checkMesh"]))
         gate_mesh(record["mesh"])
-        record["stage"] = "solve"
-        _solve(run, directory, plan.solve, cores)
-        record["stage"] = "measure"
-        metrics = {k: float(v) for k, v in plan.measure(directory).items()}
-        record["metrics"] = metrics
-        needed = {case.objective, *(c.metric for c in case.constraints)}
-        absent = needed - set(metrics)
-        if absent:
-            raise ValueError(f"missing metrics {sorted(absent)}")
-        broken = sorted(k for k, v in metrics.items() if not math.isfinite(v))
-        if broken:
-            raise ValueError(f"non-finite metrics {broken}")
-        record["flags"] = case.flags(metrics)
-        imbalance = metrics.get("flow_imbalance")
-        if imbalance is not None and imbalance > IMBALANCE_LIMIT:
-            raise ValueError(f"flow imbalance {imbalance:.2f} exceeds {IMBALANCE_LIMIT:g}")
-        record["stage"] = "done"
+        if mesh_only:
+            record["stage"] = "meshed"
+        else:
+            record["stage"] = "solve"
+            _solve(run, directory, plan.solve, cores)
+            record["stage"] = "measure"
+            metrics = {k: float(v) for k, v in plan.measure(directory).items()}
+            record["metrics"] = metrics
+            needed = {case.objective, *(c.metric for c in case.constraints)}
+            absent = needed - set(metrics)
+            if absent:
+                raise ValueError(f"missing metrics {sorted(absent)}")
+            broken = sorted(k for k, v in metrics.items() if not math.isfinite(v))
+            if broken:
+                raise ValueError(f"non-finite metrics {broken}")
+            record["flags"] = case.flags(metrics)
+            imbalance = metrics.get("flow_imbalance")
+            if imbalance is not None and imbalance > IMBALANCE_LIMIT:
+                raise ValueError(f"flow imbalance {imbalance:.2f} exceeds {IMBALANCE_LIMIT:g}")
+            record["stage"] = "done"
         record["passed"] = True
     except Exception as error:  # noqa: BLE001 (every failure is recorded with its stage)
         record["error"] = f"{type(error).__name__}: {error}"
     record["wall_s"] = round(time.monotonic() - started, 1)
     _write_record(directory, record)
-    if record["passed"] and not keep_fields:
+    if record["passed"] and not (keep_fields or mesh_only):
         remove_fields(directory)
     return record
 
@@ -199,6 +205,8 @@ def clear_unfinished(directory: Path, case_name: str, level_name: str) -> bool:
         raise RuntimeError(
             f"{directory} holds a {record.get('level')} run; use another --output for {level_name}"
         )
+    if record.get("stage") == "meshed":
+        raise RuntimeError(f"{directory} is a mesh-only run; choose another --output for verify")
     if record["passed"]:
         return True
     shutil.rmtree(directory)
