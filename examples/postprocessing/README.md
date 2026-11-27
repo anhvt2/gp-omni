@@ -111,6 +111,7 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 - `field.png` and `field.tiff` default to 180 mm wide at 600 DPI. Set
   `--width-mm 85` on `publication.py` for a single-column figure.
   `profile.pdf`, `profile.svg`, and `profile.csv` are written when a line is requested.
+  `publication.py --preview` writes a compact PNG scene and, when sampled, a PNG profile.
 - Report the case, design, mesh level or mesh scale, field units, and slice or line
   coordinates with the figure. For engineering conclusions, check resolution,
   convergence and model validity for the intended operating conditions.
