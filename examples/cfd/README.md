@@ -55,6 +55,8 @@ Every output directory must be new, except that `verify` resumes in its own dire
 
 A run stops before it starts if less than 30 GB is free. Passing runs delete their meshes
 and field data and keep dictionaries, logs, measurements and `record.json`.
+For a run selected for analysis, use `--keep-fields` and follow the
+[VTK and ParaView workflow](../postprocessing/README.md#pipe-bend-cfd).
 
 ## Optimization
 
