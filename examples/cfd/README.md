@@ -103,6 +103,35 @@ Rotationally periodic faces use OpenFOAM's matching `cyclic` coupling. A non-con
 `cyclicAMI` coupling on twisted blade passages made a rotating zone create swirl out of
 nothing, overstating fan efficiency by half.
 
+## Centrifugal water pump
+
+The [standalone pump](centrifugal_pump.py) minimizes shaft power at a fixed flow of
+0.04167 m³/s while maintaining at least 90% of the reference static pressure rise.
+Design variables are uniform mesh scale and impeller speed. The steady `simpleFoam`
+model uses a multiple reference frame and `kOmegaSST` turbulence. Shaft power is
+computed from the resisting rotor-wall moment and angular speed.
+
+Run the commands in the container as shown. In a shell that has sourced the OpenCFD
+OpenFOAM v2406 environment, replace `"$foam" python` with `uv run --locked python` and
+use local output directories.
+
+```bash
+foam=examples/cfd/container/foam.sh
+"$foam" python examples/cfd/centrifugal_pump.py --verify-only
+"$foam" python examples/cfd/centrifugal_pump.py /runs/pump_baseline --baseline-only
+"$foam" python examples/cfd/centrifugal_pump.py /runs/pump_run
+```
+
+The default campaign solves the reference and ten candidates at 3,000 iterations each.
+Use `--batches 1` for six candidates. The driver records pressures, patch flows, power
+and logs. It checks that both patch flows are within 3% of the prescribed rate and that
+pressure rise and shaft power vary by at most 3% over the final ten samples. The model
+uses fixed mesh connectivity, one operating point, and steady single-phase flow.
+Engineering use requires mesh refinement and validation at the intended duty.
+To plot the reference, export `/runs/pump_baseline/baseline` with `foamToVTK` and render the resulting
+`internal.vtu`. See the [bundled case](pump_case/README.md) for model inputs,
+reference measurements, checksums, and provenance.
+
 ## Licenses
 
 Code in this folder is under the repository license. `pump_case/` is GPL-3.0, see its
