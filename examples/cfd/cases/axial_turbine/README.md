@@ -20,6 +20,14 @@ shaft power associated with this reference.
 `checkMesh` reported 17,496 cells and maximum non-orthogonality of 61.60°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for axial_turbine](annulus.png)
+
+The transverse section at `z = 0.1625 m` shows 26 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

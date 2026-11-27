@@ -20,6 +20,14 @@ height.
 `checkMesh` reported 15,984 cells and maximum non-orthogonality of 72.05°. It reported zero
 failed quality checks. The measured flow imbalance was 0.20%.
 
+### Full-annulus field
+
+![Full-annulus solved field for hecc_stage](annulus.png)
+
+The transverse section at `z = 0.029 m` shows 15 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

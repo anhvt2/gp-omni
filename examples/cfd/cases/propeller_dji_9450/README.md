@@ -20,6 +20,14 @@ reference thrust and power.
 `checkMesh` reported 22,680 cells and maximum non-orthogonality of 67.02°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for propeller_dji_9450](annulus.png)
+
+The transverse section at `z = 0.1334 m` shows 2 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

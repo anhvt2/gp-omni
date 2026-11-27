@@ -20,6 +20,14 @@ omits the casing and draft tube.
 `checkMesh` reported 17,496 cells and maximum non-orthogonality of 60.21°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for kaplan_turbine](annulus.png)
+
+The transverse section at `z = 0.2275 m` shows 11 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

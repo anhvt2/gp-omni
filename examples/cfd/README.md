@@ -113,6 +113,13 @@ corresponding `internal.vtu` in `mesh/galleryVTK/` or `reference/galleryVTK/` if
 the run directory has moved. Generate full-resolution figures with
 `examples/postprocessing/publication.py` and the directory containing the scene.
 
+The 14 examples with a matching rotational `cyclic` pair also include a
+full-annulus field, as shown in the [axial fan case](cases/axial_fan/README.md#full-annulus-field).
+The gallery reads the pitch from the paired mesh faces and tiles the saved sector
+through 360°. Scalars carry over to each sector and vectors rotate with the mesh.
+The preview shows a transverse section and `figures/annulus/scene.pvsm` contains
+the full 3D periodic reconstruction.
+
 Use `--output` for a fresh gallery directory under `runs/`. Set `CFD_RUNS` to
 change the host runs directory, which the launcher mounts at `/runs`. If an
 export or render fails, read the named log and rerun the gallery command to

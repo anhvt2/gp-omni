@@ -20,6 +20,14 @@ match the axial fan reference.
 `checkMesh` reported 12,528 cells and maximum non-orthogonality of 68.98°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for axial_fan_optimization](annulus.png)
+
+The transverse section at `z = 0.14 m` shows 9 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

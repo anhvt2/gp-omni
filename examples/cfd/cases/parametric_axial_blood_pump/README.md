@@ -20,6 +20,14 @@ case metric derived from the rotor wall fields.
 `checkMesh` reported 16,848 cells and maximum non-orthogonality of 70.12°. It reported zero
 failed quality checks. The measured flow imbalance was 0.01%.
 
+### Full-annulus field
+
+![Full-annulus solved field for parametric_axial_blood_pump](annulus.png)
+
+The transverse section at `z = 0.0096 m` shows 5 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

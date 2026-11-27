@@ -12,6 +12,8 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from periodic import annulus_copies
+
 CFD = Path(__file__).resolve().parent
 REPOSITORY = CFD.parents[1]
 FOAM = CFD / "container/foam.sh"
@@ -109,9 +111,10 @@ def field_label(case, time, field):
     return FIELD_LABELS[key]
 
 
-def render_view(base, runs, stage, time, record, view, pvpython):
+def render_view(base, runs, stage, time, record, view, pvpython, *, name=None):
     case = base / stage
-    output = base / "figures" / stage
+    name = name or stage
+    output = base / "figures" / name
     field = view.get("field")
     recipe = {"time": time, "view": view, "record": record}
     if output.exists():
@@ -126,8 +129,8 @@ def render_view(base, runs, stage, time, record, view, pvpython):
     source = export_volume(case, runs, stage, time, field)
 
     output.parent.mkdir(exist_ok=True)
-    with TemporaryDirectory(prefix=f".{stage}-", dir=output.parent) as temporary:
-        draft = Path(temporary) / stage
+    with TemporaryDirectory(prefix=f".{name}-", dir=output.parent) as temporary:
+        draft = Path(temporary) / name
         command = [
             pvpython,
             "--force-offscreen-rendering",
@@ -144,10 +147,12 @@ def render_view(base, runs, stage, time, record, view, pvpython):
                 command += [f"--{option}", *(str(value) for value in view[option])]
         if "association" in view:
             command += ["--association", view["association"]]
-        run(command, base / f"{stage}-render.log")
+        if "annulus_copies" in view:
+            command += ["--annulus-copies", str(view["annulus_copies"])]
+        run(command, base / f"{name}-render.log")
         run(
             [sys.executable, POST / "publication.py", draft, "--preview"],
-            base / f"{stage}-publication.log",
+            base / f"{name}-publication.log",
         )
         metadata_path = draft / "figure.json"
         metadata = read_json(metadata_path) | {"run": recipe}
@@ -235,6 +240,15 @@ def prepare_gallery(case_id, base, runs, recipe, pvpython):
     render_view(base, runs, "mesh", "0", mesh, recipe["mesh"], pvpython)
     time = saved_time(base / "reference")
     render_view(base, runs, "reference", time, reference, recipe["reference"], pvpython)
+    if "annulus" in recipe:
+        copies = annulus_copies(base / "reference/constant/polyMesh")
+        annulus = {
+            key: value
+            for key, value in recipe["reference"].items()
+            if key in ("field", "association")
+        }
+        annulus |= recipe["annulus"] | {"annulus_copies": copies}
+        render_view(base, runs, "reference", time, reference, annulus, pvpython, name="annulus")
     if recipe.get("pressure_probes"):
         probe_plot = base / "figures/pressure_probes.png"
         if not probe_plot.is_file():

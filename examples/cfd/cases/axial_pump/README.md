@@ -20,6 +20,14 @@ constraint use the patch pressure rise and shaft work.
 `checkMesh` reported 16,848 cells and maximum non-orthogonality of 67.02°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for axial_pump](annulus.png)
+
+The transverse section at `z = 0.064 m` shows 7 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

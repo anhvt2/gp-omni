@@ -20,6 +20,14 @@ within one periodic passage.
 `checkMesh` reported 22,320 cells and maximum non-orthogonality of 64.29°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for potsdam_propeller](annulus.png)
+
+The transverse section at `z = 0.135 m` shows 5 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |

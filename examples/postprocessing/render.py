@@ -123,6 +123,19 @@ def render(args):
     simple._DisableFirstRenderCameraReset()
     source = simple.XMLUnstructuredGridReader(FileName=[str(args.input.resolve())])
     source.UpdatePipeline()
+    if args.annulus_copies:
+        sector_cells = source.GetDataInformation().GetNumberOfCells()
+        sectors = simple.AngularPeriodicFilter(Input=source)
+        sectors.Axis = "Axis Z"
+        sectors.IterationMode = "Manual"
+        sectors.NumberOfPeriods = args.annulus_copies
+        sectors.RotationAngle = 360 / args.annulus_copies
+        sectors.ComputeRotationsOnTheFly = 0
+        source = simple.MergeBlocks(Input=sectors)
+        source.MergePoints = 0
+        source.UpdatePipeline()
+        if source.GetDataInformation().GetNumberOfCells() != sector_cells * args.annulus_copies:
+            raise ValueError("the periodic reconstruction did not produce the expected cell count")
     volume = servermanager.Fetch(source)
     if volume.GetNumberOfCells() == 0:
         raise ValueError(f"{args.input} contains no cells")
@@ -214,6 +227,7 @@ def render(args):
     simple.SaveState(str(args.output / "scene.pvsm"))
     return {
         "input": str(args.input.resolve()),
+        **({"annulus_copies": args.annulus_copies} if args.annulus_copies else {}),
         "length_unit": args.length_unit,
         "field": stats,
         "versions": {
@@ -242,6 +256,9 @@ def main():
     parser.add_argument("output", type=Path, help="new figure directory")
     parser.add_argument("--field", help="VTU array name; omit for a mesh plot")
     parser.add_argument("--association", choices=("POINTS", "CELLS"), default="POINTS")
+    parser.add_argument(
+        "--annulus-copies", type=int, help="tile a cyclic sector about the z axis at the origin"
+    )
     parser.add_argument("--label", help="field label including units")
     parser.add_argument("--length-unit", required=True, help="native coordinate unit, e.g. mm or m")
     parser.add_argument("--slice", type=float, nargs=6, metavar="N", help="origin then normal")
@@ -260,6 +277,8 @@ def main():
     args = parser.parse_args()
     if args.input.suffix.lower() != ".vtu" or not args.input.is_file():
         parser.error("input must be an existing VTU file")
+    if args.annulus_copies is not None and args.annulus_copies < 2:
+        parser.error("--annulus-copies must be at least two")
     if (args.line or args.range or args.label) and not args.field:
         parser.error("--line, --range and --label require --field")
     if args.frame:

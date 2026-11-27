@@ -20,6 +20,14 @@ image together with the reference pressure rise and efficiency.
 `checkMesh` reported 17,712 cells and maximum non-orthogonality of 68.40°. It reported zero
 failed quality checks. The measured flow imbalance was 0.00%.
 
+### Full-annulus field
+
+![Full-annulus solved field for double_rotor_fan](annulus.png)
+
+The transverse section at `z = 0.116 m` shows 9 rotational copies of the solved
+passage. The editable `figures/annulus/scene.pvsm` contains the full 3D reconstruction.
+Move the slice or show the merged volume in ParaView to inspect another location.
+
 ## Boundary conditions
 
 | Patches | Velocity condition | `p` condition |
