@@ -17,6 +17,10 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest", "ruff", "mypy"]
+openfoam = [
+    "foamlib==1.10.6",
+    "gmsh==4.15.2",
+]
 
 [build-system]
 requires = ["setuptools>=64"]
