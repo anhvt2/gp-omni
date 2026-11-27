@@ -236,3 +236,6 @@ __marimo__/
 !src/build/**
 src/build/**/__pycache__/
 src/build/**/*.py[codz]
+
+# OpenFOAM example case output
+runs/
