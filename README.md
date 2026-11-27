@@ -22,6 +22,13 @@ Composable Gaussian processes for expensive questions and better next experiment
 </p>
 
 <p align="center">
+  <a href="examples/README.md"><strong>Engineering design optimization examples</strong></a><br>
+  <a href="examples/fem/README.md"><img src="https://img.shields.io/badge/scikit--fem-FEM-2C5282" alt="scikit-fem for finite element analysis in the FEM examples"></a>
+  <a href="examples/fem/common/mesh.py"><img src="https://img.shields.io/badge/Gmsh-CAD%20%26%20meshing-5B4B8A" alt="Gmsh for CAD and meshing in the 3D FEM examples"></a>
+  <a href="examples/cfd/README.md"><img src="https://img.shields.io/badge/OpenFOAM-CFD-16736A" alt="OpenFOAM for flow simulation in the CFD examples"></a>
+</p>
+
+<p align="center">
   <a href="docs/getting_started.md"><strong>Get started →</strong></a> &nbsp; · &nbsp;
   <a href="docs/README.md">Explore the docs</a> &nbsp; · &nbsp;
   <a href="docs/test_function_accuracy.md">See the benchmarks</a>
