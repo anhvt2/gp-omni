@@ -8,8 +8,8 @@ and turning simulation fields into figures.
 | --- | --- |
 | 3D finite element analysis | [Ten structural and thermal designs](fem/README.md) |
 | Beam sizing | [Tapered aluminum cantilever](fem/README.md#tapered-aluminum-cantilever) |
-| Computational fluid dynamics | [49 OpenFOAM design cases](cfd/README.md) |
-| Pump sizing | [Centrifugal water pump](cfd/README.md#centrifugal-water-pump) |
+| Computational fluid dynamics | [49 OpenFOAM case guides with meshes and results](cfd/README.md) |
+| Pump sizing | [Centrifugal water pump](cfd/cases/centrifugal_pump/README.md) |
 | Mesh preparation | [Gmsh and OpenFOAM workflows](preprocessing/README.md) |
 | Results and figures | [ParaView scenes, VTK profiles, and publication exports](postprocessing/README.md) |
 
@@ -18,7 +18,7 @@ and turning simulation fields into figures.
 | Heat sink · Temperature rise above ambient | Pipe bend · Speed on the mid-plane |
 | --- | --- |
 | ![Temperature rise across a baseplate and pin fins with a 20 mm scale bar](assets/heat_sink_temperature.png) | ![Flow speed in a U-shaped pipe with a 0.2 m scale bar](assets/pipe_bend_speed.png) |
-| [Prepare, solve and plot the heat sink](postprocessing/README.md#heat-sink-fem) | [Solve, export and plot the pipe bend](postprocessing/README.md#pipe-bend-cfd) |
+| [Prepare, solve and plot the heat sink](postprocessing/README.md#heat-sink-fem) | [View and reproduce the pipe bend case](cfd/cases/pipe/README.md) |
 
 The previews use reference designs. The pipe bend is a coarse smoke run. The heat-sink
 model uses an assumed convection coefficient. See the case guides for verification and

@@ -55,6 +55,10 @@ at the tip under the 1 kN load, above the 1.5 mm optimization limit.
 
 ## Pipe bend (CFD)
 
+The [pipe bend case guide](../cfd/cases/pipe/README.md) shows the mesh and solved
+field and gives the single command that generates both. The [CFD case index](../cfd/README.md)
+links to the same workflow for every OpenFOAM example.
+
 Run one case at the smoke level and retain its fields. Export only the final velocity
 field. The cross-section passes through the center plane at `y = 0 m` and the sampled
 line crosses the pipe radially at the middle of the bend.
