@@ -14,22 +14,33 @@ from vtkmodules.vtkCommonDataModel import vtkUnstructuredGrid
 from vtkmodules.vtkCommonExecutionModel import vtkAlgorithm
 from vtkmodules.vtkFiltersCore import vtkProbeFilter
 from vtkmodules.vtkFiltersSources import vtkLineSource
+from vtkmodules.vtkRenderingCore import vtkColorTransferFunction
 
-# Sampled from viridis, interpolated in RGB in both ParaView and Matplotlib.
-COLORS = (
-    [0.267, 0.005, 0.329],
-    [0.283, 0.141, 0.458],
-    [0.254, 0.265, 0.530],
-    [0.207, 0.372, 0.553],
-    [0.164, 0.471, 0.558],
-    [0.128, 0.567, 0.551],
-    [0.135, 0.659, 0.518],
-    [0.267, 0.749, 0.441],
-    [0.478, 0.821, 0.318],
-    [0.741, 0.873, 0.150],
-    [0.993, 0.906, 0.144],
+# ParaView's Fast preset uses Lab interpolation between nonuniform RGB stops.
+# https://github.com/Kitware/ParaView/blob/v6.2.1/Remoting/Views/ColorMaps.json
+FAST_STOPS = (
+    (0.0, 0.0564, 0.0564, 0.47),
+    (0.17159223942480895, 0.243, 0.46035, 0.81),
+    (0.2984914818394138, 0.3568143826543521, 0.7450246485363142, 0.954367702893722),
+    (0.4321287371255907, 0.6882, 0.93, 0.91791),
+    (0.5, 0.8994959551205902, 0.944646394975174, 0.7686567142818399),
+    (0.5882260353170073, 0.957107977357604, 0.8338185108985666, 0.5089156299842102),
+    (0.7061412605695164, 0.9275207599610714, 0.6214389091739178, 0.31535705838676426),
+    (0.8476395308725272, 0.8, 0.352, 0.16),
+    (1.0, 0.59, 0.0767, 0.119475),
 )
+# https://github.com/Kitware/ParaView/blob/v6.2.1/Remoting/Application/Resources/utilities.xml
+WARM_GRAY = (0.384313725, 0.364705882, 0.352941176)
+COLOR_COUNT = 256
 VIEW_SIZE = (1200, 700)
+
+
+def fast_palette():
+    transfer = vtkColorTransferFunction()
+    transfer.SetColorSpaceToLab()
+    for stop in FAST_STOPS:
+        transfer.AddRGBPoint(*stop)
+    return [transfer.GetColor(position) for position in np.linspace(0, 1, COLOR_COUNT)]
 
 
 def unit(vector):
@@ -158,7 +169,9 @@ def render(args):
     simple.AssignViewToLayout(view=view, layout=layout, hint=0)
     layout.SetSize(*VIEW_SIZE)
     view.UseColorPaletteForBackground = 0
-    view.Background = [1, 1, 1]
+    view.BackgroundColorMode = "Single Color"
+    background = WARM_GRAY if args.field else (1, 1, 1)
+    view.Background = background
     view.OrientationAxesVisibility = 0
     display = simple.Show(visible, view)
     display.Ambient = 1
@@ -183,11 +196,12 @@ def render(args):
         simple.ColorBy(display, (args.association, args.field, "Magnitude"))
         lut = simple.GetColorTransferFunction(args.field)
         lut.AutomaticRescaleRangeMode = "Never"
-        lut.ColorSpace = "RGB"
+        lut.ColorSpace = "Lab"
+        lut.NanColor = [0, 1, 0]
+        lut.Discretize = 1
+        lut.NumberOfTableValues = COLOR_COUNT
         lut.RGBPoints = [
-            value
-            for x, rgb in zip(np.linspace(low, high, len(COLORS)), COLORS)
-            for value in (float(x), *rgb)
+            value for x, *rgb in FAST_STOPS for value in (low + (high - low) * x, *rgb)
         ]
         display.SetScalarBarVisibility(view, False)
         stats = {
@@ -196,7 +210,10 @@ def render(args):
             "association": args.association,
             "data_range": limits,
             "color_range": [low, high],
-            "palette": COLORS,
+            "colormap": "Fast",
+            "color_space": "Lab",
+            "color_stops": FAST_STOPS,
+            "palette": fast_palette(),
         }
     else:
         display.SetScalarColoring(None, servermanager.GetAssociationFromString("POINTS"))
@@ -245,6 +262,7 @@ def render(args):
             "up": list(view.CameraViewUp),
             "slice": args.slice,
             "frame": args.frame,
+            "background": background,
         },
         "profile": profile_info,
     }

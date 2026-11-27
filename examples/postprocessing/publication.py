@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
 DPI = 600
@@ -62,7 +62,10 @@ def scene(directory, metadata, width_mm, preview=False):
         va="top",
     )
     if field:
-        cmap = LinearSegmentedColormap.from_list("viridis", field["palette"])
+        if field.get("colormap"):
+            cmap = ListedColormap(field["palette"], name=field["colormap"])
+        else:
+            cmap = LinearSegmentedColormap.from_list("field", field["palette"])
         color_axis = fig.add_axes([0.36, (footer - 0.31) / height, 0.56, 0.065 / height])
         low, high = field["color_range"]
         data_low, data_high = field["data_range"]

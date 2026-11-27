@@ -100,6 +100,10 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 
 ## Figure settings and outputs
 
+- Field scenes use ParaView's **Fast** preset on its **Warm Gray** background.
+  The publication legend uses the same Lab-interpolated colors and numeric range
+  as the scene.
+  [Kitware's colormap and background guidance](https://www.kitware.com/new-default-colormap-and-background-in-next-paraview-release/)
 - A field is coloured by its scalar value or vector magnitude. Use the same
   `--range MIN MAX` across designs for a direct comparison. Colorbar extensions mark
   values outside the specified range. `--view` controls the direction toward the camera
@@ -111,7 +115,7 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 - `scene.pvsm` preserves the editable ParaView view. If the VTU moves, point ParaView
   to its new location when loading the state. `scene.png` is the base render.
   `figure.json` records the source, VTK and ParaView versions, units, selected field,
-  colour range, view, and sampling parameters.
+  colour range and stops, background, view, and sampling parameters.
 - `field.png` and `field.tiff` default to 180 mm wide at 600 DPI. Set
   `--width-mm 85` on `publication.py` for a single-column figure.
   `profile.pdf`, `profile.svg`, and `profile.csv` are written when a line is requested.
