@@ -1,0 +1,24 @@
+{
+  "mesh": {
+    "slice": [
+      0,
+      0,
+      0.104,
+      0,
+      0,
+      1
+    ]
+  },
+  "reference": {
+    "slice": [
+      0,
+      0,
+      0.104,
+      0,
+      0,
+      1
+    ],
+    "field": "p"
+  },
+  "pressure_probes": true
+}
