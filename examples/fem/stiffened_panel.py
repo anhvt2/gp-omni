@@ -27,14 +27,23 @@ def geometry(occ, design):
     occ.fuse(plate, ribs)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 7.0 * mesh_scale)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 7.0 * mesh_scale)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     sides = ((0, 0), (0, LENGTH), (1, 0), (1, WIDTH))
     edges = np.unique(np.concatenate([on_plane(mesh, axis, value) for axis, value in sides]))
     load = solid.pressure(on_plane(mesh, 2, 0), PRESSURE_MPA)
     panel = solid.structure(mesh, ALUMINUM, [solid.clamp(edges)])
     result = panel.deform([load])
     vertical = result.displacement[result.basis.split_indices()[2]]
+    if fields is not None:
+        fields.update(pressure=result)
     return {
         "mass_kg": solid.mass_kg(mesh, ALUMINUM),
         "frequency_hz": float(panel.frequencies()[0]),

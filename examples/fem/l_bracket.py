@@ -30,12 +30,21 @@ def geometry(occ, design):
     occ.cut(body, holes)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     wall = on_plane(mesh, 0, 0)
     tip = on_plane(mesh, 0, REACH)
     load = solid.total_force(mesh, tip, (0, 0, -LOAD_N))
     result = solid.solve_static(mesh, ALUMINUM, [solid.clamp(wall)], [load])
+    if fields is not None:
+        fields.update(tip_load=result)
     return {
         "mass_kg": solid.mass_kg(mesh, ALUMINUM),
         "deflection_mm": float(-solid.mean_displacement(result, tip)[2]),

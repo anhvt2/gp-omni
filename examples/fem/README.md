@@ -3,9 +3,8 @@
 Ten constrained design problems that run GP-Omni's batch Bayesian optimization against a
 three-dimensional finite element solver. Each case is one script in this folder with its
 own geometry, loads, bounds and limits. Meshing, solvers, the campaign runner and the
-command line are shared in [common](common/). The
-[tapered cantilever](cantilever.py) beam example is described in the
-[examples overview](../README.md).
+command line are shared in [common](common/). Use [mesh preparation](../preprocessing/README.md#3d-fem)
+to solve a selected 3D design and export its fields for [ParaView](../postprocessing/README.md#heat-sink-fem).
 
 ## Run a case
 
@@ -119,3 +118,19 @@ They show undeformed surfaces. Each view has its own scale.
 The pressure nozzle image shows the symmetry-reduced domain used by its solver.
 Regenerate the images after changes to the reference geometry using the
 [rendering instructions](../assets/README.md).
+
+## Tapered aluminum cantilever
+
+Minimize the mass of a 600 mm cantilever with a 45 mm fixed width and a 1 kN tip load.
+The optimizer varies the root height and the ratio of tip height to root height, subject
+to a 1.5 mm tip deflection limit. The scikit-fem model uses cubic Hermite beam elements,
+an ideal clamp, and small elastic deflections.
+
+```bash
+uv run --locked --with 'scikit-fem==12.0.2' python examples/fem/cantilever.py runs/cantilever
+```
+
+The script reports the best feasible dimensions, mass, and tip deflection. The run
+directory holds the optimization observations and feasibility flags.
+To view the deflection along the beam, follow the
+[cantilever VTK workflow](../postprocessing/README.md#cantilever-fem).

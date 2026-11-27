@@ -33,14 +33,23 @@ def geometry(occ, design):
     occ.cut(body, hole)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 4.5 * mesh_scale, per_circle=24)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 4.5 * mesh_scale, per_circle=24)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     height = design["hole_height_mm"]
     hole_axis = (0, 0, height)
     base = on_plane(mesh, 2, 0)
     hole = on_cylinder(mesh, 1, hole_axis, HOLE_RADIUS)
     load = solid.bearing_force(mesh, hole, LOAD_N * DIRECTION, hole_axis, HOLE_RADIUS)
     result = solid.solve_static(mesh, STEEL, [solid.clamp(base)], [load])
+    if fields is not None:
+        fields.update(bearing=result)
     return {
         "mass_kg": solid.mass_kg(mesh, STEEL),
         "stress_mpa": solid.von_mises(result).percentile(99, keep=lambda p: p[2] > 3),

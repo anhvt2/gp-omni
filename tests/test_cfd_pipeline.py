@@ -77,6 +77,19 @@ def test_passing_run_writes_a_record_and_removes_fields(tools, tmp_path):
     assert (tmp_path / "design/log.simpleFoam").is_file()
 
 
+def test_mesh_only_preserves_mesh_and_requires_a_separate_verify_directory(tools, tmp_path):
+    record = run(fake_case(), tmp_path, mesh_only=True)
+    assert record["passed"]
+    assert record["stage"] == "meshed"
+    assert "metrics" not in record
+    directory = tmp_path / "design"
+    assert (directory / "200").is_dir()
+    assert not (directory / "log.simpleFoam").exists()
+    with pytest.raises(RuntimeError, match="mesh-only run"):
+        pipeline.clear_unfinished(directory, "fake", SMOKE.name)
+    assert (directory / "log.checkMesh").is_file()
+
+
 @pytest.mark.parametrize(
     ("install", "stage", "message"),
     [

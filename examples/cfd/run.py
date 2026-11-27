@@ -2,6 +2,7 @@
 
     run.py list
     run.py describe axial_fan
+    run.py mesh axial_fan --output /runs/axial_fan_mesh
     run.py run axial_fan --output /runs/axial_fan
     run.py verify --output /runs/verify
     run.py optimize axial_fan --output /runs/axial_fan_bo --loop batch
@@ -85,8 +86,11 @@ def main() -> None:
     show = commands.add_parser("describe", help="variables, objective and limits of a case")
     show.add_argument("case", choices=sorted(CASES))
     single = commands.add_parser("run", help="run one design")
-    single.add_argument("case", choices=sorted(CASES))
-    single.add_argument("--design", type=json.loads, help="JSON object; default is the reference")
+    mesh = commands.add_parser("mesh", help="build and check a mesh without solving")
+    mesh.set_defaults(cores=1, keep_fields=False)
+    for sub in (single, mesh):
+        sub.add_argument("case", choices=sorted(CASES))
+        sub.add_argument("--design", type=json.loads, help="JSON object; default is the reference")
     every = commands.add_parser("verify", help="run reference designs and write a status table")
     every.add_argument("--cases", nargs="+", choices=sorted(CASES), help="default: all")
     every.add_argument("--family", choices=sorted({c.family for c in CASES.values()}))
@@ -97,11 +101,12 @@ def main() -> None:
     bo.add_argument("--batch-size", type=int, default=settings.batch_size)
     bo.add_argument("--loop", choices=("batch", "async"), default=settings.loop)
     bo.add_argument("--seed", type=int, default=settings.seed)
-    for sub in (single, every, bo):
+    for sub in (single, mesh, every, bo):
         sub.add_argument("--output", type=Path, required=True, help="output directory")
         sub.add_argument("--level", choices=sorted(LEVELS), default="smoke")
-        sub.add_argument("--cores", type=int, default=1, help="MPI processes per design")
         sub.add_argument("--timeout-s", type=float, default=1800.0, help="limit per design")
+    for sub in (single, every, bo):
+        sub.add_argument("--cores", type=int, default=1, help="MPI processes per design")
     for sub in (single, every):
         sub.add_argument("--keep-fields", action="store_true", help="keep mesh and field data")
     args = parser.parse_args()
@@ -112,11 +117,13 @@ def main() -> None:
         print(f"{len(CASES)} cases")
     elif args.command == "describe":
         print(describe(args.case))
-    elif args.command == "run":
+    elif args.command in ("run", "mesh"):
         case = CASES[args.case]
         record = run_design(
-            case, args.design or case.reference_design(), LEVELS[args.level], args.output,
-            args.timeout_s, args.cores, args.keep_fields,
+            case, case.reference_design() if args.design is None else args.design,
+            LEVELS[args.level], args.output, args.timeout_s,
+            args.cores, args.keep_fields,
+            mesh_only=args.command == "mesh",
         )  # fmt: skip
         print(json.dumps(record, indent=2))
         sys.exit(0 if record["passed"] else 1)

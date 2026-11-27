@@ -6,8 +6,6 @@ from pathlib import Path
 import numpy as np
 from skfem import Basis, BilinearForm, ElementLineHermite, MeshLine, asm, condense, solve
 
-from gp_omni.opt.parallel.batchbo import batch_bo, batch_bo_config
-
 LENGTH_M = 0.6
 WIDTH_M = 0.045
 TIP_LOAD_N = 1_000
@@ -15,10 +13,12 @@ YOUNG_MODULUS_PA = 69e9
 DENSITY_KG_M3 = 2_700
 DEFLECTION_LIMIT_MM = 1.5
 REFERENCE_ROOT_MM = 60
+ROOT_HEIGHT_BOUNDS_MM = (45, 90)
+TIP_RATIO_BOUNDS = (0.5, 1.0)
 
 
-def analyze(root_height_mm: float, tip_ratio: float, elements: int = 24) -> tuple[float, float]:
-    """Return mass in kg and downward tip deflection in mm."""
+def solve_beam(root_height_mm: float, tip_ratio: float, elements: int = 24):
+    """Return the mass, Hermite basis, and displacement coefficients."""
     root_height = root_height_mm / 1_000
     tip_height = root_height * tip_ratio
     mesh = MeshLine(np.linspace(0, LENGTH_M, elements + 1)).with_boundaries(
@@ -37,6 +37,13 @@ def analyze(root_height_mm: float, tip_ratio: float, elements: int = 24) -> tupl
     load[tip] = -TIP_LOAD_N
     displacement = solve(*condense(asm(bending, basis), load, D=basis.get_dofs("root")))
     mass = DENSITY_KG_M3 * LENGTH_M * WIDTH_M * (root_height + tip_height) / 2
+    return mass, basis, displacement
+
+
+def analyze(root_height_mm: float, tip_ratio: float, elements: int = 24) -> tuple[float, float]:
+    """Return mass in kg and downward tip deflection in mm."""
+    mass, basis, displacement = solve_beam(root_height_mm, tip_ratio, elements)
+    tip = basis.get_dofs("tip").nodal["u"].item()
     return mass, -1_000 * displacement[tip]
 
 
@@ -47,6 +54,8 @@ def evaluate(x: np.ndarray) -> tuple[float, bool]:
 
 
 def main() -> None:
+    from gp_omni.opt.parallel.batchbo import batch_bo, batch_bo_config
+
     parser = ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="new directory for the BO campaign")
     args = parser.parse_args()
@@ -54,8 +63,8 @@ def main() -> None:
 
     config = batch_bo_config(
         model_name="cantilever",
-        x_lb=np.array([45 / REFERENCE_ROOT_MM, 0.5]),
-        x_ub=np.array([90 / REFERENCE_ROOT_MM, 1.0]),
+        x_lb=np.array([ROOT_HEIGHT_BOUNDS_MM[0] / REFERENCE_ROOT_MM, TIP_RATIO_BOUNDS[0]]),
+        x_ub=np.array([ROOT_HEIGHT_BOUNDS_MM[1] / REFERENCE_ROOT_MM, TIP_RATIO_BOUNDS[1]]),
         num_init_point=8,
         max_iter=16,
         exploit_size=2,

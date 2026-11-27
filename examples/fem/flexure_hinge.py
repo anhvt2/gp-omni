@@ -39,19 +39,28 @@ def end_rotation(result, facets) -> float:
     return float(-(axial * y * surface.dx).sum() / (y**2 * surface.dx).sum())
 
 
-def solve(design, mesh_scale):
-    neck, half_notch = design["neck_mm"], design["notch_length_mm"]
+def prepare_mesh(design, mesh_scale):
+    neck = design["neck_mm"]
+    half_notch = design["notch_length_mm"]
     height, width = design["height_mm"], design["width_mm"]
     fine = (
         (LENGTH / 2 - half_notch / 2, -height / 4, 0),
         (LENGTH / 2 + half_notch / 2, height / 4, width),
     )
-    mesh = build_mesh(
+    return build_mesh(
         lambda occ: geometry(occ, design),
         2.0 * mesh_scale,
         per_circle=24,
         refinements=[(*fine, min(max(neck / 1.5, 0.5), 1.2) * mesh_scale)],
     )
+
+
+def solve(design, mesh_scale):
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
+    half_notch = design["notch_length_mm"]
     tip = on_plane(mesh, 0, LENGTH)
     hinge = solid.structure(mesh, ALUMINUM, [solid.clamp(on_plane(mesh, 0, 0))])
     inertia = surface_integral(mesh, tip, lambda x: x[1] ** 2)
@@ -66,6 +75,8 @@ def solve(design, mesh_scale):
     )
     pulled = hinge.deform([solid.total_force(mesh, tip, (AXIAL_N, 0, 0))])
     sideways = hinge.deform([solid.total_force(mesh, tip, (0, 0, SIDE_N))])
+    if fields is not None:
+        fields.update(moment=bent, axial=pulled, out_of_plane=sideways)
     return {
         "rotational_stiffness_nm_rad": MOMENT_N_MM / rotation / 1_000,
         "stress_mpa": stress * DESIGN_ROTATION_RAD / rotation,

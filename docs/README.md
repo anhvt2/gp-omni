@@ -9,7 +9,7 @@ complete Bayesian optimization pipeline.
 | [Choose a model and workflow](use-cases.md) | Model switches, data formats, constraints, BO modes, and limitations |
 | [DAG co-kriging](dag-cokriging.md) | Hierarchical fidelities with multiple parents |
 | [Benchmark accuracy](test_function_accuracy.md) | Analytical test functions, regression results, and reproduction settings |
-| [Engineering design examples](../examples/README.md) | Solver-backed FEM and OpenFOAM optimization campaigns |
+| [Engineering design examples](../examples/README.md) | Solver-backed FEM and OpenFOAM optimization, mesh preparation, and publication figures |
 | [Configuration](../config/README.md) | Model, training, inference, and optimization defaults |
 | [Visual identity](visual_identity.md) | Repo icon, banner, palette, and naming |
 
