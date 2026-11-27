@@ -55,6 +55,10 @@ at the tip under the 1 kN load, above the 1.5 mm optimization limit.
 
 ## Pipe bend (CFD)
 
+The [pipe bend case guide](../cfd/cases/pipe/README.md) shows the mesh and solved
+field and gives the single command that generates both. The [CFD case index](../cfd/README.md)
+links to the same workflow for every OpenFOAM example.
+
 Run one case at the smoke level and retain its fields. Export only the final velocity
 field. The cross-section passes through the center plane at `y = 0 m` and the sampled
 line crosses the pipe radially at the middle of the bend.
@@ -99,7 +103,8 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 - A field is coloured by its scalar value or vector magnitude. Use the same
   `--range MIN MAX` across designs for a direct comparison. Colorbar extensions mark
   values outside the specified range. `--view` controls the direction toward the camera
-  and `--up` sets its vertical axis.
+  and `--up` sets its vertical axis. Use `--frame XMIN XMAX YMIN YMAX ZMIN ZMAX`
+  to frame a region of interest in native coordinates.
 - `--line` accepts two points in the full volume. `--samples` sets the number of
   uniformly spaced positions. The CSV includes coordinates and a validity mask.
   Samples outside the domain appear as gaps in the profile.
@@ -110,6 +115,7 @@ python3 examples/postprocessing/publication.py runs/pipe_mesh_figures
 - `field.png` and `field.tiff` default to 180 mm wide at 600 DPI. Set
   `--width-mm 85` on `publication.py` for a single-column figure.
   `profile.pdf`, `profile.svg`, and `profile.csv` are written when a line is requested.
+  `publication.py --preview` writes a compact PNG scene and, when sampled, a PNG profile.
 - Report the case, design, mesh level or mesh scale, field units, and slice or line
   coordinates with the figure. For engineering conclusions, check resolution,
   convergence and model validity for the intended operating conditions.

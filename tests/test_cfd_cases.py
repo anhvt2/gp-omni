@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "examples/cfd"))
 from cases import CASES
 from foam.case import SMOKE
 from foam.passage import axial_channel, blade_row, build_mesh, machine
+from periodic import annulus_copies
 
 TURBOMACHINERY = 23
 NEEDS_INSTALLATION = ("motorbike_benchmark",)
@@ -34,6 +35,14 @@ def test_periodic_faces_match_in_order_after_rotation():
         b = built.points[built.faces[second]]
         # the same first point, then the opposite sense
         np.testing.assert_allclose(a[[0, *range(len(a) - 1, 0, -1)]], b, atol=1e-9)
+
+
+@pytest.mark.parametrize("blades", [6, 12])
+def test_annulus_uses_the_pitch_of_the_saved_mesh(blades, tmp_path):
+    case = CASES["axial_fan_optimization"]
+    design = case.reference_design() | {"blade_count": blades}
+    case.build(tmp_path, design, SMOKE)
+    assert annulus_copies(tmp_path / "constant/polyMesh") == blades
 
 
 def test_rushton_blades_stay_inside_the_impeller(tmp_path):

@@ -123,6 +123,19 @@ def render(args):
     simple._DisableFirstRenderCameraReset()
     source = simple.XMLUnstructuredGridReader(FileName=[str(args.input.resolve())])
     source.UpdatePipeline()
+    if args.annulus_copies:
+        sector_cells = source.GetDataInformation().GetNumberOfCells()
+        sectors = simple.AngularPeriodicFilter(Input=source)
+        sectors.Axis = "Axis Z"
+        sectors.IterationMode = "Manual"
+        sectors.NumberOfPeriods = args.annulus_copies
+        sectors.RotationAngle = 360 / args.annulus_copies
+        sectors.ComputeRotationsOnTheFly = 0
+        source = simple.MergeBlocks(Input=sectors)
+        source.MergePoints = 0
+        source.UpdatePipeline()
+        if source.GetDataInformation().GetNumberOfCells() != sector_cells * args.annulus_copies:
+            raise ValueError("the periodic reconstruction did not produce the expected cell count")
     volume = servermanager.Fetch(source)
     if volume.GetNumberOfCells() == 0:
         raise ValueError(f"{args.input} contains no cells")
@@ -133,6 +146,8 @@ def render(args):
         visible = simple.Slice(Input=source)
         visible.SliceType.Origin = origin.tolist()
         visible.SliceType.Normal = unit(normal).tolist()
+        if not args.field:
+            visible.Triangulatetheslice = 0
         visible.UpdatePipeline()
     info = visible.GetDataInformation()
     if info.GetNumberOfCells() == 0:
@@ -149,7 +164,7 @@ def render(args):
     display.Ambient = 1
     display.Diffuse = 0
     direction = args.view or (args.slice[3:] if args.slice else (1, -1.5, 1.15))
-    view_width = frame(view, info.GetBounds(), direction, args.up)
+    view_width = frame(view, args.frame or info.GetBounds(), direction, args.up)
 
     stats = None
     if args.field:
@@ -212,6 +227,7 @@ def render(args):
     simple.SaveState(str(args.output / "scene.pvsm"))
     return {
         "input": str(args.input.resolve()),
+        **({"annulus_copies": args.annulus_copies} if args.annulus_copies else {}),
         "length_unit": args.length_unit,
         "field": stats,
         "versions": {
@@ -228,6 +244,7 @@ def render(args):
             "direction": list(direction),
             "up": list(view.CameraViewUp),
             "slice": args.slice,
+            "frame": args.frame,
         },
         "profile": profile_info,
     }
@@ -239,19 +256,35 @@ def main():
     parser.add_argument("output", type=Path, help="new figure directory")
     parser.add_argument("--field", help="VTU array name; omit for a mesh plot")
     parser.add_argument("--association", choices=("POINTS", "CELLS"), default="POINTS")
+    parser.add_argument(
+        "--annulus-copies", type=int, help="tile a cyclic sector about the z axis at the origin"
+    )
     parser.add_argument("--label", help="field label including units")
     parser.add_argument("--length-unit", required=True, help="native coordinate unit, e.g. mm or m")
     parser.add_argument("--slice", type=float, nargs=6, metavar="N", help="origin then normal")
     parser.add_argument("--view", type=float, nargs=3, metavar="N", help="direction toward camera")
     parser.add_argument("--up", type=float, nargs=3, metavar="N", help="camera up direction")
+    parser.add_argument(
+        "--frame",
+        type=float,
+        nargs=6,
+        metavar="N",
+        help="camera bounds as xmin xmax ymin ymax zmin zmax in native units",
+    )
     parser.add_argument("--range", type=float, nargs=2, metavar=("MIN", "MAX"))
     parser.add_argument("--line", type=float, nargs=6, metavar="N", help="profile start and end")
     parser.add_argument("--samples", type=int, default=401)
     args = parser.parse_args()
     if args.input.suffix.lower() != ".vtu" or not args.input.is_file():
         parser.error("input must be an existing VTU file")
+    if args.annulus_copies is not None and args.annulus_copies < 2:
+        parser.error("--annulus-copies must be at least two")
     if (args.line or args.range or args.label) and not args.field:
         parser.error("--line, --range and --label require --field")
+    if args.frame:
+        low, high = np.asarray(args.frame).reshape(3, 2).T
+        if not np.isfinite(args.frame).all() or (low > high).any() or not (low < high).any():
+            parser.error("--frame must specify finite, ordered bounds with positive extent")
     if args.samples < 2:
         parser.error("--samples must be at least 2")
     metadata = render(args)

@@ -23,7 +23,7 @@ def scale_length(width):
     return max(step * power for step in (1, 2, 5) if step * power <= target)
 
 
-def scene(directory, metadata, width_mm):
+def scene(directory, metadata, width_mm, preview=False):
     image = plt.imread(directory / "scene.png")
     aspect = image.shape[1] / image.shape[0]
     width = width_mm / 25.4
@@ -84,12 +84,15 @@ def scene(directory, metadata, width_mm):
         bar.outline.set_linewidth(0.45)
         bar.ax.tick_params(length=2.5, width=0.55, pad=2.5)
 
-    fig.savefig(directory / "field.png", dpi=DPI)
-    fig.savefig(directory / "field.tiff", dpi=DPI, pil_kwargs={"compression": "tiff_lzw"})
+    if preview:
+        fig.savefig(directory / "preview.png", dpi=155)
+    else:
+        fig.savefig(directory / "field.png", dpi=DPI)
+        fig.savefig(directory / "field.tiff", dpi=DPI, pil_kwargs={"compression": "tiff_lzw"})
     plt.close(fig)
 
 
-def profile(directory, metadata, width_mm):
+def profile(directory, metadata, width_mm, preview=False):
     rows = np.genfromtxt(directory / "profile.csv", delimiter=",", names=True)
     width = min(width_mm, 120) / 25.4
     fig, ax = plt.subplots(figsize=(width, width * 0.66), constrained_layout=True)
@@ -108,6 +111,8 @@ def profile(directory, metadata, width_mm):
     ax.grid(axis="y", color="#e4e9ed", linewidth=0.5)
     for extension in ("pdf", "svg"):
         fig.savefig(directory / f"profile.{extension}")
+    if preview:
+        fig.savefig(directory / "profile.png", dpi=205)
     plt.close(fig)
 
 
@@ -115,6 +120,7 @@ def main():
     parser = ArgumentParser(description=__doc__)
     parser.add_argument("figures", type=Path, help="directory from render.py")
     parser.add_argument("--width-mm", type=float, default=180, help="figure width in print")
+    parser.add_argument("--preview", action="store_true", help="write a compact PNG scene")
     args = parser.parse_args()
     if not math.isfinite(args.width_mm) or args.width_mm < 85:
         parser.error("--width-mm must be at least 85 mm")
@@ -133,9 +139,9 @@ def main():
             "svg.fonttype": "none",
         }
     )
-    scene(args.figures, metadata, args.width_mm)
+    scene(args.figures, metadata, args.width_mm, preview=args.preview)
     if metadata["profile"] is not None:
-        profile(args.figures, metadata, args.width_mm)
+        profile(args.figures, metadata, args.width_mm, preview=args.preview)
 
 
 if __name__ == "__main__":
