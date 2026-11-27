@@ -42,8 +42,15 @@ def geometry(occ, design):
     occ.cut(body, voids)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale, per_circle=20)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale, per_circle=20)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     small_axis = (CENTERS, 0, 0)
     big = on_cylinder(mesh, 2, (0, 0, 0), BIG_BORE)
     small = on_cylinder(mesh, 2, small_axis, SMALL_BORE)
@@ -52,6 +59,8 @@ def solve(design, mesh_scale):
     tension = rod.deform([bearing])
     side = solid.total_force(mesh, small, (0, 0, LATERAL_N))
     bending = rod.deform([side])
+    if fields is not None:
+        fields.update(tension=tension, lateral=bending)
     return {
         "mass_kg": solid.mass_kg(mesh, STEEL),
         "stress_mpa": solid.von_mises(tension).percentile(

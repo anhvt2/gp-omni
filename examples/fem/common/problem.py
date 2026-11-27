@@ -69,14 +69,17 @@ class design_problem:
             for v, u in zip(self.variables, x)
         }
 
-    def analyze(self, design: dict[str, float], mesh_scale: float = 1.0) -> dict[str, float]:
+    def check_design(self, design: Mapping[str, float], mesh_scale: float) -> None:
         if set(design) != {v.name for v in self.variables}:
             raise ValueError(f"{self.name} needs exactly the variables of its definition")
         for v in self.variables:
             if not v.lower <= design[v.name] <= v.upper:
                 raise ValueError(f"{v.name} must lie in [{v.lower}, {v.upper}]")
-        if not mesh_scale > 0:
-            raise ValueError("mesh_scale must be positive")
+        if not np.isfinite(mesh_scale) or mesh_scale <= 0:
+            raise ValueError("mesh_scale must be finite and positive")
+
+    def analyze(self, design: dict[str, float], mesh_scale: float = 1.0) -> dict[str, float]:
+        self.check_design(design, mesh_scale)
         return self.solve(dict(design), mesh_scale)
 
     def is_feasible(self, metrics: metrics_map) -> bool:

@@ -36,14 +36,23 @@ def geometry(occ, design):
     occ.cut(outer, voids)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     tip = on_plane(mesh, 0, LENGTH)
     thrust = solid.total_force(mesh, tip, (0, 0, THRUST_N))
     arm = solid.structure(mesh, ALUMINUM, [solid.clamp(on_plane(mesh, 0, 0))])
     lifted = arm.deform([thrust])
     struck = arm.deform([solid.total_force(mesh, tip, (0, SIDE_IMPACT_N, 0))])
     frequency = arm.frequencies(point_masses=[(tip, MOTOR_MASS_T)])[0]
+    if fields is not None:
+        fields.update(thrust=lifted, side_impact=struck)
     return {
         "mass_kg": solid.mass_kg(mesh, ALUMINUM),
         "deflection_mm": float(solid.mean_displacement(lifted, tip)[2]),

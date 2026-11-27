@@ -36,8 +36,15 @@ def geometry(occ, design):
     occ.intersect(body, quarter)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 9.0 * mesh_scale, per_circle=24)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 9.0 * mesh_scale, per_circle=24)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     vessel_wall = on_cylinder(mesh, 0, (0, 0, 0), INNER_RADIUS)
     bore = on_cylinder(
         mesh,
@@ -58,7 +65,10 @@ def solve(design, mesh_scale):
         solid.total_force(mesh, end, (PRESSURE_MPA * np.pi * INNER_RADIUS**2 / 2, 0, 0)),
         solid.total_force(mesh, nozzle_end, (0, 0, PRESSURE_MPA * np.pi * BORE_RADIUS**2 / 4)),
     ]
-    stress = solid.von_mises(solid.solve_static(mesh, STEEL, fixed, loads))
+    result = solid.solve_static(mesh, STEEL, fixed, loads)
+    stress = solid.von_mises(result)
+    if fields is not None:
+        fields.update(pressure=result)
     return {
         "mass_kg": 4 * solid.mass_kg(mesh, STEEL),
         "stress_mpa": stress.percentile(

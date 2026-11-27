@@ -33,8 +33,15 @@ def geometry(occ, design):
     occ.fuse(plate, pins)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 2.5 * mesh_scale, per_circle=8)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 2.5 * mesh_scale, per_circle=8)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     bottom = on_plane(mesh, 2, 0)
     exposed = np.setdiff1d(mesh.boundary_facets(), bottom)
     gap = design["pitch_mm"] - design["pin_diameter_mm"]
@@ -47,6 +54,8 @@ def solve(design, mesh_scale):
         fluxes=[thermal.power_input(bottom, POWER_W, thermal.rectangle(span, span))],
         convections=[(exposed, film, 0.0)],
     )
+    if fields is not None:
+        fields.update(temperature_rise=temperature)
     return {
         "temperature_rise_k": temperature.maximum(),
         "mass_kg": solid.mass_kg(mesh, ALUMINUM),

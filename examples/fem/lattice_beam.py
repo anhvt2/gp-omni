@@ -42,17 +42,26 @@ def geometry(occ, design):
     occ.fuse(faces, trimmed)
 
 
-def solve(design, mesh_scale):
-    mesh = build_mesh(
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(
         lambda occ: geometry(occ, design),
         2.5 * mesh_scale,
         per_circle=8,
         boolean_tolerance=1e-5,  # four equal struts meet at each apex
     )
+
+
+def solve(design, mesh_scale):
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     tip = on_plane(mesh, 0, LENGTH)
     load = solid.total_force(mesh, tip, (0, 0, -LOAD_N))
     beam = solid.structure(mesh, ALUMINUM, [solid.clamp(on_plane(mesh, 0, 0))])
     result = beam.deform([load])
+    if fields is not None:
+        fields.update(tip_load=result)
     return {
         "mass_kg": solid.mass_kg(mesh, ALUMINUM),
         "deflection_mm": float(-solid.mean_displacement(result, tip)[2]),

@@ -47,8 +47,15 @@ def geometry(occ, design):
     occ.cut(plate, channels)
 
 
+def prepare_mesh(design, mesh_scale):
+    return build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+
+
 def solve(design, mesh_scale):
-    mesh = build_mesh(lambda occ: geometry(occ, design), 3.5 * mesh_scale)
+    return solve_mesh(design, prepare_mesh(design, mesh_scale))
+
+
+def solve_mesh(design, mesh, fields=None):
     radius, thickness = design["channel_diameter_mm"] / 2, design["thickness_mm"]
     top = on_plane(mesh, 2, thickness)
     wetted = np.union1d(*(on_cylinder(mesh, 0, (0, y, z), radius) for y, z in channel_axes(design)))
@@ -60,6 +67,8 @@ def solve(design, mesh_scale):
     temperature = thermal.solve_conduction(
         mesh, ALUMINUM_CONDUCTIVITY_W_MM_K, fluxes=chips, convections=[(wetted, film, 0.0)]
     )
+    if fields is not None:
+        fields.update(temperature_rise=temperature)
     return {
         "temperature_rise_k": temperature.maximum(),
         "pressure_drop_kpa": drop,
