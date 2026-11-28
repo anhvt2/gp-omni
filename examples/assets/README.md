@@ -16,3 +16,5 @@ and attribution. See the [case provenance](../cfd/pump_case/README.md) and
 
 `heat_sink_temperature.png` and `pipe_bend_speed.png` are reduced previews of the
 field figures produced by the [post-processing workflows](../postprocessing/README.md).
+`cantilever_deflection.png` is the `profile.png` produced by the [cantilever workflow](../postprocessing/README.md#cantilever-fem)
+when `publication.py` is run with `--preview`.
